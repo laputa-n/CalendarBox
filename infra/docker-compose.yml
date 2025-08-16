@@ -1,0 +1,26 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: calendarbox
+    environment:
+      POSTGRES_DB: calendarbox_db
+      POSTGRES_USER: calendarbox_user
+      POSTGRES_PASSWORD: calendarbox_password
+    ports: ["5432:5432"]        # 포트 충돌 시 왼쪽 숫자를 5433 등으로 변경
+    volumes: [pg_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U calendarbox_user -d calendarbox_db"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    container_name: calendarbox_redis
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  pg_data:
