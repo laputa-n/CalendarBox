@@ -1,0 +1,244 @@
+-- ============================================
+-- V1__init.sql
+-- 초기 스키마 (Flyway migration)
+-- ============================================
+
+-- MEMBER
+CREATE TABLE member (
+                        member_id BIGSERIAL PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        email TEXT UNIQUE,
+                        phone_number TEXT NOT NULL,
+                        created_at TIMESTAMPTZ NOT NULL,
+                        deleted_at TIMESTAMPTZ,
+                        last_login_at TIMESTAMPTZ
+);
+
+-- KAKAO ACCOUNT (1:1 with member)
+CREATE TABLE kakao_account (
+                               kakao_account_id BIGSERIAL PRIMARY KEY,
+                               member_id BIGINT NOT NULL UNIQUE,
+                               connected_at TIMESTAMPTZ NOT NULL,
+                               refresh_token TEXT NOT NULL,
+                               profile_json JSONB NOT NULL,
+                               CONSTRAINT fk_kakao_member FOREIGN KEY (member_id) REFERENCES member(member_id)
+);
+
+-- CALENDAR
+CREATE TABLE calendar (
+                          calendar_id BIGSERIAL PRIMARY KEY,
+                          owner_id BIGINT NOT NULL,
+                          name TEXT NOT NULL,
+                          is_shared BOOLEAN NOT NULL DEFAULT FALSE,
+                          created_at TIMESTAMPTZ NOT NULL,
+                          updated_at TIMESTAMPTZ NOT NULL,
+                          CONSTRAINT fk_calendar_owner FOREIGN KEY (owner_id) REFERENCES member(member_id)
+);
+
+-- CALENDAR_MEMBER
+CREATE TABLE calendar_member (
+                                 calendar_member_id BIGSERIAL PRIMARY KEY,
+                                 calendar_id BIGINT NOT NULL,
+                                 member_id BIGINT NOT NULL,
+                                 member_role VARCHAR(100) NOT NULL,
+                                 joined_at TIMESTAMPTZ NOT NULL,
+                                 CONSTRAINT fk_calendar_member_calendar FOREIGN KEY (calendar_id) REFERENCES calendar(calendar_id),
+                                 CONSTRAINT fk_calendar_member_member FOREIGN KEY (member_id) REFERENCES member(member_id),
+                                 CONSTRAINT uq_calendar_member UNIQUE (calendar_id, member_id)
+);
+
+-- FRIENDSHIP
+CREATE TABLE friendship (
+                            friendship_id BIGSERIAL PRIMARY KEY,
+                            requester_id BIGINT NOT NULL,
+                            addressee_id BIGINT NOT NULL,
+                            status VARCHAR(100) NOT NULL,
+                            created_at TIMESTAMPTZ NOT NULL,
+                            responded_at TIMESTAMPTZ,
+                            CONSTRAINT fk_friendship_member1 FOREIGN KEY (requester_id) REFERENCES member(member_id),
+                            CONSTRAINT fk_friendship_member2 FOREIGN KEY (addressee_id) REFERENCES member(member_id),
+                            CONSTRAINT uq_friendship UNIQUE (requester_id, addressee_id)
+);
+
+-- NOTIFICATION
+CREATE TABLE notification (
+                              notification_id BIGSERIAL PRIMARY KEY,
+                              member_id BIGINT NOT NULL,
+                              category VARCHAR(100) NOT NULL,
+                              payload_json JSONB NOT NULL,
+                              read_at TIMESTAMPTZ,
+                              created_at TIMESTAMPTZ NOT NULL,
+                              CONSTRAINT fk_notification_member FOREIGN KEY (member_id) REFERENCES member(member_id)
+);
+
+-- PLACE
+CREATE TABLE place (
+                       place_id BIGSERIAL PRIMARY KEY,
+                       name TEXT NOT NULL,
+                       category VARCHAR(100),
+                       opening_hours_json JSONB,
+                       geo_lat NUMERIC(9,6) NOT NULL,
+                       geo_long NUMERIC(9,6) NOT NULL,
+                       created_at TIMESTAMPTZ NOT NULL,
+                       updated_at TIMESTAMPTZ NOT NULL,
+                       link_url TEXT
+);
+
+-- SCHEDULE
+CREATE TABLE schedule (
+                          schedule_id BIGSERIAL PRIMARY KEY,
+                          calendar_id BIGINT NOT NULL,
+                          name TEXT NOT NULL,
+                          memo TEXT,
+                          theme VARCHAR(100),
+                          start_at TIMESTAMPTZ NOT NULL,
+                          end_at TIMESTAMPTZ NOT NULL,
+                          link_url TEXT,
+                          created_by BIGINT NOT NULL,
+                          updated_by BIGINT,
+                          created_at TIMESTAMPTZ NOT NULL,
+                          updated_at TIMESTAMPTZ NOT NULL,
+                          CONSTRAINT fk_schedule_calendar FOREIGN KEY (calendar_id) REFERENCES calendar(calendar_id)
+);
+
+-- SCHEDULE_PARTICIPANT
+CREATE TABLE schedule_participant (
+                                      schedule_participant_id BIGSERIAL PRIMARY KEY,
+                                      schedule_id BIGINT NOT NULL,
+                                      member_id BIGINT NOT NULL,
+                                      status VARCHAR(100) NOT NULL,
+                                      invited_at TIMESTAMPTZ NOT NULL,
+                                      responded_at TIMESTAMPTZ,
+                                      CONSTRAINT fk_schedule_participant_schedule FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id),
+                                      CONSTRAINT fk_schedule_participant_member FOREIGN KEY (member_id) REFERENCES member(member_id),
+                                      CONSTRAINT uq_schedule_participant UNIQUE (schedule_id, member_id)
+);
+
+-- SCHEDULE_TODO
+CREATE TABLE schedule_todo (
+                               schedule_todo_id BIGSERIAL PRIMARY KEY,
+                               schedule_id BIGINT NOT NULL,
+                               content TEXT NOT NULL,
+                               is_done BOOLEAN NOT NULL DEFAULT FALSE,
+                               order_no INTEGER NOT NULL,
+                               created_at TIMESTAMPTZ NOT NULL,
+                               updated_at TIMESTAMPTZ NOT NULL,
+                               CONSTRAINT fk_schedule_todo FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id)
+);
+
+-- SCHEDULE_REMINDER
+CREATE TABLE schedule_reminder (
+                                   schedule_reminder_id BIGSERIAL PRIMARY KEY,
+                                   schedule_id BIGINT NOT NULL,
+                                   minutes_before INTEGER NOT NULL,
+                                   created_at TIMESTAMPTZ NOT NULL,
+                                   CONSTRAINT fk_schedule_reminder FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id)
+);
+
+-- SCHEDULE_RECURRENCE
+CREATE TABLE schedule_recurrence (
+                                     schedule_recurrence_id BIGSERIAL PRIMARY KEY,
+                                     schedule_id BIGINT NOT NULL,
+                                     freq VARCHAR(50) NOT NULL DEFAULT 'DAILY',
+                                     interval INT,
+                                     by_day VARCHAR(20),
+                                     by_monthday INT,
+                                     by_month INT,
+                                     created_at TIMESTAMPTZ NOT NULL,
+                                     end_at TIMESTAMPTZ,
+                                     CONSTRAINT fk_schedule_recurrence FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id)
+);
+
+-- SCHEDULE_RECURRENCE_EXCEPTION
+CREATE TABLE schedule_recurrence_exception (
+                                               exception_id BIGSERIAL PRIMARY KEY,
+                                               schedule_recurrence_id BIGINT NOT NULL,
+                                               exception_date DATE NOT NULL,
+                                               created_at TIMESTAMPTZ NOT NULL,
+                                               CONSTRAINT fk_recurrence_exception FOREIGN KEY (schedule_recurrence_id) REFERENCES schedule_recurrence(schedule_recurrence_id)
+);
+
+-- SCHEDULE_PLACE
+CREATE TABLE schedule_place (
+                                schedule_place_id BIGSERIAL PRIMARY KEY,
+                                schedule_id BIGINT NOT NULL,
+                                place_id BIGINT NOT NULL,
+                                created_at TIMESTAMPTZ NOT NULL,
+                                place_name TEXT NOT NULL,
+                                CONSTRAINT fk_schedule_place_schedule FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id),
+                                CONSTRAINT fk_schedule_place_place FOREIGN KEY (place_id) REFERENCES place(place_id)
+);
+
+-- ATTACHMENT
+CREATE TABLE attachment (
+                            attachment_id BIGSERIAL PRIMARY KEY,
+                            file_url TEXT NOT NULL,
+                            category VARCHAR(100) NOT NULL,
+                            size BIGINT NOT NULL,
+                            added_by BIGINT NOT NULL,
+                            added_at TIMESTAMPTZ NOT NULL,
+                            CONSTRAINT fk_attachment_member FOREIGN KEY (added_by) REFERENCES member(member_id)
+);
+
+-- SCHEDULE_ATTACHMENT
+CREATE TABLE schedule_attachment (
+                                     schedule_attachment_id BIGSERIAL PRIMARY KEY,
+                                     schedule_id BIGINT NOT NULL,
+                                     attachment_id BIGINT NOT NULL,
+                                     created_at TIMESTAMPTZ NOT NULL,
+                                     CONSTRAINT fk_schedule_attachment_schedule FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id),
+                                     CONSTRAINT fk_schedule_attachment_attachment FOREIGN KEY (attachment_id) REFERENCES attachment(attachment_id)
+);
+
+-- EXPENSE
+CREATE TABLE expense (
+                         expense_id BIGSERIAL PRIMARY KEY,
+                         schedule_id BIGINT NOT NULL,
+                         calendar_id BIGINT NOT NULL,
+                         payer_id BIGINT NOT NULL,
+                         payer_name TEXT NOT NULL,
+                         amount DECIMAL(12,2) NOT NULL,
+                         source VARCHAR(100),
+                         paid_at TIMESTAMPTZ NOT NULL,
+                         created_at TIMESTAMPTZ NOT NULL,
+                         CONSTRAINT fk_expense_schedule FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id),
+                         CONSTRAINT fk_expense_calendar FOREIGN KEY (calendar_id) REFERENCES calendar(calendar_id),
+                         CONSTRAINT fk_expense_member FOREIGN KEY (payer_id) REFERENCES member(member_id)
+);
+
+-- EXPENSE_SHARE
+CREATE TABLE expense_share (
+                               expense_share_id BIGSERIAL PRIMARY KEY,
+                               expense_id BIGINT NOT NULL,
+                               member_id BIGINT NOT NULL,
+                               share_amount DECIMAL(12,2) NOT NULL,
+                               CONSTRAINT fk_expense_share_expense FOREIGN KEY (expense_id) REFERENCES expense(expense_id),
+                               CONSTRAINT fk_expense_share_member FOREIGN KEY (member_id) REFERENCES member(member_id)
+);
+
+-- RECEIPT
+CREATE TABLE receipt (
+                         receipt_id BIGSERIAL PRIMARY KEY,
+                         expense_id BIGINT NOT NULL,
+                         attachment_id BIGINT NOT NULL,
+                         vendor_name TEXT NOT NULL,
+                         vat DECIMAL(12,2) NOT NULL,
+                         items_json JSONB NOT NULL,
+                         created_at TIMESTAMPTZ NOT NULL,
+                         paid_at TIMESTAMPTZ NOT NULL,
+                         CONSTRAINT fk_receipt_expense FOREIGN KEY (expense_id) REFERENCES expense(expense_id),
+                         CONSTRAINT fk_receipt_attachment FOREIGN KEY (attachment_id) REFERENCES attachment(attachment_id)
+);
+
+-- CALENDAR_HISTORY
+CREATE TABLE calendar_history (
+                                  calendar_history_id BIGSERIAL PRIMARY KEY,
+                                  calendar_id BIGINT NOT NULL,
+                                  schedule_id BIGINT,
+                                  category VARCHAR(100) NOT NULL,
+                                  action VARCHAR(100) NOT NULL,
+                                  created_at TIMESTAMPTZ NOT NULL,
+                                  CONSTRAINT fk_history_calendar FOREIGN KEY (calendar_id) REFERENCES calendar(calendar_id),
+                                  CONSTRAINT fk_history_schedule FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id)
+);
+
