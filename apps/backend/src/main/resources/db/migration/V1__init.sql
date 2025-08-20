@@ -30,6 +30,7 @@ CREATE TABLE calendar (
                           owner_id BIGINT NOT NULL,
                           name TEXT NOT NULL,
                           is_shared BOOLEAN NOT NULL DEFAULT FALSE,
+                          is_visible BOOLEAN NOT NULL DEFAULT TRUE,
                           created_at TIMESTAMPTZ NOT NULL,
                           updated_at TIMESTAMPTZ NOT NULL,
                           CONSTRAINT fk_calendar_owner FOREIGN KEY (owner_id) REFERENCES member(member_id)
@@ -40,8 +41,9 @@ CREATE TABLE calendar_member (
                                  calendar_member_id BIGSERIAL PRIMARY KEY,
                                  calendar_id BIGINT NOT NULL,
                                  member_id BIGINT NOT NULL,
-                                 member_role VARCHAR(100) NOT NULL,
-                                 joined_at TIMESTAMPTZ NOT NULL,
+                                 status VARCHAR(30) NOT NULL,
+                                 created_at TIMESTAMPTZ NOT NULL,
+                                 responded_at TIMESTAMPTZ,
                                  CONSTRAINT fk_calendar_member_calendar FOREIGN KEY (calendar_id) REFERENCES calendar(calendar_id),
                                  CONSTRAINT fk_calendar_member_member FOREIGN KEY (member_id) REFERENCES member(member_id),
                                  CONSTRAINT uq_calendar_member UNIQUE (calendar_id, member_id)
@@ -74,26 +76,28 @@ CREATE TABLE notification (
 -- PLACE
 CREATE TABLE place (
                        place_id BIGSERIAL PRIMARY KEY,
-                       name TEXT NOT NULL,
+                       title TEXT NOT NULL,
+                       link TEXT,
                        category VARCHAR(100),
-                       opening_hours_json JSONB,
-                       geo_lat NUMERIC(9,6) NOT NULL,
-                       geo_long NUMERIC(9,6) NOT NULL,
+                       description TEXT,
+                       address TEXT,
+                       road_address TEXT,
+                       map_x NUMERIC(9,6) NOT NULL,
+                       map_y NUMERIC(9,6) NOT NULL,
                        created_at TIMESTAMPTZ NOT NULL,
-                       updated_at TIMESTAMPTZ NOT NULL,
-                       link_url TEXT
+                       updated_at TIMESTAMPTZ NOT NULL
 );
 
 -- SCHEDULE
 CREATE TABLE schedule (
                           schedule_id BIGSERIAL PRIMARY KEY,
                           calendar_id BIGINT NOT NULL,
-                          name TEXT NOT NULL,
+                          title TEXT NOT NULL,
                           memo TEXT,
                           theme VARCHAR(100),
                           start_at TIMESTAMPTZ NOT NULL,
                           end_at TIMESTAMPTZ NOT NULL,
-                          link_url TEXT,
+                          external_link_url TEXT,
                           created_by BIGINT NOT NULL,
                           updated_by BIGINT,
                           created_at TIMESTAMPTZ NOT NULL,
@@ -105,13 +109,15 @@ CREATE TABLE schedule (
 CREATE TABLE schedule_participant (
                                       schedule_participant_id BIGSERIAL PRIMARY KEY,
                                       schedule_id BIGINT NOT NULL,
-                                      member_id BIGINT NOT NULL,
-                                      status VARCHAR(100) NOT NULL,
+                                      member_id BIGINT,
+                                      name TEXT,
                                       invited_at TIMESTAMPTZ NOT NULL,
                                       responded_at TIMESTAMPTZ,
+                                      is_copied BOOLEAN NOT NULL DEFAULT FALSE,
                                       CONSTRAINT fk_schedule_participant_schedule FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id),
                                       CONSTRAINT fk_schedule_participant_member FOREIGN KEY (member_id) REFERENCES member(member_id),
-                                      CONSTRAINT uq_schedule_participant UNIQUE (schedule_id, member_id)
+                                      CONSTRAINT uq_schedule_participant UNIQUE (schedule_id, member_id),
+                                      CONSTRAINT uq_schedule_participant2 UNIQUE (schedule_id, name)
 );
 
 -- SCHEDULE_TODO
@@ -162,9 +168,9 @@ CREATE TABLE schedule_recurrence_exception (
 CREATE TABLE schedule_place (
                                 schedule_place_id BIGSERIAL PRIMARY KEY,
                                 schedule_id BIGINT NOT NULL,
-                                place_id BIGINT NOT NULL,
+                                place_id BIGINT,
                                 created_at TIMESTAMPTZ NOT NULL,
-                                place_name TEXT NOT NULL,
+                                name TEXT,
                                 CONSTRAINT fk_schedule_place_schedule FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id),
                                 CONSTRAINT fk_schedule_place_place FOREIGN KEY (place_id) REFERENCES place(place_id)
 );
@@ -173,6 +179,7 @@ CREATE TABLE schedule_place (
 CREATE TABLE attachment (
                             attachment_id BIGSERIAL PRIMARY KEY,
                             file_url TEXT NOT NULL,
+                            thumbnail_url TEXT,
                             category VARCHAR(100) NOT NULL,
                             size BIGINT NOT NULL,
                             added_by BIGINT NOT NULL,
@@ -235,10 +242,14 @@ CREATE TABLE calendar_history (
                                   calendar_history_id BIGSERIAL PRIMARY KEY,
                                   calendar_id BIGINT NOT NULL,
                                   schedule_id BIGINT,
-                                  category VARCHAR(100) NOT NULL,
+                                  member_id BIGINT NOT NULL,
                                   action VARCHAR(100) NOT NULL,
+                                  field VARCHAR(100) NOT NULL,
+                                  old_value TEXT,
+                                  new_value TEXT,
                                   created_at TIMESTAMPTZ NOT NULL,
                                   CONSTRAINT fk_history_calendar FOREIGN KEY (calendar_id) REFERENCES calendar(calendar_id),
-                                  CONSTRAINT fk_history_schedule FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id)
+                                  CONSTRAINT fk_history_schedule FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id),
+                                  CONSTRAINT fk_history_member FOREIGN KEY (member_id) REFERENCES member(member_id)
 );
 
