@@ -45,7 +45,7 @@ jobs:
           set -euo pipefail
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          ssh-keyscan -T 20 -p 22 -t rsa,ecdsa -H "$EC2_HOST" >> ~/.ssh/known_hosts
+          ssh-keyscan -T 20 -p 22 -t rsa,ecdsa,ed25519 -H "$EC2_HOST" >> ~/.ssh/known_hosts
           test -s ~/.ssh/known_hosts || { echo "ssh-keyscan produced empty known_hosts"; exit 1; }
 
       - name: Remote deploy (build JAR & restart service)
