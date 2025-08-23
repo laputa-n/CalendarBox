@@ -14,4 +14,5 @@ jobs:
       - name: Gradle build (with tests)
         run: |
           cd apps/backend
+          chmod +x gradlew         # ← 실행권한 부여
           ./gradlew clean build --no-daemon
