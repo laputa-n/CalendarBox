@@ -7,12 +7,17 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
+          cache: 'gradle'        # ✅ Gradle 캐시 활성화 (wrapper + deps)
+
+      - name: Grant execute permission to gradlew
+        working-directory: apps/backend
+        run: chmod +x gradlew    # CI에서 가끔 권한 없는 경우 대비
+
       - name: Gradle build (with tests)
-        run: |
-          cd apps/backend
-          chmod +x gradlew         # ← 실행권한 부여
-          ./gradlew clean build --no-daemon
+        working-directory: apps/backend
+        run: ./gradlew clean build --no-daemon
