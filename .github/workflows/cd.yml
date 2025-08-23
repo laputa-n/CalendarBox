@@ -24,6 +24,7 @@ jobs:
           set -euo pipefail
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
+          # CRLF 제거 후 저장
           printf "%s" "${{ secrets.EC2_SSH_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
@@ -37,6 +38,8 @@ jobs:
           timeout 10 bash -lc 'cat < /dev/null > /dev/tcp/$EC2_HOST/22' \
             && echo "22 open" || (echo "22 closed"; exit 1)
 
+      # ⛔️ known_hosts/ssh-keyscan 단계 제거
+
       - name: Remote deploy (build JAR & restart service)
         shell: bash
         env:
@@ -44,7 +47,8 @@ jobs:
           EC2_USER: ${{ secrets.EC2_USER }}
         run: |
           set -euo pipefail
-          ssh -i ~/.ssh/id_rsa \
+          # 처음 연결 시에만 호스트키 자동 등록, 이후 바뀌면 차단
+          ssh -vvv -i ~/.ssh/id_rsa \
               -o ConnectTimeout=20 \
               -o ServerAliveInterval=15 \
               -o UserKnownHostsFile=~/.ssh/known_hosts \
