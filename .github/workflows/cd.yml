@@ -37,17 +37,6 @@ jobs:
           timeout 10 bash -lc 'cat < /dev/null > /dev/tcp/$EC2_HOST/22' \
             && echo "22 open" || (echo "22 closed"; exit 1)
 
-      - name: Add EC2 host to known_hosts
-        shell: bash
-        env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-        run: |
-          set -euo pipefail
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          ssh-keyscan -T 20 -p 22 -t rsa,ecdsa,ed25519 -H "$EC2_HOST" >> ~/.ssh/known_hosts
-          test -s ~/.ssh/known_hosts || { echo "ssh-keyscan produced empty known_hosts"; exit 1; }
-
       - name: Remote deploy (build JAR & restart service)
         shell: bash
         env:
@@ -56,10 +45,10 @@ jobs:
         run: |
           set -euo pipefail
           ssh -i ~/.ssh/id_rsa \
-          -o ConnectTimeout=20 \
-          -o ServerAliveInterval=15 \
-          -o StrictHostKeyChecking=yes \
-          "$EC2_USER@$EC2_HOST" \
-          "bash -lc 'set -euo pipefail; /srv/calendarbox/deploy.sh; \
-          curl -sf http://localhost:8080/actuator/health >/dev/null; echo Health OK'"
-
+              -o ConnectTimeout=20 \
+              -o ServerAliveInterval=15 \
+              -o UserKnownHostsFile=~/.ssh/known_hosts \
+              -o StrictHostKeyChecking=accept-new \
+              "$EC2_USER@$EC2_HOST" \
+              "bash -lc 'set -euo pipefail; /srv/calendarbox/deploy.sh; \
+              curl -sf http://localhost:8080/actuator/health >/dev/null; echo Health OK'"
