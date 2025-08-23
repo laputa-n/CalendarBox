@@ -56,12 +56,10 @@ jobs:
         run: |
           set -euo pipefail
           ssh -i ~/.ssh/id_rsa \
-              -o ConnectTimeout=20 \
-              -o ServerAliveInterval=15 \
-              -o StrictHostKeyChecking=yes \
-              "$EC2_USER@$EC2_HOST" 'bash -s' <<'EOF'
-          set -euo pipefail
-          /srv/calendarbox/deploy.sh
-          curl -sf http://localhost:8080/actuator/health > /dev/null
-          echo "Health OK"
-EOF
+          -o ConnectTimeout=20 \
+          -o ServerAliveInterval=15 \
+          -o StrictHostKeyChecking=yes \
+          "$EC2_USER@$EC2_HOST" \
+          "bash -lc 'set -euo pipefail; /srv/calendarbox/deploy.sh; \
+          curl -sf http://localhost:8080/actuator/health >/dev/null; echo Health OK'"
+
