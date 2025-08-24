@@ -28,18 +28,25 @@ jobs:
           printf "%s" "${{ secrets.EC2_SSH_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-      - name: Verify SSH port open
+      # 22가 닫혀 있으면 2222로 자동 폴백
+      - name: Detect SSH port (22 -> 2222 fallback)
         shell: bash
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
           set -euo pipefail
-          echo "Testing TCP 22 to $EC2_HOST ..."
-          timeout 10 bash -lc 'cat < /dev/null > /dev/tcp/$EC2_HOST/22' \
-            && echo "22 open" || (echo "22 closed"; exit 1)
+          echo "Probing SSH port on $EC2_HOST ..."
+          if timeout 8 bash -lc 'cat < /dev/null > /dev/tcp/$EC2_HOST/22' 2>/dev/null; then
+            echo "EC2_SSH_PORT=22" >> "$GITHUB_ENV"
+            echo "Using port 22"
+          elif timeout 8 bash -lc 'cat < /dev/null > /dev/tcp/$EC2_HOST/2222' 2>/dev/null; then
+            echo "EC2_SSH_PORT=2222" >> "$GITHUB_ENV"
+            echo "Using port 2222"
+          else
+            echo "Neither 22 nor 2222 is reachable"; exit 1
+          fi
 
-      # ⛔️ known_hosts/ssh-keyscan 단계 제거
-
+      # ssh-keyscan 없이, 최초 접속만 accept-new 로 host key 등록
       - name: Remote deploy (build JAR & restart service)
         shell: bash
         env:
@@ -47,25 +54,34 @@ jobs:
           EC2_USER: ${{ secrets.EC2_USER }}
         run: |
           set -euo pipefail
-          ssh -tt \
+          : "${EC2_SSH_PORT:?EC2_SSH_PORT not set}"
+
+          ssh \
+            -p "$EC2_SSH_PORT" \
             -i ~/.ssh/id_rsa \
             -o ConnectTimeout=60 \
             -o ServerAliveInterval=15 \
-            -o ServerAliveCountMax=40 \
+            -o ServerAliveCountMax=20 \
             -o IPQoS=none \
             -o UserKnownHostsFile=~/.ssh/known_hosts \
             -o StrictHostKeyChecking=accept-new \
+            -o RequestTTY=no \
             "$EC2_USER@$EC2_HOST" \
-            "bash -lc 'set -euo pipefail
+            "bash -lc '
+              set -euo pipefail
               export DEBIAN_FRONTEND=noninteractive
-              # 1) 비대화형 sudo 강제 (비번 요구되면 즉시 실패)
               alias sudo=\"sudo -n\"
 
-              # 2) 출력 버퍼링 해제
-              command -v stdbuf >/dev/null 2>&1 || sudo -n apt-get update -y && sudo -n apt-get install -y coreutils
+              # coreutils(stdbuf) 없으면 설치
+              if ! command -v stdbuf >/dev/null 2>&1; then
+                sudo apt-get update -y
+                sudo apt-get install -y coreutils
+              fi
+
+              # 배포 스크립트 실행(출력 버퍼링 해제)
               stdbuf -oL -eL /srv/calendarbox/deploy.sh
 
-              # 3) 헬스체크
+              # 헬스체크
               curl -sf http://localhost:8080/actuator/health >/dev/null
               echo Health OK
             '"
