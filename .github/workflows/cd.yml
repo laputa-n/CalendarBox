@@ -47,12 +47,25 @@ jobs:
           EC2_USER: ${{ secrets.EC2_USER }}
         run: |
           set -euo pipefail
-          # 처음 연결 시에만 호스트키 자동 등록, 이후 바뀌면 차단
-          ssh -vvv -i ~/.ssh/id_rsa \
-              -o ConnectTimeout=20 \
-              -o ServerAliveInterval=15 \
-              -o UserKnownHostsFile=~/.ssh/known_hosts \
-              -o StrictHostKeyChecking=accept-new \
-              "$EC2_USER@$EC2_HOST" \
-              "bash -lc 'set -euo pipefail; /srv/calendarbox/deploy.sh; \
-              curl -sf http://localhost:8080/actuator/health >/dev/null; echo Health OK'"
+          ssh -tt \
+            -i ~/.ssh/id_rsa \
+            -o ConnectTimeout=60 \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=40 \
+            -o IPQoS=none \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -o StrictHostKeyChecking=accept-new \
+            "$EC2_USER@$EC2_HOST" \
+            "bash -lc 'set -euo pipefail
+              export DEBIAN_FRONTEND=noninteractive
+              # 1) 비대화형 sudo 강제 (비번 요구되면 즉시 실패)
+              alias sudo=\"sudo -n\"
+
+              # 2) 출력 버퍼링 해제
+              command -v stdbuf >/dev/null 2>&1 || sudo -n apt-get update -y && sudo -n apt-get install -y coreutils
+              stdbuf -oL -eL /srv/calendarbox/deploy.sh
+
+              # 3) 헬스체크
+              curl -sf http://localhost:8080/actuator/health >/dev/null
+              echo Health OK
+            '"
