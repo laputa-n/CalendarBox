@@ -1,29 +1,74 @@
 package com.calendarbox.backend.global.error;
 
-import org.springframework.http.HttpStatus;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.text.MessageFormat;
 import java.time.Instant;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-    record ErrorBody(String code, String message, Instant timestamp) {}
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    ErrorBody handleValidation(MethodArgumentNotValidException ex) {
-        String msg = ex.getBindingResult().getFieldErrors().stream()
-                .map(err -> err.getField() + ": " + err.getDefaultMessage())
-                .findFirst().orElse("잘못된 요청입니다.");
-        return new ErrorBody("VALIDATION_ERROR", msg, Instant.now());
+    public record ErrorBody(String code, String message, Instant timestamp, String path) {}
+
+    private static String fmt(String template, Object[] args) {
+        return (args == null || args.length == 0) ? template : MessageFormat.format(template, args);
     }
 
+    // 1) Bean Validation
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorBody> handleValidation(MethodArgumentNotValidException ex, HttpServletRequest req) {
+        String first = ex.getBindingResult().getFieldErrors().stream()
+                .map(err -> err.getField() + ": " + err.getDefaultMessage())
+                .findFirst().orElse(ErrorCode.VALIDATION_ERROR.message());
+
+        ErrorCode ec = ErrorCode.VALIDATION_ERROR;
+        return ResponseEntity.status(ec.status())
+                .body(new ErrorBody(ec.code(), first, Instant.now(), req.getRequestURI()));
+    }
+
+    // 2) 비즈니스 예외
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<ErrorBody> handleBusiness(BusinessException ex, HttpServletRequest req) {
+        ErrorCode ec = ex.getErrorCode();
+        String msg = fmt(ec.message(), ex.getMessageArgs());
+        return ResponseEntity.status(ec.status())
+                .body(new ErrorBody(ec.code(), msg, Instant.now(), req.getRequestURI()));
+    }
+
+    // 3) 인증/인가 (필요 시 매핑)
+    @ExceptionHandler(io.jsonwebtoken.JwtException.class)
+    public ResponseEntity<ErrorBody> handleJwt(io.jsonwebtoken.JwtException ex, HttpServletRequest req) {
+        ErrorCode ec = ErrorCode.AUTH_INVALID_TOKEN;
+        return ResponseEntity.status(ec.status())
+                .body(new ErrorBody(ec.code(), ec.message(), Instant.now(), req.getRequestURI()));
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorBody> handleDenied(AccessDeniedException ex, HttpServletRequest req) {
+        ErrorCode ec = ErrorCode.AUTH_FORBIDDEN;
+        return ResponseEntity.status(ec.status())
+                .body(new ErrorBody(ec.code(), ec.message(), Instant.now(), req.getRequestURI()));
+    }
+
+    // 4) 잘못된 인자 → 400으로 통일
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorBody> handleIAE(IllegalArgumentException ex, HttpServletRequest req) {
+        ErrorCode ec = ErrorCode.VALIDATION_ERROR;
+        return ResponseEntity.status(ec.status())
+                .body(new ErrorBody(ec.code(), ex.getMessage(), Instant.now(), req.getRequestURI()));
+    }
+
+
+    // 5) 나머지 전부
     @ExceptionHandler(Exception.class)
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    ErrorBody handleAll(Exception ex) {
-        return new ErrorBody("INTERNAL_ERROR", "서버에서 오류가 발생했습니다.", Instant.now());
+    public ResponseEntity<ErrorBody> handleAll(Exception ex, HttpServletRequest req) {
+        ErrorCode ec = ErrorCode.INTERNAL_ERROR;
+        return ResponseEntity.status(ec.status())
+                .body(new ErrorBody(ec.code(), ec.message(), Instant.now(), req.getRequestURI()));
     }
 }
