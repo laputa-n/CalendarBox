@@ -45,10 +45,10 @@ auth:
     issuer: calendarbox
     access:
       secret: ${JWT_ACCESS_SECRET:local-dev-access-secret-32bytes-minimum}
-      ttl-minutes: 120
+      ttl-minutes: 1
     refresh:
       secret: ${JWT_REFRESH_SECRET:local-dev-refresh-secret-32bytes-minimum}
-      ttl-minutes: 20160   # 14 days
+      ttl-minutes: 10   # 14 days
     signup:
       secret: ${JWT_SIGNUP_SECRET:local-dev-signup-secret-32bytes-minimum}
       ttl-minutes: 15

@@ -6,7 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Getter
-@NoArgsConstructor //역직렬화를 위한 기본 생성자
+@NoArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class KakaoTokenResponseDto {
 

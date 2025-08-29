@@ -1,7 +1,6 @@
 package com.calendarbox.backend.kakao.controller;
 
 import com.calendarbox.backend.auth.dto.MemberResponse;
-import com.calendarbox.backend.auth.service.JwtServiceImpl;
 import com.calendarbox.backend.auth.service.RefreshTokenService;
 import com.calendarbox.backend.kakao.service.KakaoService;
 import com.calendarbox.backend.kakao.dto.KakaoUserInfoResponseDto;
