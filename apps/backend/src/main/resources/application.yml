@@ -55,6 +55,4 @@ auth:
 
 security:
   cors:
-    allowed-origins:
-      - "http://localhost:3000"
-      - "https://your-frontend.com"
+    allowed-origins: "http://localhost:3000,https://your-frontend.com"
