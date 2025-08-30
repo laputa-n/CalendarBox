@@ -20,7 +20,7 @@ public class WebConfig {
         CorsConfiguration config = new CorsConfiguration(); // allowCredentials(true) 를 쓰면 * 를 쓸 수 없습니다. 정확한 오리진을 적어주세요.
         config.setAllowedOrigins(allowedOrigins);
         config.setAllowedMethods(List.of("GET","POST","PUT","DELETE","PATCH","OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Signup-Token"));  // 프론트가 보낼 헤더들));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Signup-Token", "X-Refresh-Token"));  // 프론트가 보낼 헤더들));
         config.setExposedHeaders(List.of("Authorization")); // 응답에서 브라우저가 읽게 할 헤더(필요 시)
         config.setAllowCredentials(true); // 쿠키/인증정보 포함 허용
         config.setMaxAge(3600L); // preflight 캐시(초)
