@@ -7,9 +7,9 @@
 CREATE TABLE member (
                         member_id BIGSERIAL PRIMARY KEY,
                         name TEXT NOT NULL,
-                        email TEXT UNIQUE,
+                        email TEXT NOT NULL UNIQUE,
                         phone_number TEXT NOT NULL,
-                        created_at TIMESTAMPTZ NOT NULL,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                         deleted_at TIMESTAMPTZ,
                         last_login_at TIMESTAMPTZ
 );
@@ -18,9 +18,10 @@ CREATE TABLE member (
 CREATE TABLE kakao_account (
                                kakao_account_id BIGSERIAL PRIMARY KEY,
                                member_id BIGINT NOT NULL UNIQUE,
+                               provider_user_id BIGINT NOT NULL UNIQUE,
                                connected_at TIMESTAMPTZ NOT NULL,
-                               refresh_token TEXT NOT NULL,
-                               profile_json JSONB NOT NULL,
+                               refresh_token TEXT,
+                               profile_json JSONB,
                                CONSTRAINT fk_kakao_member FOREIGN KEY (member_id) REFERENCES member(member_id)
 );
 

@@ -4,6 +4,10 @@ spring:
     username: calendarbox_user
     password: calendarbox_password
     driver-class-name: org.postgresql.Driver
+  messages:
+    basename: ValidationMessages
+    encoding: UTF-8
+
 
   jpa:
     hibernate:
@@ -22,8 +26,37 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
-
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
 logging:
   level:
+    root: INFO
     org.springframework: INFO
     org.hibernate.SQL: DEBUG
+
+kakao:
+  client_id: 72fecab83ee9fd949f17b58c0bdc474d
+  redirect_uri: http://localhost:8080/auth/kakao/callback
+
+auth:
+  jwt:
+    issuer: calendarbox
+    access:
+      secret: ${JWT_ACCESS_SECRET:local-dev-access-secret-32bytes-minimum}
+      ttl-minutes: 30
+    refresh:
+      secret: ${JWT_REFRESH_SECRET:local-dev-refresh-secret-32bytes-minimum}
+      ttl-minutes: 43200   # 14 days
+    signup:
+      secret: ${JWT_SIGNUP_SECRET:local-dev-signup-secret-32bytes-minimum}
+      ttl-minutes: 30
+
+security:
+  cors:
+    allowed-origins: "http://localhost:3000,https://your-frontend.com"
