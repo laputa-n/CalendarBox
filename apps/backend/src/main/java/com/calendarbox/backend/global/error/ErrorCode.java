@@ -13,8 +13,10 @@ public enum ErrorCode {
 
     // 카카오/회원 예시 (필요에 맞게 추가)
     MEMBER_NOT_FOUND("MEMBER_NOT_FOUND", HttpStatus.NOT_FOUND, "회원을 찾을 수 없습니다."),
-    KAKAO_DUPLICATE_LINK("KAKAO_DUPLICATE_LINK", HttpStatus.CONFLICT, "이미 연결된 카카오 계정입니다.");
+    KAKAO_DUPLICATE_LINK("KAKAO_DUPLICATE_LINK", HttpStatus.CONFLICT, "이미 연결된 카카오 계정입니다."),
 
+
+    INVALID_JSON("INVALID_JSON", HttpStatus.BAD_REQUEST, "요청 JSON 파싱에서 오류가 발생했습니다.");
     private final String code;
     private final HttpStatus status;
     private final String message;

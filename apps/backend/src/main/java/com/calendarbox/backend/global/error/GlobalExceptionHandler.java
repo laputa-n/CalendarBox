@@ -1,16 +1,21 @@
 package com.calendarbox.backend.global.error;
 
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.text.MessageFormat;
 import java.time.Instant;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     public record ErrorBody(String code, String message, Instant timestamp, String path) {}
@@ -43,6 +48,7 @@ public class GlobalExceptionHandler {
     // 3) 인증/인가 (필요 시 매핑)
     @ExceptionHandler(io.jsonwebtoken.JwtException.class)
     public ResponseEntity<ErrorBody> handleJwt(io.jsonwebtoken.JwtException ex, HttpServletRequest req) {
+        log.error("JWT Error", ex); // 에러 로그 보기 위해
         ErrorCode ec = ErrorCode.AUTH_INVALID_TOKEN;
         return ResponseEntity.status(ec.status())
                 .body(new ErrorBody(ec.code(), ec.message(), Instant.now(), req.getRequestURI()));
@@ -71,4 +77,13 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(ec.status())
                 .body(new ErrorBody(ec.code(), ec.message(), Instant.now(), req.getRequestURI()));
     }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorBody> handleJsonParse(HttpMessageNotReadableException ex, HttpServletRequest req) {
+        ErrorCode ec = ErrorCode.INVALID_JSON;
+        return ResponseEntity.status(ec.status())
+                .body(new ErrorBody(ec.code(), ec.message(), Instant.now(), req.getRequestURI()));
+    }
+
+
 }

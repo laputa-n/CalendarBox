@@ -4,6 +4,10 @@ spring:
     username: calendarbox_user
     password: calendarbox_password
     driver-class-name: org.postgresql.Driver
+  messages:
+    basename: ValidationMessages
+    encoding: UTF-8
+
 
   jpa:
     hibernate:
@@ -45,13 +49,13 @@ auth:
     issuer: calendarbox
     access:
       secret: ${JWT_ACCESS_SECRET:local-dev-access-secret-32bytes-minimum}
-      ttl-minutes: 1
+      ttl-minutes: 30
     refresh:
       secret: ${JWT_REFRESH_SECRET:local-dev-refresh-secret-32bytes-minimum}
-      ttl-minutes: 10   # 14 days
+      ttl-minutes: 43200   # 14 days
     signup:
       secret: ${JWT_SIGNUP_SECRET:local-dev-signup-secret-32bytes-minimum}
-      ttl-minutes: 15
+      ttl-minutes: 30
 
 security:
   cors:

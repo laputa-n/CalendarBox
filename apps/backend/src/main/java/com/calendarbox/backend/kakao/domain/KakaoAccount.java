@@ -6,8 +6,11 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
+import java.util.Map;
 
 @Getter
 @Entity
@@ -31,12 +34,13 @@ public class KakaoAccount {
     @Column(name = "refresh_token")
     private String refreshToken;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "profile_json", columnDefinition = "jsonb")
-    private String profileJson;
+    private Map<String, Object> profileJson;
 
     @Builder
     public KakaoAccount(Member member, Long providerUserId,
-                         String refreshToken, String profileJson) {
+                         String refreshToken, Map<String,Object> profileJson) {
         this.member = member;
         this.providerUserId = providerUserId;
         this.connectedAt = Instant.now();

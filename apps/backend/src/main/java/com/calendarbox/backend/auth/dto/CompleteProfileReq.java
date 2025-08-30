@@ -5,11 +5,17 @@ import jakarta.validation.constraints.Pattern;
 
 public record CompleteProfileReq(
         @NotBlank(message="{member.name.notblank}")
-        @Pattern(regexp="^[가-힣a-zA-Z ]{2,30}$", message="이름은 2~30자의 한글/영문만 가능합니다.")
+        @Pattern(
+                regexp = "^[\\p{L} ][\\p{L} ]{1,29}$", // 총 2~30자, 모든 ‘문자’와 공백 허용
+                message = "{member.name.pattern}"
+        )
         String name,
 
         @NotBlank(message="{member.phone.required}")
-        @Pattern(regexp="^01[016789]-\\d{3,4}-\\d{4}$", message="{member.phone.pattern}")
+        @Pattern(
+                regexp="^01[016789]-\\d{3,4}-\\d{4}$",
+                message="{member.phone.pattern}"
+        )
         String phoneNumber
 ) {}
 
