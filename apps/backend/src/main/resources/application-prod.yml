@@ -1,0 +1,64 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/calendarbox_db
+    username: calendarbox_user
+    password: ${POSTGRES_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  messages:
+    basename: ValidationMessages
+    encoding: UTF-8
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: true
+
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+
+logging:
+  level:
+    root: INFO
+    org.springframework: INFO
+    org.hibernate.SQL: DEBUG
+
+kakao:
+  client_id: ${KAKAO_CLIENT_ID}
+  redirect_uri: ${KAKAO_REDIRECT_URI}  # 예: https://your-domain.com/auth/kakao/callback
+
+auth:
+  jwt:
+    issuer: calendarbox
+    access:
+      secret: ${JWT_ACCESS_SECRET}
+      ttl-minutes: 30
+    refresh:
+      secret: ${JWT_REFRESH_SECRET}
+      ttl-minutes: 43200  # 30 days
+    signup:
+      secret: ${JWT_SIGNUP_SECRET}
+      ttl-minutes: 30
+
+security:
+  cors:
+    allowed-origins: "https://your-frontend.com,http://localhost:3000,https://764e4f39371d.ngrok-free.app"
