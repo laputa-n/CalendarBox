@@ -61,4 +61,4 @@ auth:
 
 security:
   cors:
-    allowed-origins: "https://your-frontend.com,http://localhost:3000,https://4f13061a0ab9.ngrok-free.app"
+    allowed-origins: "https://your-frontend.com,http://localhost:3000,https://4f13061a0ab9.ngrok-free.app" # 후에 ngrok 대신 우리 도메인 주소 기입
