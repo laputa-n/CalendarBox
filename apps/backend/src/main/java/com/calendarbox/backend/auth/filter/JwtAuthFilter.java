@@ -1,5 +1,6 @@
 package com.calendarbox.backend.auth.filter;
 
+import com.calendarbox.backend.auth.dto.UserPrincipal;
 import com.calendarbox.backend.auth.service.JwtService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -34,10 +35,18 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             String token = auth.substring(7);
             try {
                 Long memberId = jwtService.verifyAccessToken(token);
+                UserPrincipal principal = new UserPrincipal(
+                        memberId,
+                        List.of(new SimpleGrantedAuthority("ROLE_USER"))
+                );
+
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
-                                memberId, null,
-                                List.of(new SimpleGrantedAuthority("ROLE_USER")));
+                                principal, // ★ principal을 Long → UserPrincipal
+                                null,
+                                principal.authorities()
+                        );
+
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(req));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } catch (JwtException e) {
