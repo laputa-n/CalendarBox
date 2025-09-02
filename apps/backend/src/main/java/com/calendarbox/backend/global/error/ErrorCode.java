@@ -16,7 +16,14 @@ public enum ErrorCode {
     KAKAO_DUPLICATE_LINK("KAKAO_DUPLICATE_LINK", HttpStatus.CONFLICT, "이미 연결된 카카오 계정입니다."),
 
 
-    INVALID_JSON("INVALID_JSON", HttpStatus.BAD_REQUEST, "요청 JSON 파싱에서 오류가 발생했습니다.");
+    INVALID_JSON("INVALID_JSON", HttpStatus.BAD_REQUEST, "요청 JSON 파싱에서 오류가 발생했습니다."),
+
+    FRIENDSHIP_SELF_REQUEST("FRIENDSHIP_SELF_REQUEST", HttpStatus.BAD_REQUEST, "자기 자신에게는 친구 요청을 보낼 수 없습니다."),
+    FRIENDSHIP_INVALID_STATE("FRIENDSHIP_INVALID_STATE", HttpStatus.CONFLICT, "요청 상태가 유효하지 않아 처리할 수 없습니다. (현재: {0})"),
+    FRIENDSHIP_ALREADY_RESPONDED("FRIENDSHIP_ALREADY_RESPONDED", HttpStatus.CONFLICT, "이미 응답된 요청입니다.");
+
+
+
     private final String code;
     private final HttpStatus status;
     private final String message;
