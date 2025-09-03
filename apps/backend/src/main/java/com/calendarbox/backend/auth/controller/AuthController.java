@@ -4,6 +4,7 @@ import com.calendarbox.backend.auth.dto.*;
 import com.calendarbox.backend.auth.service.JwtService;
 import com.calendarbox.backend.auth.service.RefreshTokenService;
 import com.calendarbox.backend.auth.service.SignupService;
+import com.calendarbox.backend.global.dto.ApiResponse;
 import com.calendarbox.backend.kakao.service.KakaoTempStore;
 import com.calendarbox.backend.member.domain.Member;
 import com.calendarbox.backend.member.repository.MemberRepository;
@@ -14,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/auth")
+@RequestMapping("api/auth")
 public class AuthController {
     private final JwtService jwtService;
     private final SignupService signupService;
@@ -23,7 +24,7 @@ public class AuthController {
     private final KakaoTempStore kakaoTempStore;
 
     @PostMapping("/signup/complete")
-    public ResponseEntity<LoginSuccessResponse> completeProfile(
+    public ResponseEntity<ApiResponse<LoginSuccessResponse>> completeProfile(
             @RequestHeader("X-Signup-Token") String signupToken,
             @Valid @RequestBody CompleteProfileReq req) {
 
@@ -50,11 +51,11 @@ public class AuthController {
         refreshTokenService.save(member.getId(), refreshToken);
 
         MemberResponse mr = new MemberResponse(member.getId(), member.getName(), member.getEmail(), member.getPhoneNumber());
-        return ResponseEntity.ok(new LoginSuccessResponse(accessToken, refreshToken, mr));
+        return ResponseEntity.ok(ApiResponse.ok("회원가입이 완료되었습니다", new LoginSuccessResponse(accessToken,refreshToken,mr)));
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<LoginSuccessResponse> refresh(
+    public ResponseEntity<ApiResponse<LoginSuccessResponse>> refresh(
             @RequestHeader("X-Refresh-Token") String refreshToken) {
 
         RefreshClaims claims = jwtService.verifyRefreshToken(refreshToken);
@@ -71,7 +72,7 @@ public class AuthController {
         refreshTokenService.replace(memberId, newRefresh);
 
         MemberResponse memberResponse = new MemberResponse(member.getId(), member.getName(), member.getEmail(), member.getPhoneNumber());
-        return ResponseEntity.ok(new LoginSuccessResponse(newAccess, newRefresh,memberResponse));
+        return ResponseEntity.ok(ApiResponse.ok("토큰 재발급 성공",new LoginSuccessResponse(newAccess, newRefresh,memberResponse)));
     }
 
     @PostMapping("/logout")

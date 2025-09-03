@@ -42,7 +42,7 @@ logging:
 
 kakao:
   client_id: 72fecab83ee9fd949f17b58c0bdc474d
-  redirect_uri: http://localhost:8080/auth/kakao/callback
+  redirect_uri: http://localhost:8080/api/auth/kakao/callback
 
 auth:
   jwt:
