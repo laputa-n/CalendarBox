@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.util.UriComponentsBuilder;
 
 @Controller
-@RequestMapping("/login")
+@RequestMapping("api/auth/kakao")
 public class KakaoLoginPageController {
 
     @Value("${kakao.client_id}")
@@ -17,7 +17,7 @@ public class KakaoLoginPageController {
     @Value("${kakao.redirect_uri}")
     private String redirect_uri;
 
-    @GetMapping("/page")
+    @GetMapping("/login")
     public String loginPage() {
         String location = UriComponentsBuilder.fromHttpUrl("https://kauth.kakao.com/oauth/authorize")
                 .queryParam("response_type", "code")

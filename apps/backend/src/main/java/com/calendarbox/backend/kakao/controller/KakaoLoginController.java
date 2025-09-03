@@ -25,7 +25,7 @@ import java.util.Optional;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/auth/kakao")
+@RequestMapping("api/auth/kakao")
 public class KakaoLoginController {
 
     private final KakaoService kakaoService;
