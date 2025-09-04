@@ -30,25 +30,51 @@ CREATE TABLE calendar (
                           calendar_id BIGSERIAL PRIMARY KEY,
                           owner_id BIGINT NOT NULL,
                           name TEXT NOT NULL,
-                          is_shared BOOLEAN NOT NULL DEFAULT FALSE,
-                          is_visible BOOLEAN NOT NULL DEFAULT TRUE,
-                          created_at TIMESTAMPTZ NOT NULL,
-                          updated_at TIMESTAMPTZ NOT NULL,
-                          CONSTRAINT fk_calendar_owner FOREIGN KEY (owner_id) REFERENCES member(member_id)
+                          type VARCHAR(16) NOT NULL DEFAULT 'PERSONAL',
+                          visibility VARCHAR(16) NOT NULL DEFAULT 'PRIVATE',
+                          created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                          updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                          CONSTRAINT fk_calendar_owner FOREIGN KEY (owner_id) REFERENCES member(member_id) ON DELETE CASCADE,
+                          CONSTRAINT ck_calendar_type CHECK (type IN ('PERSONAL', 'GROUP')),
+                          CONSTRAINT ck_calendar_visibilty CHECK (visibility IN ('PRIVATE', 'PROTECTED', 'PUBLIC'))
 );
+
+-- 조회용 인덱스
+CREATE INDEX ix_calendar_owner ON calendar(owner_id);
+
+-- updated_at 자동 갱신 트리거
+CREATE OR REPLACE FUNCTION set_updated_at() RETURNS trigger AS $$
+BEGIN
+  NEW.updated_at := now();
+RETURN NEW;
+END; $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER tr_calendar_updated_at
+    BEFORE UPDATE ON calendar
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- CALENDAR_MEMBER
 CREATE TABLE calendar_member (
                                  calendar_member_id BIGSERIAL PRIMARY KEY,
                                  calendar_id BIGINT NOT NULL,
                                  member_id BIGINT NOT NULL,
+                                 is_default BOOLEAN NOT NULL DEFAULT FALSE,
                                  status VARCHAR(30) NOT NULL,
-                                 created_at TIMESTAMPTZ NOT NULL,
+                                 created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
                                  responded_at TIMESTAMPTZ,
-                                 CONSTRAINT fk_calendar_member_calendar FOREIGN KEY (calendar_id) REFERENCES calendar(calendar_id),
-                                 CONSTRAINT fk_calendar_member_member FOREIGN KEY (member_id) REFERENCES member(member_id),
-                                 CONSTRAINT uq_calendar_member UNIQUE (calendar_id, member_id)
+                                 CONSTRAINT fk_calendar_member_calendar FOREIGN KEY (calendar_id) REFERENCES calendar(calendar_id) ON DELETE CASCADE,
+                                 CONSTRAINT fk_calendar_member_member FOREIGN KEY (member_id)   REFERENCES member(member_id)   ON DELETE CASCADE,
+                                 CONSTRAINT uq_calendar_member UNIQUE (calendar_id, member_id),
+                                 CONSTRAINT ck_calendar_member_status CHECK (status IN ('INVITED','ACCEPTED','REJECTED'))
 );
+CREATE UNIQUE INDEX ux_calendar_member_default_per_user
+    ON calendar_member (member_id)
+    WHERE is_default = true;
+
+-- 조회 인덱스
+CREATE INDEX ix_cm_member   ON calendar_member(member_id);
+CREATE INDEX ix_cm_calendar ON calendar_member(calendar_id);
+CREATE INDEX ix_cm_status   ON calendar_member(status);
 
 -- FRIENDSHIP
 CREATE TABLE friendship (
@@ -60,8 +86,14 @@ CREATE TABLE friendship (
                             responded_at TIMESTAMPTZ,
                             CONSTRAINT fk_friendship_member1 FOREIGN KEY (requester_id) REFERENCES member(member_id),
                             CONSTRAINT fk_friendship_member2 FOREIGN KEY (addressee_id) REFERENCES member(member_id),
-                            CONSTRAINT uq_friendship UNIQUE (requester_id, addressee_id)
+                            CONSTRAINT uq_friendship UNIQUE (requester_id, addressee_id),
+                            CONSTRAINT chk_friendship_not_self CHECK (requester_id <> addressee_id),
+                            CONSTRAINT chk_friendship_status CHECK (status IN ('PENDING','ACCEPTED','REJECTED')),
+                            CONSTRAINT chk_friendship_response_time CHECK ((status = 'PENDING'  AND responded_at IS NULL) OR (status IN ('ACCEPTED','REJECTED') AND responded_at IS NOT NULL))
 );
+CREATE UNIQUE INDEX ux_friendship_pair_unique ON friendship (LEAST(requester_id, addressee_id), GREATEST(requester_id, addressee_id));
+CREATE INDEX ix_friendship_addressee_status ON friendship (addressee_id, status);
+CREATE INDEX ix_friendship_requester_status ON friendship (requester_id, status);
 
 -- NOTIFICATION
 CREATE TABLE notification (
