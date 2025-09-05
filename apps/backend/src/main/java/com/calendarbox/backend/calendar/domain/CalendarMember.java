@@ -63,6 +63,9 @@ public class CalendarMember {
         this.isDefault = isDefault;
     }
 
+    public static CalendarMember create(Calendar calendar, Member member, boolean isDefault){
+        return new CalendarMember(calendar,member,CalendarMemberStatus.ACCEPTED, isDefault);
+    }
     public static CalendarMember invite(Calendar calendar, Member member) {
         return new CalendarMember(calendar, member, CalendarMemberStatus.INVITED, false);
     }

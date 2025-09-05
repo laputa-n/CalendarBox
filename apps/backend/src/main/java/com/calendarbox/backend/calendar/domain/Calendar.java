@@ -69,7 +69,9 @@ public class Calendar {
     }
 
     public static Calendar create(Member owner, String name, CalendarType type, Visibility visibility) {
-        return new Calendar(owner, name, type, visibility);
+        CalendarType ct = type == null?CalendarType.PERSONAL:type;
+        Visibility v = visibility == null?Visibility.PRIVATE:visibility;
+        return new Calendar(owner, name, ct, v);
     }
 
     public void rename(String name){
@@ -79,5 +81,10 @@ public class Calendar {
 
     public void changeVisibility(Visibility visibility){
         this.visibility = Objects.requireNonNull(visibility);
+    }
+
+    @PrePersist
+    void onCreate(){
+        this.createdAt = Instant.now();
     }
 }
