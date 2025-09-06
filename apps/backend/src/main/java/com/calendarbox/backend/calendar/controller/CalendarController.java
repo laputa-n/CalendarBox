@@ -2,6 +2,7 @@ package com.calendarbox.backend.calendar.controller;
 
 import com.calendarbox.backend.calendar.domain.Calendar;
 import com.calendarbox.backend.calendar.dto.request.CreateCalendarRequest;
+import com.calendarbox.backend.calendar.dto.response.CalendarDetail;
 import com.calendarbox.backend.calendar.dto.response.CalendarListItem;
 import com.calendarbox.backend.calendar.dto.response.CreateCalendarResponse;
 import com.calendarbox.backend.calendar.enums.CalendarMemberStatus;
@@ -56,7 +57,7 @@ public class CalendarController {
         return ResponseEntity.created(location).body(ApiResponse.ok("캘린더가 생성되었습니다.", data));
     }
 
-    @GetMapping("/api/calendars")
+    @GetMapping
     public ResponseEntity<ApiResponse<Page<CalendarListItem>>> list(
             @AuthenticationPrincipal(expression = "id") Long viewerId,
             @RequestParam(required = false) Long memberId,
@@ -67,5 +68,14 @@ public class CalendarController {
     ) {
         var page = calendarQueryService.listCalendars(viewerId, memberId, type, status, visibility, pageable);
         return ResponseEntity.ok(ApiResponse.ok("캘린더 목록 조회 성공", page));
+    }
+
+    @GetMapping("/{calendarId}")
+    public ResponseEntity<ApiResponse<CalendarDetail>> getDetail(
+            @AuthenticationPrincipal(expression = "id") Long userId,
+            @PathVariable Long calendarId
+    ){
+        var data = calendarQueryService.getCalendarDetail(userId, calendarId);
+        return ResponseEntity.ok(ApiResponse.ok("캘린더 상세 조회 성공", data));
     }
 }

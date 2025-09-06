@@ -19,7 +19,11 @@ public interface CalendarMemberRepository extends JpaRepository<CalendarMember, 
     @Query("update CalendarMember cm set cm.isDefault = false where cm.member.id = :memberId and cm.isDefault = true")
     int unsetDefaultForMember(@Param("memberId") Long memberId);
 
+    @Query("select count(*) from CalendarMember cm where cm.calendar.id = :calendarId and cm.status = com.calendarbox.backend.calendar.enums.CalendarMemberStatus.ACCEPTED")
+    int countCalendarMembersByCalendarId(@Param("calendarId") Long calendarId);
+
     boolean existsByMember_IdAndIsDefaultTrue(Long memberId);
+    boolean existsByMember_IdAndCalendar_Id(Long memberId, Long calendarId);
 
     @Query("""
     select new com.calendarbox.backend.calendar.dto.response.CalendarListItem(

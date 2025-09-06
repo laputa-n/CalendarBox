@@ -84,4 +84,10 @@ public class CalendarMember {
 
     public void makeDefault() { this.isDefault = true; }
     public void unsetDefault() { this.isDefault = false; }
+
+//    @PrePersist
+//    void onCreate() { this.createdAt = Instant.now(); }
+//
+//    @PostUpdate
+//    void onUpdate() { this.respondedAt = Instant.now(); }
 }

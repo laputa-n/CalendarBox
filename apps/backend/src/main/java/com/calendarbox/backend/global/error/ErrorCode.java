@@ -23,8 +23,8 @@ public enum ErrorCode {
     FRIENDSHIP_ALREADY_RESPONDED("FRIENDSHIP_ALREADY_RESPONDED", HttpStatus.CONFLICT, "이미 응답된 요청입니다."),
     FRIENDSHIP_REQUIRED("FRIENDSHIP_REQUIRED",HttpStatus.FORBIDDEN,"친구가 아닙니다."),
 
-    CALENDAR_NAME_DUPLICATE("CALENDAR_NAME_DUPLICATE", HttpStatus.CONFLICT,"이미 동일한 캘린더를 보유하고 있습니다.");
-
+    CALENDAR_NAME_DUPLICATE("CALENDAR_NAME_DUPLICATE", HttpStatus.CONFLICT,"이미 동일한 캘린더를 보유하고 있습니다."),
+    CALENDAR_NOT_FOUND("CALENDAR_NOT_FOUND", HttpStatus.NOT_FOUND, "해당 캘린더가 존재하지 않습니다.");
 
     private final String code;
     private final HttpStatus status;

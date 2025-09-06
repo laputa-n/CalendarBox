@@ -87,4 +87,7 @@ public class Calendar {
     void onCreate(){
         this.createdAt = Instant.now();
     }
+
+    @PostUpdate
+    void onUpdate(){ this.updatedAt = Instant.now(); }
 }
