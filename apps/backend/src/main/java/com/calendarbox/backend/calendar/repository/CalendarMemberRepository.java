@@ -2,11 +2,13 @@ package com.calendarbox.backend.calendar.repository;
 
 import com.calendarbox.backend.calendar.domain.CalendarMember;
 import com.calendarbox.backend.calendar.dto.response.CalendarListItem;
+import com.calendarbox.backend.calendar.dto.response.CalendarMemberItem;
 import com.calendarbox.backend.calendar.enums.CalendarMemberStatus;
 import com.calendarbox.backend.calendar.enums.CalendarType;
 import com.calendarbox.backend.calendar.enums.Visibility;
 import com.calendarbox.backend.member.domain.Member;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -106,4 +108,53 @@ order by c.name asc, c.id desc
 
 
     boolean existsByCalendar_IdAndMember_IdAndStatus(Long calendarId, Long memberId, CalendarMemberStatus status);
+
+    @Query("""
+        select new com.calendarbox.backend.calendar.dto.response.CalendarMemberItem(
+        cm.id, m.id, m.name, cm.status, cm.createdAt, cm.respondedAt
+        )
+        from CalendarMember cm
+        join cm.member m
+        where cm.calendar.id = :calendarId
+        and (:status is null or cm.status = :status)
+        order by m.name asc, cm.id asc
+    """)
+    Page<CalendarMemberItem> findMembersOrderByNameAsc(@Param("calendarId") Long calendarId, @Param("status") CalendarMemberStatus status, Pageable pageable);
+
+    @Query("""
+        select new com.calendarbox.backend.calendar.dto.response.CalendarMemberItem(
+        cm.id, m.id, m.name, cm.status, cm.createdAt, cm.respondedAt
+        )
+        from CalendarMember cm
+        join cm.member m
+        where cm.calendar.id = :calendarId
+        and (:status is null or cm.status = :status)
+        order by m.name desc, cm.id asc
+    """)
+    Page<CalendarMemberItem> findMembersOrderByNameDesc(@Param("calendarId") Long calendarId, @Param("status") CalendarMemberStatus status,Pageable pageable);
+
+    @Query("""
+        select new com.calendarbox.backend.calendar.dto.response.CalendarMemberItem(
+        cm.id, m.id, m.name, cm.status, cm.createdAt, cm.respondedAt
+        )
+        from CalendarMember cm
+        join cm.member m
+        where cm.calendar.id = :calendarId
+        and (:status is null or cm.status = :status)
+        order by cm.createdAt asc, cm.id asc
+    """)
+    Page<CalendarMemberItem> findMembersOrderByCreatedAtAsc(@Param("calendarId") Long calendarId, @Param("status") CalendarMemberStatus status,Pageable pageable);
+
+    @Query("""
+        select new com.calendarbox.backend.calendar.dto.response.CalendarMemberItem(
+        cm.id, m.id, m.name, cm.status, cm.createdAt, cm.respondedAt
+        )
+        from CalendarMember cm
+        join cm.member m
+        where cm.calendar.id = :calendarId
+        and (:status is null or cm.status = :status)
+        order by cm.createdAt desc, cm.id asc
+    """)
+    Page<CalendarMemberItem> findMembersOrderByCreatedAtDesc(@Param("calendarId") Long calendarId, @Param("status") CalendarMemberStatus status,Pageable pageable);
+
 }

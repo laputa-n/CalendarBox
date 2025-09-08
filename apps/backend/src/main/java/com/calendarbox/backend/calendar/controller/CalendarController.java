@@ -5,9 +5,11 @@ import com.calendarbox.backend.calendar.dto.request.CalendarEditRequest;
 import com.calendarbox.backend.calendar.dto.request.CreateCalendarRequest;
 import com.calendarbox.backend.calendar.dto.request.InviteMembersRequest;
 import com.calendarbox.backend.calendar.dto.response.*;
+import com.calendarbox.backend.calendar.enums.CalendarMemberSort;
 import com.calendarbox.backend.calendar.enums.CalendarMemberStatus;
 import com.calendarbox.backend.calendar.enums.CalendarType;
 import com.calendarbox.backend.calendar.enums.Visibility;
+import com.calendarbox.backend.calendar.service.CalendarMemberQueryService;
 import com.calendarbox.backend.calendar.service.CalendarMemberService;
 import com.calendarbox.backend.calendar.service.CalendarQueryService;
 import com.calendarbox.backend.calendar.service.CalendarService;
@@ -17,6 +19,7 @@ import com.calendarbox.backend.global.error.ErrorCode;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -33,6 +36,7 @@ public class CalendarController {
     private final CalendarService calendarService;
     private final CalendarQueryService calendarQueryService;
     private final CalendarMemberService calendarMemberService;
+    private final CalendarMemberQueryService calendarMemberQueryService;
 
     @PostMapping
     public ResponseEntity<ApiResponse<CreateCalendarResponse>> createCalendar(
@@ -104,5 +108,18 @@ public class CalendarController {
         InviteMembersResponse response = calendarMemberService.inviteMembers(userId, calendarId, request);
 
         return ResponseEntity.ok(ApiResponse.ok("캘린더 초대 성공",response));
+    }
+
+    @GetMapping("/{calendarId}/members")
+    public ResponseEntity<ApiResponse<Page<CalendarMemberItem>>> getCalendarMemberList(
+            @AuthenticationPrincipal(expression = "id")Long viewerId,
+            @PathVariable Long calendarId,
+            @RequestParam(required = false) CalendarMemberStatus status,
+            @RequestParam(required = false, defaultValue = "NAME_ASC")CalendarMemberSort sort,
+            @RequestParam(required = false, defaultValue = "0") int page,
+            @RequestParam(required = false, defaultValue = "10") int size
+            ){
+        var data = calendarMemberQueryService.listMembers(viewerId, calendarId, status, sort, PageRequest.of(page,size));
+        return ResponseEntity.ok(ApiResponse.ok("캘린더 멤버 목록 조회 성공", data));
     }
 }
