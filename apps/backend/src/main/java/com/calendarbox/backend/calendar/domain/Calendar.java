@@ -88,6 +88,6 @@ public class Calendar {
         this.createdAt = Instant.now();
     }
 
-    @PostUpdate
+    @LastModifiedDate
     void onUpdate(){ this.updatedAt = Instant.now(); }
 }

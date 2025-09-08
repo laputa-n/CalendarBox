@@ -2,6 +2,8 @@ package com.calendarbox.backend.calendar.service;
 
 import com.calendarbox.backend.calendar.domain.Calendar;
 import com.calendarbox.backend.calendar.domain.CalendarMember;
+import com.calendarbox.backend.calendar.dto.request.CalendarEditRequest;
+import com.calendarbox.backend.calendar.dto.response.CalendarEditResponse;
 import com.calendarbox.backend.calendar.enums.CalendarType;
 import com.calendarbox.backend.calendar.enums.Visibility;
 import com.calendarbox.backend.calendar.repository.CalendarMemberRepository;
@@ -42,5 +44,35 @@ public class CalendarService {
         calendarMemberRepository.save(calendarMember);
 
         return calendar;
+    }
+
+    @Transactional
+    public CalendarEditResponse editCalendar(Long userId, Long calendarId, CalendarEditRequest request){
+        Calendar c = calendarRepository.findByIdAndOwner_Id(calendarId,userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CALENDAR_NOT_FOUND));
+
+        if (request.name() == null && request.visibility() == null) {
+            throw new BusinessException(ErrorCode.REQUEST_NO_CHANGES);
+        }
+
+        if(request.name() != null){
+            String newName = request.name();
+            if(!newName.equals(c.getName()) && calendarRepository.existsByOwner_IdAndName(userId,newName)){
+                throw new BusinessException(ErrorCode.CALENDAR_NAME_DUPLICATE);
+            }
+            c.rename(request.name());
+        }
+
+        if(request.visibility() != null){
+            c.changeVisibility(request.visibility());
+        }
+
+
+        return new CalendarEditResponse(
+                c.getId(),
+                c.getName(),
+                c.getVisibility(),
+                c.getUpdatedAt()
+        );
     }
 }
