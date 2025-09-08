@@ -3,13 +3,12 @@ package com.calendarbox.backend.calendar.controller;
 import com.calendarbox.backend.calendar.domain.Calendar;
 import com.calendarbox.backend.calendar.dto.request.CalendarEditRequest;
 import com.calendarbox.backend.calendar.dto.request.CreateCalendarRequest;
-import com.calendarbox.backend.calendar.dto.response.CalendarDetail;
-import com.calendarbox.backend.calendar.dto.response.CalendarEditResponse;
-import com.calendarbox.backend.calendar.dto.response.CalendarListItem;
-import com.calendarbox.backend.calendar.dto.response.CreateCalendarResponse;
+import com.calendarbox.backend.calendar.dto.request.InviteMembersRequest;
+import com.calendarbox.backend.calendar.dto.response.*;
 import com.calendarbox.backend.calendar.enums.CalendarMemberStatus;
 import com.calendarbox.backend.calendar.enums.CalendarType;
 import com.calendarbox.backend.calendar.enums.Visibility;
+import com.calendarbox.backend.calendar.service.CalendarMemberService;
 import com.calendarbox.backend.calendar.service.CalendarQueryService;
 import com.calendarbox.backend.calendar.service.CalendarService;
 import com.calendarbox.backend.global.dto.ApiResponse;
@@ -24,6 +23,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -31,6 +32,7 @@ import java.net.URI;
 public class CalendarController {
     private final CalendarService calendarService;
     private final CalendarQueryService calendarQueryService;
+    private final CalendarMemberService calendarMemberService;
 
     @PostMapping
     public ResponseEntity<ApiResponse<CreateCalendarResponse>> createCalendar(
@@ -91,5 +93,16 @@ public class CalendarController {
         calendarService.deleteCalendar(userId,calendarId);
 
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{calendarId}/members")
+    public ResponseEntity<ApiResponse<InviteMembersResponse>> inviteMember(
+            @AuthenticationPrincipal(expression = "id") Long userId,
+            @PathVariable Long calendarId,
+            @Valid @RequestBody InviteMembersRequest request
+            ){
+        InviteMembersResponse response = calendarMemberService.inviteMembers(userId, calendarId, request);
+
+        return ResponseEntity.ok(ApiResponse.ok("캘린더 초대 성공",response));
     }
 }

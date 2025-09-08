@@ -95,7 +95,7 @@ public class CalendarService {
                     .findDefaultCandidate(userId, PageRequest.of(0, 1));
             if (!cand.isEmpty()) {
                 calendarMemberRepository.unsetDefaultForMember(userId);
-                cand.get(0).makeDefault(); // dirty checking으로 반영
+                cand.get(0).makeDefault();
             }
         }
     }

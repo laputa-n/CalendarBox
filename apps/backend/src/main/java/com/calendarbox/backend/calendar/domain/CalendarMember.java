@@ -86,6 +86,15 @@ public class CalendarMember {
         this.respondedAt = Instant.now();
     }
 
+    public void reinvite(){
+        if(this.status == CalendarMemberStatus.REJECTED){
+            this.status = CalendarMemberStatus.INVITED;
+            this.respondedAt = null;
+            return;
+        }
+        throw new BusinessException(ErrorCode.REINVITE_NOT_ALLOWED);
+    }
+
     public void makeDefault() {
         if (this.calendar.getType() != CalendarType.PERSONAL) {
             throw new BusinessException(ErrorCode.DEFAULT_ONLY_FOR_PERSONAL);

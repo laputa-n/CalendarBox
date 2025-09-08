@@ -13,6 +13,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 
 public interface CalendarMemberRepository extends JpaRepository<CalendarMember, Long> {
@@ -91,4 +92,18 @@ order by c.name asc, c.id desc
           c.createdAt desc
         """)
     List<CalendarMember> findDefaultCandidate(@Param("memberId") Long memberId, Pageable pageable);
+
+    @Query("""
+    select cm
+    from CalendarMember cm
+    where cm.calendar.id = :calendarId
+      and cm.member.id in (:memberIds)
+    """)
+    List<CalendarMember> findByCalendarIdAndMemberIds(
+            @Param("calendarId") Long calendarId,
+            @Param("memberIds") Collection<Long> memberIds
+    );
+
+
+    boolean existsByCalendar_IdAndMember_IdAndStatus(Long calendarId, Long memberId, CalendarMemberStatus status);
 }
