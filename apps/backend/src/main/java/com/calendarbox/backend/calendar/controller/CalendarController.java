@@ -13,9 +13,8 @@ import com.calendarbox.backend.calendar.service.CalendarMemberQueryService;
 import com.calendarbox.backend.calendar.service.CalendarMemberService;
 import com.calendarbox.backend.calendar.service.CalendarQueryService;
 import com.calendarbox.backend.calendar.service.CalendarService;
+import com.calendarbox.backend.global.dto.PageResponse;
 import com.calendarbox.backend.global.dto.ApiResponse;
-import com.calendarbox.backend.global.error.BusinessException;
-import com.calendarbox.backend.global.error.ErrorCode;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -26,8 +25,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -111,7 +108,7 @@ public class CalendarController {
     }
 
     @GetMapping("/{calendarId}/members")
-    public ResponseEntity<ApiResponse<Page<CalendarMemberItem>>> getCalendarMemberList(
+    public ResponseEntity<ApiResponse<PageResponse<CalendarMemberItem>>> getCalendarMemberList(
             @AuthenticationPrincipal(expression = "id")Long viewerId,
             @PathVariable Long calendarId,
             @RequestParam(required = false) CalendarMemberStatus status,
@@ -119,7 +116,8 @@ public class CalendarController {
             @RequestParam(required = false, defaultValue = "0") int page,
             @RequestParam(required = false, defaultValue = "10") int size
             ){
-        var data = calendarMemberQueryService.listMembers(viewerId, calendarId, status, sort, PageRequest.of(page,size));
+        var pageResult = calendarMemberQueryService.listMembers(viewerId, calendarId, status, sort, PageRequest.of(page,size));
+        var data = PageResponse.of(pageResult);
         return ResponseEntity.ok(ApiResponse.ok("캘린더 멤버 목록 조회 성공", data));
     }
 }

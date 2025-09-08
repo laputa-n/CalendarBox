@@ -22,7 +22,7 @@ public class CalendarMemberQueryService {
 
     public Page<CalendarMemberItem> listMembers(Long viewerId, Long calendarId, CalendarMemberStatus status, CalendarMemberSort sort, Pageable pageable){
         boolean canView = calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(
-                viewerId, calendarId, CalendarMemberStatus.ACCEPTED
+                calendarId, viewerId, CalendarMemberStatus.ACCEPTED
         );
         if(!canView){
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);

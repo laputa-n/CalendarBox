@@ -10,6 +10,7 @@ import com.calendarbox.backend.friendship.enums.SentQueryStatus;
 import com.calendarbox.backend.friendship.repository.FriendshipRepository;
 import com.calendarbox.backend.friendship.service.FriendshipService;
 import com.calendarbox.backend.global.dto.ApiResponse;
+import com.calendarbox.backend.global.dto.PageResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
