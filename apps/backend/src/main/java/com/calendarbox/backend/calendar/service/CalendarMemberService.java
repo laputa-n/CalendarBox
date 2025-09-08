@@ -3,7 +3,9 @@ package com.calendarbox.backend.calendar.service;
 
 import com.calendarbox.backend.calendar.domain.Calendar;
 import com.calendarbox.backend.calendar.domain.CalendarMember;
+import com.calendarbox.backend.calendar.dto.request.CalendarInvitedRespondRequest;
 import com.calendarbox.backend.calendar.dto.request.InviteMembersRequest;
+import com.calendarbox.backend.calendar.dto.response.CalendarInviteRespondResponse;
 import com.calendarbox.backend.calendar.dto.response.InviteMembersResponse;
 import com.calendarbox.backend.calendar.enums.CalendarMemberStatus;
 import com.calendarbox.backend.calendar.enums.CalendarType;
@@ -120,6 +122,32 @@ public class CalendarMemberService {
                 failureIds.size(),
                 successIds,
                 failureIds
+        );
+    }
+
+    public CalendarInviteRespondResponse respond(Long responderId, Long calendarMemberId, CalendarInvitedRespondRequest request){
+        CalendarMember calendarMember = calendarMemberRepository.findById(calendarMemberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CALENDAR_MEMBER_NOT_FOUND));
+
+        if(!calendarMember.getMember().getId().equals(responderId)){
+            throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+        }
+
+        if(calendarMember.getStatus() != CalendarMemberStatus.INVITED){
+            throw new BusinessException(ErrorCode.CALENDAR_MEMBER_ALREADY_RESPONDED);
+        }
+
+        switch(request.action()){
+            case ACCEPT -> calendarMember.accept();
+            case REJECT -> calendarMember.reject();
+        }
+
+        return new CalendarInviteRespondResponse(
+                calendarMember.getId(),
+                calendarMember.getCalendar().getId(),
+                calendarMember.getMember().getId(),
+                calendarMember.getStatus(),
+                calendarMember.getRespondedAt()
         );
     }
 }

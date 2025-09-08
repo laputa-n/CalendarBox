@@ -2,6 +2,7 @@ package com.calendarbox.backend.calendar.controller;
 
 import com.calendarbox.backend.calendar.domain.Calendar;
 import com.calendarbox.backend.calendar.dto.request.CalendarEditRequest;
+import com.calendarbox.backend.calendar.dto.request.CalendarInvitedRespondRequest;
 import com.calendarbox.backend.calendar.dto.request.CreateCalendarRequest;
 import com.calendarbox.backend.calendar.dto.request.InviteMembersRequest;
 import com.calendarbox.backend.calendar.dto.response.*;
@@ -28,14 +29,14 @@ import java.net.URI;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/calendars")
+@RequestMapping("/api")
 public class CalendarController {
     private final CalendarService calendarService;
     private final CalendarQueryService calendarQueryService;
     private final CalendarMemberService calendarMemberService;
     private final CalendarMemberQueryService calendarMemberQueryService;
 
-    @PostMapping
+    @PostMapping("/calendars")
     public ResponseEntity<ApiResponse<CreateCalendarResponse>> createCalendar(
             @AuthenticationPrincipal (expression = "id") Long userId,
             @Valid @RequestBody CreateCalendarRequest request
@@ -54,7 +55,7 @@ public class CalendarController {
         return ResponseEntity.created(location).body(ApiResponse.ok("캘린더가 생성되었습니다.", data));
     }
 
-    @GetMapping
+    @GetMapping("/calendars")
     public ResponseEntity<ApiResponse<Page<CalendarListItem>>> list(
             @AuthenticationPrincipal(expression = "id") Long viewerId,
             @RequestParam(required = false) Long memberId,
@@ -67,7 +68,7 @@ public class CalendarController {
         return ResponseEntity.ok(ApiResponse.ok("캘린더 목록 조회 성공", page));
     }
 
-    @GetMapping("/{calendarId}")
+    @GetMapping("/calendars/{calendarId}")
     public ResponseEntity<ApiResponse<CalendarDetail>> getDetail(
             @AuthenticationPrincipal(expression = "id") Long userId,
             @PathVariable Long calendarId
@@ -76,7 +77,7 @@ public class CalendarController {
         return ResponseEntity.ok(ApiResponse.ok("캘린더 상세 조회 성공", data));
     }
 
-    @PatchMapping("/{calendarId}")
+    @PatchMapping("/calendars/{calendarId}")
     public ResponseEntity<ApiResponse<CalendarEditResponse>> editCalendar(
             @AuthenticationPrincipal(expression = "id") Long userId,
             @PathVariable Long calendarId,
@@ -86,7 +87,7 @@ public class CalendarController {
         return ResponseEntity.ok(ApiResponse.ok("캘린더 수정 성공", data));
     }
 
-    @DeleteMapping("/{calendarId}")
+    @DeleteMapping("/calendars/{calendarId}")
     public ResponseEntity<Void> deleteCalendar(
             @AuthenticationPrincipal(expression = "id") Long userId,
             @PathVariable Long calendarId
@@ -96,7 +97,7 @@ public class CalendarController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/{calendarId}/members")
+    @PostMapping("/calendars/{calendarId}/members")
     public ResponseEntity<ApiResponse<InviteMembersResponse>> inviteMember(
             @AuthenticationPrincipal(expression = "id") Long userId,
             @PathVariable Long calendarId,
@@ -107,7 +108,7 @@ public class CalendarController {
         return ResponseEntity.ok(ApiResponse.ok("캘린더 초대 성공",response));
     }
 
-    @GetMapping("/{calendarId}/members")
+    @GetMapping("/calendars/{calendarId}/members")
     public ResponseEntity<ApiResponse<PageResponse<CalendarMemberItem>>> getCalendarMemberList(
             @AuthenticationPrincipal(expression = "id")Long viewerId,
             @PathVariable Long calendarId,
@@ -119,5 +120,16 @@ public class CalendarController {
         var pageResult = calendarMemberQueryService.listMembers(viewerId, calendarId, status, sort, PageRequest.of(page,size));
         var data = PageResponse.of(pageResult);
         return ResponseEntity.ok(ApiResponse.ok("캘린더 멤버 목록 조회 성공", data));
+    }
+
+    @PatchMapping("/calendar-members/{calendarMemberId}")
+    public ResponseEntity<ApiResponse<CalendarInviteRespondResponse>> respondToCalendarInvite(
+            @AuthenticationPrincipal(expression = "id") Long userId,
+            @PathVariable Long calendarMemberId,
+            @RequestBody @Valid CalendarInvitedRespondRequest request
+            ){
+        var data = calendarMemberService.respond(userId,calendarMemberId,request);
+
+        return ResponseEntity.ok(ApiResponse.ok("캘린더 초대 응답 성공", data));
     }
 }
