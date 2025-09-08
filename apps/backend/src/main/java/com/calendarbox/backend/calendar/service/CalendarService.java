@@ -13,8 +13,11 @@ import com.calendarbox.backend.global.error.ErrorCode;
 import com.calendarbox.backend.member.domain.Member;
 import com.calendarbox.backend.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -74,5 +77,26 @@ public class CalendarService {
                 c.getVisibility(),
                 c.getUpdatedAt()
         );
+    }
+
+    @Transactional
+    public void deleteCalendar(Long userId, Long calendarId){
+        Calendar calendar = calendarRepository.findByIdAndOwner_Id(calendarId,userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CALENDAR_NOT_FOUND));
+
+        boolean wasDefault = calendarMemberRepository.existsByCalendar_IdAndMember_IdAndIsDefaultTrue(calendarId,userId);
+
+        calendarMemberRepository.deleteByCalendarId(calendarId);
+
+        calendarRepository.delete(calendar);
+
+        if (wasDefault && !calendarMemberRepository.existsByMember_IdAndIsDefaultTrue(userId)) {
+            List<CalendarMember> cand = calendarMemberRepository
+                    .findDefaultCandidate(userId, PageRequest.of(0, 1));
+            if (!cand.isEmpty()) {
+                calendarMemberRepository.unsetDefaultForMember(userId);
+                cand.get(0).makeDefault(); // dirty checking으로 반영
+            }
+        }
     }
 }

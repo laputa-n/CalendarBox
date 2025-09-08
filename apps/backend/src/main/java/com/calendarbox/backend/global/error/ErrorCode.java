@@ -26,7 +26,8 @@ public enum ErrorCode {
     CALENDAR_NAME_DUPLICATE("CALENDAR_NAME_DUPLICATE", HttpStatus.CONFLICT,"이미 동일한 캘린더를 보유하고 있습니다."),
     CALENDAR_NOT_FOUND("CALENDAR_NOT_FOUND", HttpStatus.NOT_FOUND, "해당 캘린더가 존재하지 않습니다."),
 
-    REQUEST_NO_CHANGES("REQUEST_NO_CHANGES", HttpStatus.BAD_REQUEST,"변화가 없습니다.");
+    REQUEST_NO_CHANGES("REQUEST_NO_CHANGES", HttpStatus.BAD_REQUEST,"변화가 없습니다."),
+    DEFAULT_ONLY_FOR_PERSONAL("DEFAULT_ONLY_FOR_PERSONAL", HttpStatus.BAD_REQUEST, "개인 캘린더만 기본 캘린더로 설정이 가능합니다.");
     private final String code;
     private final HttpStatus status;
     private final String message;

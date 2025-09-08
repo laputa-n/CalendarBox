@@ -82,4 +82,14 @@ public class CalendarController {
         var data = calendarService.editCalendar(userId, calendarId, request);
         return ResponseEntity.ok(ApiResponse.ok("캘린더 수정 성공", data));
     }
+
+    @DeleteMapping("/{calendarId}")
+    public ResponseEntity<Void> deleteCalendar(
+            @AuthenticationPrincipal(expression = "id") Long userId,
+            @PathVariable Long calendarId
+    ){
+        calendarService.deleteCalendar(userId,calendarId);
+
+        return ResponseEntity.noContent().build();
+    }
 }

@@ -13,6 +13,8 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+
 public interface CalendarMemberRepository extends JpaRepository<CalendarMember, Long> {
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
@@ -71,4 +73,22 @@ order by c.name asc, c.id desc
             @Param("type") CalendarType type,
             Pageable pageable
     );
+
+    boolean existsByCalendar_IdAndMember_IdAndIsDefaultTrue(Long calendarId,Long memberId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from CalendarMember cm where cm.calendar.id = :calendarId")
+    int deleteByCalendarId(@Param("calendarId") Long calendarId);
+
+    @Query("""
+        select cm
+        from CalendarMember cm
+        join cm.calendar c
+        where cm.member.id = :memberId
+          and cm.status = com.calendarbox.backend.calendar.enums.CalendarMemberStatus.ACCEPTED
+        order by
+          case when c.type = com.calendarbox.backend.calendar.enums.CalendarType.PERSONAL then 0 else 1 end,
+          c.createdAt desc
+        """)
+    List<CalendarMember> findDefaultCandidate(@Param("memberId") Long memberId, Pageable pageable);
 }

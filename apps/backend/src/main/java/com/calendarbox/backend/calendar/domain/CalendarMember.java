@@ -1,6 +1,9 @@
 package com.calendarbox.backend.calendar.domain;
 
 import com.calendarbox.backend.calendar.enums.CalendarMemberStatus;
+import com.calendarbox.backend.calendar.enums.CalendarType;
+import com.calendarbox.backend.global.error.BusinessException;
+import com.calendarbox.backend.global.error.ErrorCode;
 import com.calendarbox.backend.member.domain.Member;
 import jakarta.persistence.*;
 import jakarta.validation.groups.Default;
@@ -8,6 +11,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
@@ -82,12 +86,17 @@ public class CalendarMember {
         this.respondedAt = Instant.now();
     }
 
-    public void makeDefault() { this.isDefault = true; }
+    public void makeDefault() {
+        if (this.calendar.getType() != CalendarType.PERSONAL) {
+            throw new BusinessException(ErrorCode.DEFAULT_ONLY_FOR_PERSONAL);
+        }
+        this.isDefault = true;
+    }
     public void unsetDefault() { this.isDefault = false; }
 
 //    @PrePersist
 //    void onCreate() { this.createdAt = Instant.now(); }
 //
-//    @PostUpdate
+//    @LastModifiedDate
 //    void onUpdate() { this.respondedAt = Instant.now(); }
 }
