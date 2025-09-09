@@ -109,17 +109,35 @@ CREATE TABLE notification (
 -- PLACE
 CREATE TABLE place (
                        place_id BIGSERIAL PRIMARY KEY,
+                       provider VARCHAR(20) NOT NULL DEFAULT 'NAVER',
+                       provider_place_key TEXT NOT NULL DEFAULT '',
                        title TEXT NOT NULL,
                        link TEXT,
                        category VARCHAR(100),
                        description TEXT,
                        address TEXT,
                        road_address TEXT,
-                       map_x NUMERIC(9,6) NOT NULL,
-                       map_y NUMERIC(9,6) NOT NULL,
+                       lat NUMERIC(9,6) NOT NULL,
+                       lng NUMERIC(9,6) NOT NULL,
                        created_at TIMESTAMPTZ NOT NULL,
-                       updated_at TIMESTAMPTZ NOT NULL
+                       updated_at TIMESTAMPTZ NOT NULL,
+                       CONSTRAINT ck_place_lat CHECK (lat >= -90 AND lat <= 90),
+                       CONSTRAINT ck_place_lng CHECK (lng >= -180 AND lng <= 180)
 );
+CREATE UNIQUE INDEX ux_place_provider_key
+    ON place(provider, provider_place_key)
+    WHERE provider <> 'MANUAL';
+
+CREATE INDEX ix_place_title
+    ON place USING gin (to_tsvector('simple', coalesce(title,'')));
+CREATE INDEX ix_place_road_addr
+    ON place USING gin (to_tsvector('simple', coalesce(road_address,'')));
+
+CREATE INDEX ix_place_lat_lng ON place(lat, lng);
+
+CREATE TRIGGER tr_place_updated_at
+    BEFORE UPDATE ON place
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- SCHEDULE
 CREATE TABLE schedule (
