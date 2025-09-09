@@ -132,4 +132,16 @@ public class CalendarController {
 
         return ResponseEntity.ok(ApiResponse.ok("캘린더 초대 응답 성공", data));
     }
+
+    @DeleteMapping("/calendar-members/{calendarMemberId}")
+    public ResponseEntity<ApiResponse<DeleteCalendarMemberResponse>> deleteCalendarMember(
+            @AuthenticationPrincipal(expression = "id") Long userId,
+            @PathVariable Long calendarMemberId
+    ) {
+        boolean isWithdraw = calendarMemberService.deleteCalendarMember(userId, calendarMemberId);
+        String msg = isWithdraw? "캘린더에서 탈퇴했습니다." : "멤버를 캘린더에서 추방시켰습니다.";
+
+        var data = new DeleteCalendarMemberResponse(isWithdraw);
+        return ResponseEntity.ok(ApiResponse.ok(msg,data));
+    }
 }
