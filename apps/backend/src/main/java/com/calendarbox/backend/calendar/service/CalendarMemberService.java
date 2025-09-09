@@ -16,6 +16,7 @@ import com.calendarbox.backend.global.error.ErrorCode;
 import com.calendarbox.backend.member.domain.Member;
 import com.calendarbox.backend.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -149,5 +150,37 @@ public class CalendarMemberService {
                 calendarMember.getStatus(),
                 calendarMember.getRespondedAt()
         );
+    }
+
+    public boolean deleteCalendarMember(Long userId, Long calendarMemberId){
+        Member user = memberRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+
+        CalendarMember calendarMember = calendarMemberRepository.findById(calendarMemberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CALENDAR_MEMBER_NOT_FOUND));
+
+        boolean wasDefault = calendarMember.isDefault();
+        Long targetId = calendarMember.getMember().getId();
+
+        boolean isWithdraw = false;
+        if(user.getId().equals(targetId)){
+            calendarMemberRepository.delete(calendarMember);
+            isWithdraw = true;
+        } else {
+            if(!calendarMember.getCalendar().getOwner().getId().equals(user.getId()))
+                throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+            calendarMemberRepository.delete(calendarMember);
+        }
+
+        if (wasDefault && !calendarMemberRepository.existsByMember_IdAndIsDefaultTrue(targetId)) {
+            List<CalendarMember> cand = calendarMemberRepository
+                    .findDefaultCandidate(targetId, PageRequest.of(0, 1));
+            if (!cand.isEmpty()) {
+                calendarMemberRepository.unsetDefaultForMember(targetId);
+                cand.get(0).makeDefault();
+            }
+        }
+
+        return isWithdraw;
     }
 }
