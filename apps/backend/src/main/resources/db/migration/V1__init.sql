@@ -117,8 +117,8 @@ CREATE TABLE place (
                        description TEXT,
                        address TEXT,
                        road_address TEXT,
-                       lat NUMERIC(9,6) NOT NULL,
                        lng NUMERIC(9,6) NOT NULL,
+                       lat NUMERIC(9,6) NOT NULL,
                        created_at TIMESTAMPTZ NOT NULL,
                        updated_at TIMESTAMPTZ NOT NULL,
                        CONSTRAINT ck_place_lat CHECK (lat >= -90 AND lat <= 90),
@@ -145,7 +145,7 @@ CREATE TABLE schedule (
                           calendar_id BIGINT NOT NULL,
                           title TEXT NOT NULL,
                           memo TEXT,
-                          theme VARCHAR(100),
+                          theme VARCHAR(100) NOT NULL DEFAULT 'BLACK',
                           start_at TIMESTAMPTZ NOT NULL,
                           end_at TIMESTAMPTZ NOT NULL,
                           external_link_url TEXT,
@@ -197,7 +197,7 @@ CREATE TABLE schedule_recurrence (
                                      schedule_recurrence_id BIGSERIAL PRIMARY KEY,
                                      schedule_id BIGINT NOT NULL,
                                      freq VARCHAR(50) NOT NULL DEFAULT 'DAILY',
-                                     interval INT,
+                                     interval_count INT,
                                      by_day VARCHAR(20),
                                      by_monthday INT,
                                      by_month INT,
@@ -222,9 +222,23 @@ CREATE TABLE schedule_place (
                                 place_id BIGINT,
                                 created_at TIMESTAMPTZ NOT NULL,
                                 name TEXT,
-                                CONSTRAINT fk_schedule_place_schedule FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id),
+                                CONSTRAINT fk_schedule_place_schedule FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id) ON DELETE CASCADE,
                                 CONSTRAINT fk_schedule_place_place FOREIGN KEY (place_id) REFERENCES place(place_id)
 );
+
+-- SCHEDULE_LINK
+CREATE TABLE schedule_link (
+                                schedule_link_id BIGSERIAL PRIMARY KEY,
+                                schedule_id BIGINT NOT NULL,
+                                url TEXT NOT NULL,
+                                label TEXT,
+                                created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                                CONSTRAINT fk_schedule_link_schedule
+                                    FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX ux_schedule_link_unique ON schedule_link (schedule_id, url);
+CREATE INDEX ix_schedule_link_created ON schedule_link (schedule_id, created_at);
+
 
 -- ATTACHMENT
 CREATE TABLE attachment (

@@ -1,5 +1,6 @@
 package com.calendarbox.backend.global.error;
 
+import com.calendarbox.backend.global.dto.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -84,6 +85,5 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(ec.status())
                 .body(new ErrorBody(ec.code(), ec.message(), Instant.now(), req.getRequestURI()));
     }
-
 
 }

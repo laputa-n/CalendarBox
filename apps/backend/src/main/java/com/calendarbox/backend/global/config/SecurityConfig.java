@@ -28,6 +28,7 @@ public class SecurityConfig {
                                 "/actuator/health", "/auth/kakao/callback",
                                 "/auth/signup/complete", "/auth/refresh", "/auth/logout",
                                 "/docs/**"
+//                                ,"/api/places/search" // 테스트 위해 -> 테스트 완료 후 삭제
                         ).permitAll()
                         .requestMatchers("/api/**").authenticated()   // 보호가 필요한 경로
                         .anyRequest().permitAll()
