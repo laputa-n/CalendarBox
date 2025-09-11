@@ -250,7 +250,7 @@ CREATE TABLE attachment (
                             byte_size BIGINT NOT NULL,
                             position INT NOT NULL DEFAULT 0,
                             created_by BIGINT NOT NULL REFERENCES member(member_id),
-                            created_at TIMESTAMPZ NOT NULL DEFAULT now(),
+                            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
                             CONSTRAINT fk_attachment_schedule FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id),
                             CONSTRAINT fk_attachment_created_by FOREIGN KEY (created_by) REFERENCES member(member_id)
 );
