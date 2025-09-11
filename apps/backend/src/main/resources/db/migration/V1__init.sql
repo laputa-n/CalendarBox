@@ -243,24 +243,18 @@ CREATE INDEX ix_schedule_link_created ON schedule_link (schedule_id, created_at)
 -- ATTACHMENT
 CREATE TABLE attachment (
                             attachment_id BIGSERIAL PRIMARY KEY,
-                            file_url TEXT NOT NULL,
-                            thumbnail_url TEXT,
-                            category VARCHAR(100) NOT NULL,
-                            size BIGINT NOT NULL,
-                            added_by BIGINT NOT NULL,
-                            added_at TIMESTAMPTZ NOT NULL,
-                            CONSTRAINT fk_attachment_member FOREIGN KEY (added_by) REFERENCES member(member_id)
+                            schedule_id BIGINT NOT NULL,
+                            original_name TEXT  NOT NULL,
+                            object_key TEXT NOT NULL,
+                            mime_type TEXT NOT NULL,
+                            byte_size BIGINT NOT NULL,
+                            position INT NOT NULL DEFAULT 0,
+                            created_by BIGINT NOT NULL REFERENCES member(member_id),
+                            created_at TIMESTAMPZ NOT NULL DEFAULT now(),
+                            CONSTRAINT fk_attachment_schedule FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id),
+                            CONSTRAINT fk_attachment_created_by FOREIGN KEY (created_by) REFERENCES member(member_id)
 );
-
--- SCHEDULE_ATTACHMENT
-CREATE TABLE schedule_attachment (
-                                     schedule_attachment_id BIGSERIAL PRIMARY KEY,
-                                     schedule_id BIGINT NOT NULL,
-                                     attachment_id BIGINT NOT NULL,
-                                     created_at TIMESTAMPTZ NOT NULL,
-                                     CONSTRAINT fk_schedule_attachment_schedule FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id),
-                                     CONSTRAINT fk_schedule_attachment_attachment FOREIGN KEY (attachment_id) REFERENCES attachment(attachment_id)
-);
+CREATE INDEX idx_attachment_schedule ON attachment(schedule_id);
 
 -- EXPENSE
 CREATE TABLE expense (
