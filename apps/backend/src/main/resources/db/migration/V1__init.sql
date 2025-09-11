@@ -109,17 +109,35 @@ CREATE TABLE notification (
 -- PLACE
 CREATE TABLE place (
                        place_id BIGSERIAL PRIMARY KEY,
+                       provider VARCHAR(20) NOT NULL DEFAULT 'NAVER',
+                       provider_place_key TEXT NOT NULL DEFAULT '',
                        title TEXT NOT NULL,
                        link TEXT,
                        category VARCHAR(100),
                        description TEXT,
                        address TEXT,
                        road_address TEXT,
-                       map_x NUMERIC(9,6) NOT NULL,
-                       map_y NUMERIC(9,6) NOT NULL,
+                       lng NUMERIC(9,6) NOT NULL,
+                       lat NUMERIC(9,6) NOT NULL,
                        created_at TIMESTAMPTZ NOT NULL,
-                       updated_at TIMESTAMPTZ NOT NULL
+                       updated_at TIMESTAMPTZ NOT NULL,
+                       CONSTRAINT ck_place_lat CHECK (lat >= -90 AND lat <= 90),
+                       CONSTRAINT ck_place_lng CHECK (lng >= -180 AND lng <= 180)
 );
+CREATE UNIQUE INDEX ux_place_provider_key
+    ON place(provider, provider_place_key)
+    WHERE provider <> 'MANUAL';
+
+CREATE INDEX ix_place_title
+    ON place USING gin (to_tsvector('simple', coalesce(title,'')));
+CREATE INDEX ix_place_road_addr
+    ON place USING gin (to_tsvector('simple', coalesce(road_address,'')));
+
+CREATE INDEX ix_place_lat_lng ON place(lat, lng);
+
+CREATE TRIGGER tr_place_updated_at
+    BEFORE UPDATE ON place
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- SCHEDULE
 CREATE TABLE schedule (
@@ -127,7 +145,7 @@ CREATE TABLE schedule (
                           calendar_id BIGINT NOT NULL,
                           title TEXT NOT NULL,
                           memo TEXT,
-                          theme VARCHAR(100),
+                          theme VARCHAR(100) NOT NULL DEFAULT 'BLACK',
                           start_at TIMESTAMPTZ NOT NULL,
                           end_at TIMESTAMPTZ NOT NULL,
                           external_link_url TEXT,
@@ -179,7 +197,7 @@ CREATE TABLE schedule_recurrence (
                                      schedule_recurrence_id BIGSERIAL PRIMARY KEY,
                                      schedule_id BIGINT NOT NULL,
                                      freq VARCHAR(50) NOT NULL DEFAULT 'DAILY',
-                                     interval INT,
+                                     interval_count INT,
                                      by_day VARCHAR(20),
                                      by_monthday INT,
                                      by_month INT,
@@ -204,31 +222,39 @@ CREATE TABLE schedule_place (
                                 place_id BIGINT,
                                 created_at TIMESTAMPTZ NOT NULL,
                                 name TEXT,
-                                CONSTRAINT fk_schedule_place_schedule FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id),
+                                CONSTRAINT fk_schedule_place_schedule FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id) ON DELETE CASCADE,
                                 CONSTRAINT fk_schedule_place_place FOREIGN KEY (place_id) REFERENCES place(place_id)
 );
+
+-- SCHEDULE_LINK
+CREATE TABLE schedule_link (
+                                schedule_link_id BIGSERIAL PRIMARY KEY,
+                                schedule_id BIGINT NOT NULL,
+                                url TEXT NOT NULL,
+                                label TEXT,
+                                created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                                CONSTRAINT fk_schedule_link_schedule
+                                    FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX ux_schedule_link_unique ON schedule_link (schedule_id, url);
+CREATE INDEX ix_schedule_link_created ON schedule_link (schedule_id, created_at);
+
 
 -- ATTACHMENT
 CREATE TABLE attachment (
                             attachment_id BIGSERIAL PRIMARY KEY,
-                            file_url TEXT NOT NULL,
-                            thumbnail_url TEXT,
-                            category VARCHAR(100) NOT NULL,
-                            size BIGINT NOT NULL,
-                            added_by BIGINT NOT NULL,
-                            added_at TIMESTAMPTZ NOT NULL,
-                            CONSTRAINT fk_attachment_member FOREIGN KEY (added_by) REFERENCES member(member_id)
+                            schedule_id BIGINT NOT NULL,
+                            original_name TEXT  NOT NULL,
+                            object_key TEXT NOT NULL,
+                            mime_type TEXT NOT NULL,
+                            byte_size BIGINT NOT NULL,
+                            position INT NOT NULL DEFAULT 0,
+                            created_by BIGINT NOT NULL REFERENCES member(member_id),
+                            created_at TIMESTAMPZ NOT NULL DEFAULT now(),
+                            CONSTRAINT fk_attachment_schedule FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id),
+                            CONSTRAINT fk_attachment_created_by FOREIGN KEY (created_by) REFERENCES member(member_id)
 );
-
--- SCHEDULE_ATTACHMENT
-CREATE TABLE schedule_attachment (
-                                     schedule_attachment_id BIGSERIAL PRIMARY KEY,
-                                     schedule_id BIGINT NOT NULL,
-                                     attachment_id BIGINT NOT NULL,
-                                     created_at TIMESTAMPTZ NOT NULL,
-                                     CONSTRAINT fk_schedule_attachment_schedule FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id),
-                                     CONSTRAINT fk_schedule_attachment_attachment FOREIGN KEY (attachment_id) REFERENCES attachment(attachment_id)
-);
+CREATE INDEX idx_attachment_schedule ON attachment(schedule_id);
 
 -- EXPENSE
 CREATE TABLE expense (

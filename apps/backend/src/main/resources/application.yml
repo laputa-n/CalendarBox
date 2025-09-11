@@ -44,6 +44,12 @@ kakao:
   client_id: 72fecab83ee9fd949f17b58c0bdc474d
   redirect_uri: http://localhost:3000/kakao/callback
 
+naver:
+  search:
+    client-id: 3ZWem3_2PxmTfa8HPT7K
+    client-secret: vSGs1rH3R4
+
+
 auth:
   jwt:
     issuer: calendarbox
