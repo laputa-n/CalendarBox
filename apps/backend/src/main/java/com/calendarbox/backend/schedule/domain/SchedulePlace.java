@@ -3,12 +3,14 @@ package com.calendarbox.backend.schedule.domain;
 import com.calendarbox.backend.place.domain.Place;
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
+@EntityListeners(AuditingEntityListener.class)
 public class SchedulePlace {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)

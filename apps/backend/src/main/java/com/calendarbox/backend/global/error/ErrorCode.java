@@ -31,7 +31,9 @@ public enum ErrorCode {
     REQUEST_NO_CHANGES("REQUEST_NO_CHANGES", HttpStatus.BAD_REQUEST,"변화가 없습니다."),
     DEFAULT_ONLY_FOR_PERSONAL("DEFAULT_ONLY_FOR_PERSONAL", HttpStatus.BAD_REQUEST, "개인 캘린더만 기본 캘린더로 설정이 가능합니다."),
     INVITE_ONLY_FOR_GROUP("INVITE_ONLY_FOR_GROUP", HttpStatus.BAD_REQUEST,"그룹 캘린더만 멤버 초대가 가능합니다."),
-    REINVITE_NOT_ALLOWED("REINVITE_NOT_ALLOWED", HttpStatus.BAD_REQUEST,"재초대가 불가합니다.");
+    REINVITE_NOT_ALLOWED("REINVITE_NOT_ALLOWED", HttpStatus.BAD_REQUEST,"재초대가 불가합니다."),
+
+    ATTACHMENT_NOT_FOUND("ATTACHMENT_NOT_FOUND", HttpStatus.NOT_FOUND, "파일을 찾을 수 없습니다.");
     private final String code;
     private final HttpStatus status;
     private final String message;
