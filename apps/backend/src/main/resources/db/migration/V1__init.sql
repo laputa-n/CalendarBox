@@ -162,6 +162,7 @@ CREATE TABLE schedule_participant (
                                       schedule_id BIGINT NOT NULL,
                                       member_id BIGINT,
                                       name TEXT,
+                                      status VARCHAR(20) NOT NULL DEFAULT 'INVITED',
                                       invited_at TIMESTAMPTZ NOT NULL,
                                       responded_at TIMESTAMPTZ,
                                       is_copied BOOLEAN NOT NULL DEFAULT FALSE,
@@ -177,11 +178,14 @@ CREATE TABLE schedule_todo (
                                schedule_id BIGINT NOT NULL,
                                content TEXT NOT NULL,
                                is_done BOOLEAN NOT NULL DEFAULT FALSE,
-                               order_no INTEGER NOT NULL,
-                               created_at TIMESTAMPTZ NOT NULL,
-                               updated_at TIMESTAMPTZ NOT NULL,
-                               CONSTRAINT fk_schedule_todo FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id)
+                               order_no INTEGER NOT NULL DEFAULT 0,
+                               created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                               updated_at TIMESTAMPTZ,
+                               CONSTRAINT fk_schedule_todo FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id) ON DELETE CASCADE
 );
+
+CREATE INDEX idx_todo_schedule_order ON schedule_todo(schedule_id, order_no, schedule_todo_id);
+CREATE UNIQUE INDEX uq_todo_schedule_order ON schedule_todo(schedule_id, order_no);
 
 -- SCHEDULE_REMINDER
 CREATE TABLE schedule_reminder (
