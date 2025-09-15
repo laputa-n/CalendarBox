@@ -3,6 +3,7 @@ package com.calendarbox.backend.place.domain;
 import com.calendarbox.backend.place.dto.response.PlacePreview;
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -11,6 +12,7 @@ import java.util.Objects;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
+@EntityListeners(AuditingEntityListener.class)
 public class Place {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -251,7 +251,8 @@ CREATE TABLE attachment (
                             position INT NOT NULL DEFAULT 0,
                             created_by BIGINT NOT NULL REFERENCES member(member_id),
                             created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-                            CONSTRAINT fk_attachment_schedule FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id),
+                            is_img BOOLEAN NOT NULL,
+                            CONSTRAINT fk_attachment_schedule FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id) ON DELETE CASCADE  ,
                             CONSTRAINT fk_attachment_created_by FOREIGN KEY (created_by) REFERENCES member(member_id)
 );
 CREATE INDEX idx_attachment_schedule ON attachment(schedule_id);
