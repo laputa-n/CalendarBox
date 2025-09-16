@@ -70,4 +70,14 @@ public class ScheduleRecurrence {
 
     @CreatedDate
     void onCreate(){ createdAt = Instant.now();}
+
+    public void changeRule(RecurrenceFreq freq, int intervalCount,
+                           String[] byDay, Integer[] byMonthday, Integer[] byMonth, Instant until) {
+        this.freq = freq;
+        this.intervalCount = intervalCount;
+        this.byDay = byDay;
+        this.byMonthday = byMonthday;
+        this.byMonth = byMonth;
+        this.until = until;
+    }
 }
