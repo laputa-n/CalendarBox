@@ -1,0 +1,73 @@
+package com.calendarbox.backend.schedule.domain;
+
+import com.calendarbox.backend.schedule.enums.RecurrenceFreq;
+import jakarta.persistence.*;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import java.time.Instant;
+
+@Entity
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@EntityListeners(AuditingEntityListener.class)
+public class ScheduleRecurrence {
+
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "schedule_recurrence_id")
+    private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "schedule_id", nullable = false)
+    private Schedule schedule;
+
+    @Enumerated(EnumType.STRING)
+    private RecurrenceFreq freq;
+
+    @Column(name = "interval_count", nullable = false)
+    private int intervalCount = 1;
+
+    @Column(name = "by_day", columnDefinition = "text[]")
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    private String[] byDay;
+
+    @Column(name = "by_monthday", columnDefinition = "int[]")
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    private Integer[] byMonthday;
+
+    @Column(name = "by_month", columnDefinition = "int[]")
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    private Integer[] byMonth;
+
+    @Column(nullable = false)
+    private Instant until;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    public static ScheduleRecurrence of(Schedule schedule,
+                                        RecurrenceFreq freq,
+                                        int intervalCount,
+                                        String[] byDay,
+                                        Integer[] byMonthday,
+                                        Integer[] byMonth,
+                                        Instant until) {
+        ScheduleRecurrence r = new ScheduleRecurrence();
+        r.schedule = schedule;
+        r.freq = freq;
+        r.intervalCount = intervalCount;
+        r.byDay = byDay;
+        r.byMonthday = byMonthday;
+        r.byMonth = byMonth;
+        r.until = until;
+        return r;
+    }
+
+    @CreatedDate
+    void onCreate(){ createdAt = Instant.now();}
+}
