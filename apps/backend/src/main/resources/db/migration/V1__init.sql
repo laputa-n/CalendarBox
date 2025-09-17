@@ -201,22 +201,25 @@ CREATE TABLE schedule_recurrence (
                                      schedule_recurrence_id BIGSERIAL PRIMARY KEY,
                                      schedule_id BIGINT NOT NULL,
                                      freq VARCHAR(50) NOT NULL DEFAULT 'DAILY',
-                                     interval_count INT,
-                                     by_day VARCHAR(20),
-                                     by_monthday INT,
-                                     by_month INT,
-                                     created_at TIMESTAMPTZ NOT NULL,
-                                     end_at TIMESTAMPTZ,
-                                     CONSTRAINT fk_schedule_recurrence FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id)
+                                     interval_count INT NOT NULL DEFAULT 1,
+                                     by_day TEXT[],
+                                     by_monthday INT[],
+                                     by_month INT[],
+                                     until TIMESTAMPTZ NOT NULL,
+                                     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                                     CONSTRAINT fk_schedule_recurrence FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id) ON DELETE CASCADE,
+                                     CONSTRAINT chk_interval_pos CHECK (interval_count >= 1)
 );
+
+CREATE INDEX idx_recur_schedule ON schedule_recurrence(schedule_id);
 
 -- SCHEDULE_RECURRENCE_EXCEPTION
 CREATE TABLE schedule_recurrence_exception (
-                                               exception_id BIGSERIAL PRIMARY KEY,
+                                               schedule_recurrence_exception_id BIGSERIAL PRIMARY KEY,
                                                schedule_recurrence_id BIGINT NOT NULL,
                                                exception_date DATE NOT NULL,
-                                               created_at TIMESTAMPTZ NOT NULL,
-                                               CONSTRAINT fk_recurrence_exception FOREIGN KEY (schedule_recurrence_id) REFERENCES schedule_recurrence(schedule_recurrence_id)
+                                               CONSTRAINT fk_recurrence_exception FOREIGN KEY (schedule_recurrence_id) REFERENCES schedule_recurrence(schedule_recurrence_id) ON DELETE CASCADE,
+                                               CONSTRAINT uq_recur_exdate UNIQUE (schedule_recurrence_id, exception_date)
 );
 
 -- SCHEDULE_PLACE

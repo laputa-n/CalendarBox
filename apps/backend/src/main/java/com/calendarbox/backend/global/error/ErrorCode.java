@@ -36,7 +36,14 @@ public enum ErrorCode {
     ATTACHMENT_NOT_FOUND("ATTACHMENT_NOT_FOUND", HttpStatus.NOT_FOUND, "파일을 찾을 수 없습니다."),
     SCHEDULE_NOT_FOUND("SCHEDULE_NOT_FOUND", HttpStatus.NOT_FOUND, "스케줄을 찾을 수 없습니다."),
     SCHEDULE_TODO_NOT_MATCH("SCHEDULE_TODO_NOT_MATCH",HttpStatus.CONFLICT,"투두가 스케줄에 속하지 않습니다."),
-    TODO_NOT_FOUND("TODO_NOT_FOUND",HttpStatus.NOT_FOUND,"투두가 존재하지 않습니다.");
+    TODO_NOT_FOUND("TODO_NOT_FOUND",HttpStatus.NOT_FOUND,"투두가 존재하지 않습니다."),
+
+    RECURRENCE_NOT_FOUND("RECURRENCE_NOT_FOUND", HttpStatus.NOT_FOUND, "반복 규칙이 존재하지 않습니다."),
+    RECURRENCE_EXDATE_DUP("RECURRENCE_EXDATE_DUP", HttpStatus.CONFLICT, "예외 날짜가 이미 존재합니다."),
+    RECURRENCE_EXDATE_NOT_FOUND("RECURRENCE_EXDATE_NOT_FOUND", HttpStatus.NOT_FOUND, "예외 날짜가 존재하지 않습니다."),
+    SCHEDULE_RECUR_EXDATE_MISMATCH("SCHEDULE_RECUR_EXDATE_MISMATCH", HttpStatus.BAD_REQUEST, "예외 날짜가 해당 스케줄 반복에 속하지 않습니다."),
+    RECURRENCE_UNTIL_BEFORE_START("RECURRENCE_UNTIL_BEFORE_START", HttpStatus.BAD_REQUEST, "반복 종료일은 스케줄 시작일 이후여야 합니다.");
+
     private final String code;
     private final HttpStatus status;
     private final String message;
