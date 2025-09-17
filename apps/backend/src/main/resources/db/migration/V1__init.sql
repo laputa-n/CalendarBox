@@ -219,7 +219,7 @@ CREATE TABLE schedule_recurrence_exception (
                                                schedule_recurrence_id BIGINT NOT NULL,
                                                exception_date DATE NOT NULL,
                                                CONSTRAINT fk_recurrence_exception FOREIGN KEY (schedule_recurrence_id) REFERENCES schedule_recurrence(schedule_recurrence_id) ON DELETE CASCADE,
-                                               CONSTRAINT uq_recur_exdate UNIQUE (schedule_recurrence_id, exception_date);
+                                               CONSTRAINT uq_recur_exdate UNIQUE (schedule_recurrence_id, exception_date)
 );
 
 -- SCHEDULE_PLACE
