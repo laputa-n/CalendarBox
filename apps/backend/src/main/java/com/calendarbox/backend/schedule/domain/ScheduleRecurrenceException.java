@@ -12,19 +12,19 @@ import java.time.LocalDate;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ScheduleRecurrenceException {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "schedule_recurrence_id")
+    @Column(name = "schedule_recurrence_exception_id")
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "schedule_recurrence_id", nullable = false)
-    private ScheduleRecurrence recurrence;
+    private ScheduleRecurrence scheduleRecurrence;
 
     @Column(name = "exception_date", nullable = false)
     private LocalDate exceptionDate;
 
     public static ScheduleRecurrenceException of(ScheduleRecurrence recurrence, LocalDate exceptionDate) {
         ScheduleRecurrenceException e = new ScheduleRecurrenceException();
-        e.recurrence = recurrence;
+        e.scheduleRecurrence = recurrence;
         e.exceptionDate = exceptionDate;
         return e;
     }

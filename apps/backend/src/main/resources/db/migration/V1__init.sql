@@ -215,7 +215,7 @@ CREATE INDEX idx_recur_schedule ON schedule_recurrence(schedule_id);
 
 -- SCHEDULE_RECURRENCE_EXCEPTION
 CREATE TABLE schedule_recurrence_exception (
-                                               exception_id BIGSERIAL PRIMARY KEY,
+                                               schedule_recurrence_exception_id BIGSERIAL PRIMARY KEY,
                                                schedule_recurrence_id BIGINT NOT NULL,
                                                exception_date DATE NOT NULL,
                                                CONSTRAINT fk_recurrence_exception FOREIGN KEY (schedule_recurrence_id) REFERENCES schedule_recurrence(schedule_recurrence_id) ON DELETE CASCADE,
