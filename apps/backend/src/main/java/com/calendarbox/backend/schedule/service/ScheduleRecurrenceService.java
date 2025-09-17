@@ -28,11 +28,9 @@ public class ScheduleRecurrenceService {
         var schedule = scheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
 
-        // until > startAt
         if (!req.until().isAfter(schedule.getStartAt()))
             throw new BusinessException(ErrorCode.RECURRENCE_UNTIL_BEFORE_START);
 
-        // WEEKLY + byDay 비었으면 start 요일 보정 (Seoul 고정)
         Set<String> byDay = req.byDay();
         if (req.freq() == RecurrenceFreq.WEEKLY && (byDay == null || byDay.isEmpty())) {
             var zone = ZoneId.of("Asia/Seoul");
@@ -44,7 +42,6 @@ public class ScheduleRecurrenceService {
             byDay = Set.of(token);
         }
 
-        // 중복 제거/정렬
         var byDayArr = (byDay==null? null: byDay.stream().distinct().sorted().toArray(String[]::new));
         var byMonthdayArr = (req.byMonthday()==null? null: req.byMonthday().stream().distinct().sorted().toArray(Integer[]::new));
         var byMonthArr = (req.byMonth()==null? null: req.byMonth().stream().distinct().sorted().toArray(Integer[]::new));
@@ -56,19 +53,16 @@ public class ScheduleRecurrenceService {
         return toResponse(saved);
     }
 
-    // 수정 (recurrenceId 기준)
     public RecurrenceResponse update(Long userId, Long scheduleId, Long recurrenceId, RecurrenceUpsertRequest req) {
         var r = scheduleRecurrenceRepository.findById(recurrenceId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RECURRENCE_NOT_FOUND));
         if (!r.getSchedule().getId().equals(scheduleId))
             throw new BusinessException(ErrorCode.SCHEDULE_RECUR_EXDATE_MISMATCH);
 
-        // until 검증(스케줄 시작 이후)
         var schedule = r.getSchedule();
         if (!req.until().isAfter(schedule.getStartAt()))
             throw new BusinessException(ErrorCode.RECURRENCE_UNTIL_BEFORE_START);
 
-        // WEEKLY 기본 요일 보정
         Set<String> byDay = req.byDay();
         if (req.freq() == RecurrenceFreq.WEEKLY && (byDay == null || byDay.isEmpty())) {
             var zone = ZoneId.of("Asia/Seoul");

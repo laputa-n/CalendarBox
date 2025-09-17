@@ -13,7 +13,10 @@ public class RecurrenceRuleValidator implements ConstraintValidator<ValidRecurre
     private static boolean empty(Collection<?> x){ return x==null || x.isEmpty(); }
     private static boolean inRange(Set<Integer> s, int lo, int hi, boolean excludeZero) {
         if (s==null) return true;
-        for (int v: s) if ((excludeZero && v==0) || v<lo || v>hi) return false; return true;
+        for (int v: s){
+            if ((excludeZero && v==0) || v<lo || v>hi) return false;
+        }
+        return true;
     }
 
     @Override public boolean isValid(RecurrenceUpsertRequest r, ConstraintValidatorContext c) {
