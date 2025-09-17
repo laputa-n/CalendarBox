@@ -17,7 +17,7 @@ public class RecurrenceExceptionQueryService {
     private final ScheduleRecurrenceRepository scheduleRecurrenceRepository;
 
     public List<RecurrenceExceptionResponse> list(Long userId, Long recurrenceId) {
-        return scheduleRecurrenceExceptionRepository.findByRecurrence_Id(recurrenceId).stream()
+        return scheduleRecurrenceExceptionRepository.findByScheduleRecurrence_Id(recurrenceId).stream()
                 .map(e -> new RecurrenceExceptionResponse(e.getId(), e.getExceptionDate()))
                 .toList();
     }

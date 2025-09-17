@@ -10,6 +10,6 @@ import java.util.List;
 public interface ScheduleRecurrenceExceptionRepository extends JpaRepository<ScheduleRecurrenceException, Long> {
     @Query("select e from ScheduleRecurrenceException e where e.scheduleRecurrence.schedule.id = :scheduleId order by e.exceptionDate asc, e.id asc")
     List<ScheduleRecurrenceException> findByScheduleId(Long scheduleId);
-    boolean existsByRecurrence_IdAndExceptionDate(Long recurrenceId, LocalDate exceptionDate);
-    List<ScheduleRecurrenceException> findByRecurrence_Id(Long recurrenceId);
+    boolean existsByScheduleRecurrence_IdAndExceptionDate(Long recurrenceId, LocalDate exceptionDate);
+    List<ScheduleRecurrenceException> findByScheduleRecurrence_Id(Long scheduleRecurrenceId);
 }

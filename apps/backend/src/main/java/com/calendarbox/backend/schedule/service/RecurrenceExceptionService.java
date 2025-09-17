@@ -21,7 +21,7 @@ public class RecurrenceExceptionService {
     public RecurrenceExceptionResponse add(Long userId, Long recurrenceId, RecurrenceExceptionRequest req) {
         var recurrence = scheduleRecurrenceRepository.findById(recurrenceId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RECURRENCE_NOT_FOUND));
-        if (scheduleRecurrenceExceptionRepository.existsByRecurrence_IdAndExceptionDate(recurrence.getId(), req.exceptionDate()))
+        if (scheduleRecurrenceExceptionRepository.existsByScheduleRecurrence_IdAndExceptionDate(recurrence.getId(), req.exceptionDate()))
             throw new BusinessException(ErrorCode.RECURRENCE_EXDATE_DUP);
 
         var saved = scheduleRecurrenceExceptionRepository.save(ScheduleRecurrenceException.of(recurrence, req.exceptionDate()));
