@@ -192,8 +192,8 @@ CREATE TABLE schedule_reminder (
                                    schedule_reminder_id BIGSERIAL PRIMARY KEY,
                                    schedule_id BIGINT NOT NULL,
                                    minutes_before INTEGER NOT NULL,
-                                   created_at TIMESTAMPTZ NOT NULL,
-                                   CONSTRAINT fk_schedule_reminder FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id)
+                                   CONSTRAINT fk_schedule_reminder FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id) ON DELETE CASCADE,
+                                   CONSTRAINT uq_schedule_reminder UNIQUE (schedule_id, minutes_before)
 );
 
 -- SCHEDULE_RECURRENCE
