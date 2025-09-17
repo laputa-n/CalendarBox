@@ -36,17 +36,18 @@ public class ScheduleRecurrence {
     @JdbcTypeCode(SqlTypes.ARRAY)
     private String[] byDay;
 
-    @Column(name = "by_monthday", columnDefinition = "int[]")
+    @Column(name = "by_monthday", columnDefinition = "integer[]")
     @JdbcTypeCode(SqlTypes.ARRAY)
     private Integer[] byMonthday;
 
-    @Column(name = "by_month", columnDefinition = "int[]")
+    @Column(name = "by_month", columnDefinition = "integer[]")
     @JdbcTypeCode(SqlTypes.ARRAY)
     private Integer[] byMonth;
 
     @Column(nullable = false)
     private Instant until;
 
+    @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -67,9 +68,6 @@ public class ScheduleRecurrence {
         r.until = until;
         return r;
     }
-
-    @CreatedDate
-    void onCreate(){ createdAt = Instant.now();}
 
     public void changeRule(RecurrenceFreq freq, int intervalCount,
                            String[] byDay, Integer[] byMonthday, Integer[] byMonth, Instant until) {

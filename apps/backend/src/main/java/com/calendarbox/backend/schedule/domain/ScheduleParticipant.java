@@ -7,6 +7,7 @@ import jakarta.validation.groups.Default;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
@@ -35,6 +36,7 @@ public class ScheduleParticipant {
     @Enumerated(EnumType.STRING)
     private ScheduleParticipantStatus status;
 
+    @CreatedDate
     @Column(name = "invited_at", nullable = false, updatable = false)
     private Instant invitedAt;
 

@@ -33,21 +33,14 @@ public class ScheduleTodo {
     @Column(name = "order_no", nullable = false)
     private int orderNo;
 
+    @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    @LastModifiedDate
     @Column(name = "updated_at")
     private Instant updatedAt;
 
-    @CreatedDate
-    void onCreate() {
-        createdAt = Instant.now();
-    }
-
-    @LastModifiedDate
-    void onUpdate() {
-        updatedAt = Instant.now();
-    }
 
     public static ScheduleTodo create(Schedule schedule, String content, int orderNo) {
         ScheduleTodo t = new ScheduleTodo();
