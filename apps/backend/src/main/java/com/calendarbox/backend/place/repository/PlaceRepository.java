@@ -7,4 +7,5 @@ import java.util.Optional;
 
 public interface PlaceRepository extends JpaRepository<Place, Long> {
     Optional<Place> findByProviderAndProviderPlaceKey(String provider, String providerPlaceKey);
+    boolean existsByProviderAndProviderPlaceKey(String provider, String providerPlaceKey);
 }
