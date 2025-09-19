@@ -117,8 +117,8 @@ CREATE TABLE place (
                        description TEXT,
                        address TEXT,
                        road_address TEXT,
-                       lng NUMERIC(9,6) NOT NULL,
                        lat NUMERIC(9,6) NOT NULL,
+                       lng NUMERIC(9,6) NOT NULL,
                        created_at TIMESTAMPTZ NOT NULL,
                        updated_at TIMESTAMPTZ NOT NULL,
                        CONSTRAINT ck_place_lat CHECK (lat >= -90 AND lat <= 90),
@@ -227,12 +227,18 @@ CREATE TABLE schedule_place (
                                 schedule_place_id BIGSERIAL PRIMARY KEY,
                                 schedule_id BIGINT NOT NULL,
                                 place_id BIGINT,
-                                created_at TIMESTAMPTZ NOT NULL,
                                 name TEXT,
+                                position INTEGER NOT NULL DEFAULT 0,
+                                created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
                                 CONSTRAINT fk_schedule_place_schedule FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id) ON DELETE CASCADE,
                                 CONSTRAINT fk_schedule_place_place FOREIGN KEY (place_id) REFERENCES place(place_id)
 );
-
+CREATE UNIQUE INDEX ux_schedule_place
+    ON schedule_place(schedule_id, place_id)
+    WHERE place_id is not null;
+CREATE UNIQUE INDEX ux_schedule_name
+    ON schedule_place(schedule_id, name)
+    WHERE name is not null;
 -- SCHEDULE_LINK
 CREATE TABLE schedule_link (
                                 schedule_link_id BIGSERIAL PRIMARY KEY,

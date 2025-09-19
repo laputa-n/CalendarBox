@@ -1,5 +1,6 @@
 package com.calendarbox.backend.global.error;
 
+import org.springframework.http.HttpOutputMessage;
 import org.springframework.http.HttpStatus;
 
 public enum ErrorCode {
@@ -36,6 +37,7 @@ public enum ErrorCode {
     ATTACHMENT_NOT_FOUND("ATTACHMENT_NOT_FOUND", HttpStatus.NOT_FOUND, "파일을 찾을 수 없습니다."),
     SCHEDULE_NOT_FOUND("SCHEDULE_NOT_FOUND", HttpStatus.NOT_FOUND, "스케줄을 찾을 수 없습니다."),
     SCHEDULE_TODO_NOT_MATCH("SCHEDULE_TODO_NOT_MATCH",HttpStatus.CONFLICT,"투두가 스케줄에 속하지 않습니다."),
+    SCHEDULE_PLACE_NOT_MATCH("SCHEDULE_PLACE_NOT_MATCH",HttpStatus.CONFLICT,"장소가 스케줄에 속하지 않습니다."),
     TODO_NOT_FOUND("TODO_NOT_FOUND",HttpStatus.NOT_FOUND,"투두가 존재하지 않습니다."),
 
     RECURRENCE_NOT_FOUND("RECURRENCE_NOT_FOUND", HttpStatus.NOT_FOUND, "반복 규칙이 존재하지 않습니다."),
@@ -45,7 +47,17 @@ public enum ErrorCode {
     RECURRENCE_UNTIL_BEFORE_START("RECURRENCE_UNTIL_BEFORE_START", HttpStatus.BAD_REQUEST, "반복 종료일은 스케줄 시작일 이후여야 합니다."),
 
     REMINDER_MINUTES_DUP("REMINDER_MINUTES_DUP", HttpStatus.CONFLICT,"리마인더가 이미 존재합니다."),
-    REMINDER_NOT_FOUND("REMINDER_NOT_FOUND", HttpStatus.NOT_FOUND, "리마인더가 존재하지 않습니다");
+    REMINDER_NOT_FOUND("REMINDER_NOT_FOUND", HttpStatus.NOT_FOUND, "리마인더가 존재하지 않습니다"),
+
+    SCHEDULE_PLACE_NAME_NEED("SCHEDULE_PLACE_NAME_NEED", HttpStatus.BAD_REQUEST,"스케줄 장소 이름이 필요합니다."),
+    SCHEDULE_PLACE_NAME_DUP("SCHEDULE_PLACE_NAME_DUP", HttpStatus.CONFLICT, "동일한 스케줄 장소 이름이 이미 존재합니다."),
+    SCHEDULE_PLACE_DUP("SCHEDULE_PLACE_DUP", HttpStatus.CONFLICT, "동일한 스케줄 장소가 이미 등록되어 있습니다."),
+    EXISTING_PLACE_ID_NEED("EXISTING_PLACE_ID_NEED", HttpStatus.BAD_REQUEST,"EXISTING은 PLACEID가 필요합니다."),
+
+    PLACE_NOT_FOUND("PLACE_NOT_FOUND",HttpStatus.NOT_FOUND,"장소를 찾을 수 없습니다."),
+    SCHEDULE_PLACE_NOT_FOUND("SCHEDULE_PLACE_NOT_FOUND",HttpStatus.NOT_FOUND,"일정 장소를 찾을 수 없습니다.");
+
+
 
     private final String code;
     private final HttpStatus status;
