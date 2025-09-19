@@ -58,7 +58,7 @@ public class SchedulePlaceService {
     }
 
     public List<SchedulePlaceDto> reorder(Long userId, Long scheduleId, PlaceReorderRequest req){
-        if(req.orders() == null || req.orders().isEmpty()) {
+        if(req.positions() == null || req.positions().isEmpty()) {
             throw new BusinessException(ErrorCode.INVALID_JSON);
         }
 
@@ -66,7 +66,7 @@ public class SchedulePlaceService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
 
         Map<Long,Integer> desired = new HashMap<>();
-        for(var it: req.orders()){
+        for(var it: req.positions()){
             if(it.position() < 0) throw new BusinessException(ErrorCode.INVALID_JSON);
             desired.put(it.schedulePlaceId(), it.position());
         }

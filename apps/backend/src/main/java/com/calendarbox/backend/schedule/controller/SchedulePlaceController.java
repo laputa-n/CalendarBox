@@ -41,7 +41,7 @@ public class SchedulePlaceController {
     ){
         schedulePlaceService.delete(userId,scheduleId,schedulePlaceId);
 
-        return ResponseEntity.ok(ApiResponse.ok("일정 장소가 삭제되었습니다.",null));
+        return ResponseEntity.ok(ApiResponse.ok("일정 장소가 삭제 성공",null));
     }
 
     @GetMapping("/{schedulePlaceId}")
@@ -64,7 +64,7 @@ public class SchedulePlaceController {
     ){
         var data = schedulePlaceService.edit(userId,scheduleId,schedulePlaceId,req);
 
-        return ResponseEntity.ok(ApiResponse.ok("장소 이름 수정 성공",data));
+        return ResponseEntity.ok(ApiResponse.ok("일정 장소 이름 수정 성공",data));
     }
 
     @PatchMapping
