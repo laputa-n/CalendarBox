@@ -23,6 +23,7 @@ public enum ErrorCode {
     FRIENDSHIP_INVALID_STATE("FRIENDSHIP_INVALID_STATE", HttpStatus.CONFLICT, "요청 상태가 유효하지 않아 처리할 수 없습니다. (현재: {0})"),
     FRIENDSHIP_ALREADY_RESPONDED("FRIENDSHIP_ALREADY_RESPONDED", HttpStatus.CONFLICT, "이미 응답된 요청입니다."),
     FRIENDSHIP_REQUIRED("FRIENDSHIP_REQUIRED",HttpStatus.FORBIDDEN,"친구가 아닙니다."),
+    FRIENDSHIP_NOT_FOUNT("FRIENDSHIP_NOT_FOUNT",HttpStatus.NOT_FOUND,"친구 관계를 찾을 수 없습니다."),
 
     CALENDAR_NAME_DUPLICATE("CALENDAR_NAME_DUPLICATE", HttpStatus.CONFLICT,"이미 동일한 캘린더를 보유하고 있습니다."),
     CALENDAR_NOT_FOUND("CALENDAR_NOT_FOUND", HttpStatus.NOT_FOUND, "해당 캘린더가 존재하지 않습니다."),

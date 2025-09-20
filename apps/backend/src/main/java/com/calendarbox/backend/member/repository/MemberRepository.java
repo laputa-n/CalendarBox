@@ -11,6 +11,7 @@ import java.util.Optional;
 
 public interface MemberRepository extends JpaRepository<Member, Long> {
     Optional<Member> findByEmail(String email);
+    Optional<Member> findByPhoneNumber(String phoneNumber);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select m from Member m where m.id = :id")

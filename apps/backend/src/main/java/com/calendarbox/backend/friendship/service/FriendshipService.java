@@ -1,6 +1,7 @@
 package com.calendarbox.backend.friendship.service;
 
 import com.calendarbox.backend.friendship.domain.Friendship;
+import com.calendarbox.backend.friendship.dto.request.FriendRequest;
 import com.calendarbox.backend.friendship.enums.FriendshipStatus;
 import com.calendarbox.backend.friendship.enums.SentQueryStatus;
 import com.calendarbox.backend.friendship.repository.FriendshipRepository;
@@ -24,13 +25,16 @@ public class FriendshipService {
     private final FriendshipRepository friendshipRepository;
     private final MemberRepository memberRepository;
 
-    public Long request(Long requesterId, Long addresseeId){
-        if(friendshipRepository.existsByRequesterIdAndAddresseeId(requesterId,addresseeId)){
+    public Long request(Long requesterId, FriendRequest request){
+        Member addressee = memberRepository.findByEmail(request.query())
+                .or(() -> memberRepository.findByPhoneNumber(request.query()))
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+
+        if(friendshipRepository.existsByRequesterIdAndAddresseeId(requesterId,addressee.getId())){
             throw new BusinessException(ErrorCode.VALIDATION_ERROR,"이미 보낸 요청이 있습니다.");
         }
 
         Member requester = memberRepository.findById(requesterId).get();
-        Member addressee = memberRepository.findById(addresseeId).get();
 
         Friendship friendship = Friendship.request(requester,addressee);
 
