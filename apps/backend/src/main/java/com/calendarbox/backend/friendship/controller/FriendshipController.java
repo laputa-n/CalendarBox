@@ -11,6 +11,8 @@ import com.calendarbox.backend.friendship.repository.FriendshipRepository;
 import com.calendarbox.backend.friendship.service.FriendshipService;
 import com.calendarbox.backend.global.dto.ApiResponse;
 import com.calendarbox.backend.global.dto.PageResponse;
+import com.calendarbox.backend.global.error.BusinessException;
+import com.calendarbox.backend.global.error.ErrorCode;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -33,16 +35,14 @@ public class FriendshipController {
     @PostMapping("/request")
     public ResponseEntity<ApiResponse<FriendRequestResponse>> requestFriend(
             @AuthenticationPrincipal(expression= "id") Long requesterId,
-            @Valid @RequestBody FriendRequest friendRequest
+            @RequestBody FriendRequest friendRequest
     ) {
-        Long addresseeId = friendRequest.addresseeId();
-
-        Long friendshipId = friendshipService.request(requesterId, addresseeId);
+        Long friendshipId = friendshipService.request(requesterId, friendRequest);
 
         Friendship f = friendshipRepository.findById(friendshipId)
-                .orElseThrow(() -> new IllegalStateException("Friendship not found after create"));
+                .orElseThrow(() -> new BusinessException(ErrorCode.FRIENDSHIP_NOT_FOUNT));
 
-        var data = new FriendRequestResponse(friendshipId,requesterId,addresseeId,f.getCreatedAt());
+        var data = new FriendRequestResponse(friendshipId,requesterId,f.getRequester().getId(),f.getCreatedAt());
 
         return ResponseEntity.ok(ApiResponse.ok("친구 요청을 보냈습니다.", data));
     }
