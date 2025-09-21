@@ -55,4 +55,5 @@ public class ScheduleTodo {
     public void makeDone(){ this.isDone = true; }
     public void makeNotDone(){ this.isDone = false; }
     public void setOrderNo(int orderNo){ this.orderNo = orderNo; }
+    void setSchedule(Schedule schedule){ this.schedule = schedule; }
 }

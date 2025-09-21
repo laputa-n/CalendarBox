@@ -55,4 +55,8 @@ public class SchedulePlace {
         if(i < 0) throw new BusinessException(ErrorCode.VALIDATION_ERROR);
         this.position = i;
     }
+
+    void setSchedule(Schedule schedule){
+        this.schedule = schedule;
+    }
 }

@@ -148,13 +148,21 @@ CREATE TABLE schedule (
                           theme VARCHAR(100) NOT NULL DEFAULT 'BLACK',
                           start_at TIMESTAMPTZ NOT NULL,
                           end_at TIMESTAMPTZ NOT NULL,
-                          external_link_url TEXT,
                           created_by BIGINT NOT NULL,
                           updated_by BIGINT,
                           created_at TIMESTAMPTZ NOT NULL,
                           updated_at TIMESTAMPTZ NOT NULL,
-                          CONSTRAINT fk_schedule_calendar FOREIGN KEY (calendar_id) REFERENCES calendar(calendar_id)
+                          source_schedule_id BIGINT,
+                          CONSTRAINT fk_schedule_calendar FOREIGN KEY (calendar_id) REFERENCES calendar(calendar_id),
+                          CONSTRAINT fk_schedule_source FOREIGN KEY (source_schedule_id) REFERENCES schedule(schedule_id) ON DELETE SET NULL
 );
+CREATE INDEX ix_schedule_source_schedule_id
+    ON schedule (source_schedule_id);
+
+-- 4) (선택) 자기참조 금지 체크
+ALTER TABLE schedule
+    ADD CONSTRAINT chk_schedule_source_not_self
+        CHECK (source_schedule_id IS NULL OR source_schedule_id <> schedule_id);
 
 -- SCHEDULE_PARTICIPANT
 CREATE TABLE schedule_participant (
@@ -163,13 +171,11 @@ CREATE TABLE schedule_participant (
                                       member_id BIGINT,
                                       name TEXT,
                                       status VARCHAR(20) NOT NULL DEFAULT 'INVITED',
-                                      invited_at TIMESTAMPTZ NOT NULL,
+                                      invited_at TIMESTAMPTZ NOT NULL DEFAULT now(),
                                       responded_at TIMESTAMPTZ,
-                                      is_copied BOOLEAN NOT NULL DEFAULT FALSE,
-                                      CONSTRAINT fk_schedule_participant_schedule FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id),
+                                      CONSTRAINT fk_schedule_participant_schedule FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id) ON DELETE CASCADE,
                                       CONSTRAINT fk_schedule_participant_member FOREIGN KEY (member_id) REFERENCES member(member_id),
-                                      CONSTRAINT uq_schedule_participant UNIQUE (schedule_id, member_id),
-                                      CONSTRAINT uq_schedule_participant2 UNIQUE (schedule_id, name)
+                                      CONSTRAINT uq_schedule_participant UNIQUE (schedule_id, member_id)
 );
 
 -- SCHEDULE_TODO

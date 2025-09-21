@@ -1,10 +1,7 @@
 package com.calendarbox.backend.calendar.controller;
 
 import com.calendarbox.backend.calendar.domain.Calendar;
-import com.calendarbox.backend.calendar.dto.request.CalendarEditRequest;
-import com.calendarbox.backend.calendar.dto.request.CalendarInvitedRespondRequest;
-import com.calendarbox.backend.calendar.dto.request.CreateCalendarRequest;
-import com.calendarbox.backend.calendar.dto.request.InviteMembersRequest;
+import com.calendarbox.backend.calendar.dto.request.*;
 import com.calendarbox.backend.calendar.dto.response.*;
 import com.calendarbox.backend.calendar.enums.CalendarMemberSort;
 import com.calendarbox.backend.calendar.enums.CalendarMemberStatus;
@@ -16,6 +13,9 @@ import com.calendarbox.backend.calendar.service.CalendarQueryService;
 import com.calendarbox.backend.calendar.service.CalendarService;
 import com.calendarbox.backend.global.dto.PageResponse;
 import com.calendarbox.backend.global.dto.ApiResponse;
+import com.calendarbox.backend.schedule.dto.request.CloneScheduleRequest;
+import com.calendarbox.backend.schedule.dto.response.CloneScheduleResponse;
+import com.calendarbox.backend.schedule.service.ScheduleService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -35,6 +35,7 @@ public class CalendarController {
     private final CalendarQueryService calendarQueryService;
     private final CalendarMemberService calendarMemberService;
     private final CalendarMemberQueryService calendarMemberQueryService;
+    private final ScheduleService scheduleService;
 
     @PostMapping("/calendars")
     public ResponseEntity<ApiResponse<CreateCalendarResponse>> createCalendar(
@@ -143,5 +144,16 @@ public class CalendarController {
 
         var data = new DeleteCalendarMemberResponse(isWithdraw);
         return ResponseEntity.ok(ApiResponse.ok(msg,data));
+    }
+
+    @PostMapping("/calendars/{calendarId}/schedules")
+    public ResponseEntity<ApiResponse<CloneScheduleResponse>> cloneToCalendar(
+            @AuthenticationPrincipal(expression = "id") Long userId,
+            @PathVariable Long calendarId,
+            @RequestBody CloneScheduleRequest request
+    ){
+        var data = scheduleService.clone(userId, calendarId, request);
+
+        return ResponseEntity.ok(ApiResponse.ok("일정 복제 성공", data));
     }
 }
