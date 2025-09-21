@@ -5,6 +5,7 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
@@ -27,6 +28,7 @@ public class ScheduleLink {
 
     private String label;
 
+    @CreatedDate
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -36,8 +38,6 @@ public class ScheduleLink {
         this.label = label;
     }
 
-    @PrePersist
-    void prePersist(){ this.createdAt = Instant.now(); }
 
     void setSchedule(Schedule schedule){
         this.schedule = schedule;

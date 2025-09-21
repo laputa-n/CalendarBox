@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
@@ -27,7 +28,7 @@ public class Attachment {
     @Column(name = "original_name", nullable = false)
     private String originalName;
 
-    @Column(name = "object_key", nullable = false, unique = true)
+    @Column(name = "object_key", nullable = false)
     private String objectKey;
 
     @Column(name = "mime_type", nullable = false)
@@ -73,4 +74,5 @@ public class Attachment {
         if (this.mimeType != null) this.mimeType = this.mimeType.toLowerCase();
         this.isImg = this.mimeType != null && this.mimeType.startsWith("image/");
     }
+    public void setSchedule(Schedule schedule){ this.schedule = schedule; }
 }

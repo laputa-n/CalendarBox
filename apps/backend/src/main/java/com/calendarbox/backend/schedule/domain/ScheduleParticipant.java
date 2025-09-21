@@ -3,7 +3,6 @@ package com.calendarbox.backend.schedule.domain;
 import com.calendarbox.backend.member.domain.Member;
 import com.calendarbox.backend.schedule.enums.ScheduleParticipantStatus;
 import jakarta.persistence.*;
-import jakarta.validation.groups.Default;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -11,6 +10,7 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
+import java.util.Objects;
 
 @Entity
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -23,7 +23,7 @@ public class ScheduleParticipant {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "schedule_id")
+    @JoinColumn(name = "schedule_id", nullable = false)
     private Schedule schedule;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = true)
@@ -34,7 +34,7 @@ public class ScheduleParticipant {
     private String name;
 
     @Enumerated(EnumType.STRING)
-    private ScheduleParticipantStatus status;
+    private ScheduleParticipantStatus status = ScheduleParticipantStatus.INVITED;;
 
     @CreatedDate
     @Column(name = "invited_at", nullable = false, updatable = false)
@@ -43,6 +43,36 @@ public class ScheduleParticipant {
     @Column(name = "responded_at")
     private Instant respondedAt;
 
-    @Column(name = "is_copied", nullable = false)
-    private boolean isCopied;
+    public static ScheduleParticipant ofMember(Schedule schedule, Member member) {
+        ScheduleParticipant sp = new ScheduleParticipant();
+        sp.schedule = schedule;
+        sp.member = member;
+        sp.name = member.getName();
+        sp.status = ScheduleParticipantStatus.INVITED;
+        return sp;
+    }
+
+    public static ScheduleParticipant ofName(Schedule schedule, String name) {
+        ScheduleParticipant sp = new ScheduleParticipant();
+        sp.schedule = schedule;
+        sp.name = name;
+        sp.status = ScheduleParticipantStatus.ACCEPTED;
+        sp.respondedAt = Instant.now();
+        return sp;
+    }
+
+    public void accept() {
+        this.status = ScheduleParticipantStatus.ACCEPTED;
+        this.respondedAt = Instant.now();
+    }
+
+    public void decline() {
+        this.status = ScheduleParticipantStatus.REJECTED;
+        this.respondedAt = Instant.now();
+    }
+
+    void setSchedule(Schedule schedule){
+        this.schedule = schedule;
+    }
+
 }
