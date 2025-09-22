@@ -8,11 +8,16 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.CreatedBy;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.calendarbox.backend.schedule.enums.ScheduleTheme.BLACK;
 
 @Entity
 @Getter
@@ -25,7 +30,7 @@ public class Schedule {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "calendar_id")
+    @JoinColumn(name = "calendar_id", nullable = false)
     private Calendar calendar;
 
     @Column(nullable = false)
@@ -34,7 +39,7 @@ public class Schedule {
     private String memo;
 
     @Enumerated(EnumType.STRING)
-    private ScheduleTheme theme;
+    private ScheduleTheme theme = BLACK;
 
     @Column(name = "start_at", nullable = false)
     private Instant startAt;
@@ -42,18 +47,19 @@ public class Schedule {
     @Column(name = "end_at", nullable = false)
     private Instant endAt;
 
-
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "created_by")
+    @JoinColumn(name = "created_by", nullable = false)
     private Member createdBy;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "updated_by")
     private Member updatedBy;
 
-    @Column(name = "created_at", nullable = false)
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    @LastModifiedDate
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
@@ -80,6 +86,17 @@ public class Schedule {
     @OneToMany(mappedBy = "schedule", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("position Asc, id ASC")
     private List<Attachment> attachments = new ArrayList<>();
+
+
+    public Schedule(Calendar c, String title, String memo, ScheduleTheme theme, Instant startAt, Instant endAt, Member createdBy) {
+        this.calendar = c;
+        this.title = title;
+        this.memo = memo;
+        this.theme = theme;
+        this.startAt = startAt;
+        this.endAt = endAt;
+        this.createdBy = createdBy;
+    }
 
     public void addLink(ScheduleLink link) {
         links.add(link);
@@ -129,14 +146,6 @@ public class Schedule {
         participants.remove(sp);   // <-- orphanRemoval 트리거
         sp.setSchedule(null);
     }
-
-    @PrePersist
-    void prePersist() {
-        Instant now = Instant.now();
-        this.createdAt = now;
-    }
-    @PreUpdate
-    void preUpdate() { this.updatedAt = Instant.now(); }
 
     public static Schedule cloneHeader(
             Schedule src,
