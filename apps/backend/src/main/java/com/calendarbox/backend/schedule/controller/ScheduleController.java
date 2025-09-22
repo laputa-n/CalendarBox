@@ -2,7 +2,9 @@ package com.calendarbox.backend.schedule.controller;
 
 import com.calendarbox.backend.global.dto.ApiResponse;
 import com.calendarbox.backend.schedule.dto.request.CreateScheduleRequest;
+import com.calendarbox.backend.schedule.dto.request.EditScheduleRequest;
 import com.calendarbox.backend.schedule.dto.response.CreateScheduleResponse;
+import com.calendarbox.backend.schedule.dto.response.ScheduleDto;
 import com.calendarbox.backend.schedule.service.ScheduleQueryService;
 import com.calendarbox.backend.schedule.service.ScheduleService;
 import jakarta.validation.Valid;
@@ -37,5 +39,16 @@ public class ScheduleController {
 
         return ResponseEntity.created(location)
                 .body(ApiResponse.ok("일정 생성 성공", data));
+    }
+
+    @PatchMapping("/schedules/{scheduleId}")
+    public ResponseEntity<ApiResponse<ScheduleDto>> edit(
+            @AuthenticationPrincipal(expression="id") Long userId,
+            @PathVariable Long scheduleId,
+            @RequestBody EditScheduleRequest request
+    ){
+        var data = scheduleService.edit(userId,scheduleId,request);
+
+        return ResponseEntity.ok(ApiResponse.ok("일정 수정 성공",data));
     }
 }

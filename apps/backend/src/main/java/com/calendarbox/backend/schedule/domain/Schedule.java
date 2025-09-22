@@ -165,4 +165,26 @@ public class Schedule {
         dst.source = src;
         return dst;
     }
+
+    public void editTitle(String title){
+        String t = (title == null)?"":title;
+        this.title = t;
+    }
+
+    public void editMemo(String memo){
+        this.memo = (memo == null ? "":memo);
+    }
+
+    public void editTheme(ScheduleTheme theme){
+        this.theme = (theme == null? BLACK : theme);
+    }
+
+    public void reschedule(Instant startAt, Instant endAt) {
+        this.startAt = startAt;
+        this.endAt   = endAt;
+    }
+
+    public void touchUpdateBy(Member updater){
+        this.updatedBy = updater;
+    }
 }

@@ -12,8 +12,10 @@ import com.calendarbox.backend.member.repository.MemberRepository;
 import com.calendarbox.backend.schedule.domain.Schedule;
 import com.calendarbox.backend.schedule.dto.request.CloneScheduleRequest;
 import com.calendarbox.backend.schedule.dto.request.CreateScheduleRequest;
+import com.calendarbox.backend.schedule.dto.request.EditScheduleRequest;
 import com.calendarbox.backend.schedule.dto.response.CloneScheduleResponse;
 import com.calendarbox.backend.schedule.dto.response.CreateScheduleResponse;
+import com.calendarbox.backend.schedule.dto.response.ScheduleDto;
 import com.calendarbox.backend.schedule.enums.ScheduleTheme;
 import com.calendarbox.backend.schedule.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -104,6 +106,38 @@ public class ScheduleService {
                 schedule.getEndAt(),
                 schedule.getCreatedBy().getId(),
                 schedule.getCreatedAt()
+        );
+    }
+
+    public ScheduleDto edit(Long userId, Long scheduleId, EditScheduleRequest request){
+        Member user = memberRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+
+        Schedule s = scheduleRepository.findById(scheduleId).orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
+
+        Calendar c = s.getCalendar();
+
+        if(!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(c.getId(),user.getId(),CalendarMemberStatus.ACCEPTED) && !c.getOwner().getId().equals(user.getId())) throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+
+
+        Instant newStart = request.startAt().orElse(s.getStartAt());
+        Instant newEnd   = request.endAt().orElse(s.getEndAt());
+        if (!newStart.isBefore(newEnd)) {
+            throw new BusinessException(ErrorCode.START_AFTER_BEFORE);
+        }
+
+        request.title().ifPresent(s::editTitle);
+        request.memo().ifPresent(s::editMemo);
+        request.theme().ifPresent(s::editTheme);
+        s.reschedule(newStart, newEnd);
+        s.touchUpdateBy(user);
+
+        if(!s.getStartAt().isBefore(s.getEndAt())) throw new BusinessException(ErrorCode.START_AFTER_BEFORE);
+
+        return new ScheduleDto(
+                s.getId(), s.getCalendar().getId(), s.getTitle(), s.getMemo(), s.getTheme()
+                , s.getStartAt(), s.getEndAt(), s.getCreatedBy().getId(), s.getUpdatedBy().getId()
+                , s.getCreatedAt(), s.getUpdatedAt()
         );
     }
 }
