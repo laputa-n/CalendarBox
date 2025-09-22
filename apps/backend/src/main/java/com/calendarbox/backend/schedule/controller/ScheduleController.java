@@ -51,4 +51,14 @@ public class ScheduleController {
 
         return ResponseEntity.ok(ApiResponse.ok("일정 수정 성공",data));
     }
+
+    @DeleteMapping("/schedules/{scheduleId}")
+    public ResponseEntity<ApiResponse<Void>> delete(
+            @AuthenticationPrincipal(expression = "id") Long userId,
+            @PathVariable Long scheduleId
+    ){
+        scheduleService.delete(userId,scheduleId);
+
+        return ResponseEntity.ok(ApiResponse.ok("일정 삭제 성공", null));
+    }
 }

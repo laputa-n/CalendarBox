@@ -140,4 +140,17 @@ public class ScheduleService {
                 , s.getCreatedAt(), s.getUpdatedAt()
         );
     }
+
+    public void delete(Long userId, Long scheduleId){
+        Member user = memberRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+
+        Schedule s = scheduleRepository.findById(scheduleId).orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
+
+        Calendar c = s.getCalendar();
+
+        if(!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(c.getId(),user.getId(),CalendarMemberStatus.ACCEPTED) && !c.getOwner().getId().equals(user.getId())) throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+
+        scheduleRepository.delete(s);
+    }
 }
