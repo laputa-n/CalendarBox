@@ -146,7 +146,7 @@ public class CalendarController {
         return ResponseEntity.ok(ApiResponse.ok(msg,data));
     }
 
-    @PostMapping("/calendars/{calendarId}/schedules")
+    @PostMapping("/calendars/{calendarId}/schedules/clone")
     public ResponseEntity<ApiResponse<CloneScheduleResponse>> cloneToCalendar(
             @AuthenticationPrincipal(expression = "id") Long userId,
             @PathVariable Long calendarId,
