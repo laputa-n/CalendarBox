@@ -12,10 +12,19 @@ import com.calendarbox.backend.member.repository.MemberRepository;
 import com.calendarbox.backend.schedule.domain.Schedule;
 import com.calendarbox.backend.schedule.dto.response.ScheduleDetailDto;
 import com.calendarbox.backend.schedule.dto.response.ScheduleDetailSummary;
+import com.calendarbox.backend.schedule.dto.response.ScheduleListItem;
+import com.calendarbox.backend.schedule.dto.response.ScheduleListResponse;
 import com.calendarbox.backend.schedule.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 
 @Service
 @Transactional(readOnly = true)
@@ -31,6 +40,7 @@ public class ScheduleQueryService {
     private final MemberRepository memberRepository;
     private final AttachmentRepository attachmentRepository;
     private final CalendarMemberRepository calendarMemberRepository;
+    private final CalendarRepository calendarRepository;
     public ScheduleDetailDto getDetail(Long userId, Long scheduleId) {
         Member user = memberRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
         Schedule s = scheduleRepository.findById(scheduleId).orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
@@ -67,5 +77,125 @@ public class ScheduleQueryService {
                 hasImg, cntImgs,
                 hasFile, cntFiles
         ));
+    }
+
+    public ScheduleListResponse getList(Long userId, List<Long> calendarId, String date, Instant from, Instant to){
+        Member user = memberRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+
+        List<Long> requestedIds = calendarId == null ? List.of() : new ArrayList<>(new HashSet<>(calendarId));
+
+        List<Long> effectiveIds;
+        if (requestedIds.isEmpty()) {
+            //  ACCEPTED/INVITED 둘 다 읽기 허용
+            effectiveIds = calendarMemberRepository
+                    .findCalendarIdsByMemberIdAndStatuses(user.getId(),
+                            List.of(CalendarMemberStatus.ACCEPTED, CalendarMemberStatus.INVITED));
+            if (effectiveIds.isEmpty()) {
+                return new ScheduleListResponse(0, List.of());
+            }
+        } else {
+            for (Long cId : requestedIds) {
+                Calendar c = calendarRepository.findById(cId)
+                        .orElseThrow(() -> new BusinessException(ErrorCode.CALENDAR_NOT_FOUND));
+
+                boolean readable =
+                        calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(c.getId(), user.getId(), CalendarMemberStatus.ACCEPTED) ||
+                                calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(c.getId(), user.getId(), CalendarMemberStatus.INVITED);
+
+                if (!readable) throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+            }
+            effectiveIds = requestedIds;
+        }
+
+        final ZoneId KST = ZoneId.of("Asia/Seoul");
+        List<Schedule> schedules;
+
+        boolean hasDate = (date != null && !date.isBlank());
+        boolean hasFrom = (from != null);
+        boolean hasTo   = (to   != null);
+
+        if (hasDate) {
+            if (hasFrom || hasTo) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR);
+            }
+            LocalDate d;
+            try {
+                d = LocalDate.parse(date.trim());
+            } catch (DateTimeParseException e) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR);
+            }
+            Instant effFrom = d.atStartOfDay(KST).toInstant();
+            Instant effTo   = d.plusDays(1).atStartOfDay(KST).toInstant();
+
+            schedules = scheduleRepository.findAllOverlapping(effectiveIds, effFrom, effTo);
+
+        } else if (hasFrom && !hasTo) {
+            // from만: 미래 무한대 → endAt > from
+            schedules = scheduleRepository.findAllFrom(effectiveIds, from);
+
+        } else if (!hasFrom && hasTo) {
+            schedules = scheduleRepository.findAllUntil(effectiveIds, to);
+
+        } else if (hasFrom && hasTo) {
+            if (!from.isBefore(to)) {
+                throw new BusinessException(ErrorCode.START_AFTER_BEFORE);
+            }
+            schedules = scheduleRepository.findAllOverlapping(effectiveIds, from, to);
+
+        } else {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR);
+        }
+
+        List<ScheduleListItem> items = schedules.stream()
+                .map(s -> new ScheduleListItem(
+                        s.getCalendar().getId(),
+                        s.getCalendar().getType(),     // CalendarType 필드 가정
+                        s.getCalendar().getName(),     // 캘린더 이름
+                        s.getId(),
+                        s.getTitle(),
+                        s.getStartAt(),
+                        s.getEndAt()
+                ))
+                .toList();
+
+        return new ScheduleListResponse(items.size(), items);
+    }
+
+    public ScheduleListResponse search(Long userId, List<Long> calendarIds, String query){
+        Member user = memberRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+
+        List<Long> requestedIds = (calendarIds == null)? List.of() : new ArrayList<>(new HashSet<>(calendarIds));
+        List<Long> effectiveIds;
+        if (requestedIds.isEmpty()) {
+            effectiveIds = calendarMemberRepository.findCalendarIdsByMemberIdAndStatuses(
+                    user.getId(),List.of(CalendarMemberStatus.ACCEPTED)
+            );
+            if (effectiveIds.isEmpty()) {
+                return new ScheduleListResponse(0, List.of());
+            }
+        } else {
+            for (Long cId : requestedIds) {
+                Calendar c = calendarRepository.findById(cId).orElseThrow(() -> new BusinessException(ErrorCode.CALENDAR_NOT_FOUND));
+                if (!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(c.getId(),user.getId(),CalendarMemberStatus.ACCEPTED)) throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+            }
+            effectiveIds = requestedIds;
+        }
+
+       List<Schedule> schedules =  scheduleRepository.searchByKeyword(effectiveIds, query);
+
+        List<ScheduleListItem> items = schedules.stream()
+                .map(s -> new ScheduleListItem(
+                        s.getCalendar().getId(),
+                        s.getCalendar().getType(),
+                        s.getCalendar().getName(),
+                        s.getId(),
+                        s.getTitle(),
+                        s.getStartAt(),
+                        s.getEndAt()
+                ))
+                .toList();
+
+        return new ScheduleListResponse(items.size(), items);
     }
 }

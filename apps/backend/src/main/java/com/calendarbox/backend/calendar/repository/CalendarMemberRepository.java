@@ -157,4 +157,11 @@ order by c.name asc, c.id desc
     """)
     Page<CalendarMemberItem> findMembersOrderByCreatedAtDesc(@Param("calendarId") Long calendarId, @Param("status") CalendarMemberStatus status,Pageable pageable);
 
+    @Query("""
+    select cm.calendar.id
+    from CalendarMember cm
+    where cm.member.id = :memberId
+      and cm.status in :statuses
+    """)
+    List<Long> findCalendarIdsByMemberIdAndStatuses(@Param("memberId")Long memberId, @Param("statuses")List<CalendarMemberStatus> statuses);
 }
