@@ -18,7 +18,7 @@ public enum ErrorCode {
 
 
     INVALID_JSON("INVALID_JSON", HttpStatus.BAD_REQUEST, "요청 JSON 파싱에서 오류가 발생했습니다."),
-
+    START_AFTER_BEFORE("START_AFTER_BEFORE", HttpStatus.BAD_REQUEST,"시작 시간이 종료 시간 이후입니다"),
     FRIENDSHIP_SELF_REQUEST("FRIENDSHIP_SELF_REQUEST", HttpStatus.BAD_REQUEST, "자기 자신에게는 친구 요청을 보낼 수 없습니다."),
     FRIENDSHIP_INVALID_STATE("FRIENDSHIP_INVALID_STATE", HttpStatus.CONFLICT, "요청 상태가 유효하지 않아 처리할 수 없습니다. (현재: {0})"),
     FRIENDSHIP_ALREADY_RESPONDED("FRIENDSHIP_ALREADY_RESPONDED", HttpStatus.CONFLICT, "이미 응답된 요청입니다."),

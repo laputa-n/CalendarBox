@@ -10,4 +10,6 @@ public interface ScheduleRecurrenceRepository extends JpaRepository<ScheduleRecu
     Optional<ScheduleRecurrence> findBySchedule_Id(Long scheduleId);
     boolean existsBySchedule_Id(Long scheduleId);
     List<ScheduleRecurrence> findAllBySchedule_Id(Long scheduleId);
+    Long countBySchedule_Id(Long scheduleId);
+
 }

@@ -27,6 +27,9 @@ spring:
     enabled: true
     baseline-on-migrate: true
 
+server:
+  forward-headers-strategy: framework
+
 management:
   endpoints:
     web:
