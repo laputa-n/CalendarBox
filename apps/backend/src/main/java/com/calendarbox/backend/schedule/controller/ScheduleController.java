@@ -76,12 +76,12 @@ public class ScheduleController {
     @GetMapping("/schedules")
     public ResponseEntity<ApiResponse<ScheduleListResponse>> getList(
             @AuthenticationPrincipal(expression = "id") Long userId,
-            @RequestParam(required = false) List<Long> calendarIds,
+            @RequestParam(required = false) List<Long> calendarId,
             @RequestParam(required = false) String date,
             @RequestParam(required = false) Instant from,
             @RequestParam(required = false) Instant to
     ){
-        var data = scheduleQueryService.getList(userId,calendarIds,date,from,to);
+        var data = scheduleQueryService.getList(userId,calendarId,date,from,to);
 
         return ResponseEntity.ok(ApiResponse.ok("일정 목록 조회 성공", data));
     }
@@ -89,10 +89,10 @@ public class ScheduleController {
     @GetMapping("/schedules/search")
     public ResponseEntity<ApiResponse<ScheduleListResponse>> search(
             @AuthenticationPrincipal(expression = "id")Long userId,
-            @RequestParam(required = false) List<Long> calendarIds,
+            @RequestParam(required = false) List<Long> calendarId,
             @RequestParam String query
     ){
-        var data = scheduleQueryService.search(userId,calendarIds,query);
+        var data = scheduleQueryService.search(userId,calendarId,query);
 
         return ResponseEntity.ok(ApiResponse.ok("일정 검색 성공", data));
     }
