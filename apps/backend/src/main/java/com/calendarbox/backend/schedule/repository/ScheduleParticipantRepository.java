@@ -11,7 +11,7 @@ import java.util.List;
 public interface ScheduleParticipantRepository extends JpaRepository<ScheduleParticipant, Long> {
     boolean existsBySchedule_IdAndMember_IdAndStatus(Long scheduleId, Long memberId, ScheduleParticipantStatus status);
     boolean existsBySchedule_IdAndMember_Id(Long scheduleId, Long memberId);
-
+    boolean existsBySchedule_Id(Long scheduleId);
     @Query("""
 select sp
 from ScheduleParticipant sp
@@ -24,4 +24,6 @@ order by sp.invitedAt asc, sp.id asc
             @Param("scheduleId") Long scheduleId,
             @Param("status") ScheduleParticipantStatus status
     );
+
+    Long countBySchedule_Id(Long scheduleId);
 }

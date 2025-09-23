@@ -16,4 +16,10 @@ public interface ScheduleLinkRepository extends JpaRepository<ScheduleLink, Long
         WHERE schedule_id = :srcId
         """, nativeQuery = true)
     void copyAll(@Param("srcId") Long srcId, @Param("dstId") Long dstId);
+
+    boolean existsBySchedule_Id(Long scheduleId);
+
+    Long countBySchedule_Id(Long scheduleId);
+
+
 }

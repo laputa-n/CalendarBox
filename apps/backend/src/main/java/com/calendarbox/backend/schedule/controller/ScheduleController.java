@@ -4,6 +4,7 @@ import com.calendarbox.backend.global.dto.ApiResponse;
 import com.calendarbox.backend.schedule.dto.request.CreateScheduleRequest;
 import com.calendarbox.backend.schedule.dto.request.EditScheduleRequest;
 import com.calendarbox.backend.schedule.dto.response.CreateScheduleResponse;
+import com.calendarbox.backend.schedule.dto.response.ScheduleDetailDto;
 import com.calendarbox.backend.schedule.dto.response.ScheduleDto;
 import com.calendarbox.backend.schedule.service.ScheduleQueryService;
 import com.calendarbox.backend.schedule.service.ScheduleService;
@@ -60,5 +61,15 @@ public class ScheduleController {
         scheduleService.delete(userId,scheduleId);
 
         return ResponseEntity.ok(ApiResponse.ok("일정 삭제 성공", null));
+    }
+
+    @GetMapping("/schedules/{scheduleId}")
+    public ResponseEntity<ApiResponse<ScheduleDetailDto>> getDetail(
+            @AuthenticationPrincipal(expression = "id") Long userId,
+            @PathVariable Long scheduleId
+    ){
+        var data = scheduleQueryService.getDetail(userId,scheduleId);
+
+        return ResponseEntity.ok(ApiResponse.ok("일정 상세 조회 성공", data));
     }
 }

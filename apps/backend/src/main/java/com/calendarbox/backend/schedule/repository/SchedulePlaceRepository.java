@@ -13,6 +13,7 @@ import java.util.List;
 public interface SchedulePlaceRepository extends JpaRepository<SchedulePlace, Long> {
     boolean existsByScheduleIdAndPlaceId(Long scheduleId, Long placeId);
     boolean existsByScheduleIdAndName(Long scheduleId, String name);
+    boolean existsBySchedule_Id(Long scheduleId);
 
     @Query("select coalesce(max(sp.position), -1) from SchedulePlace sp where sp.schedule.id = :scheduleId")
     int findMaxPositionByScheduleId(Long scheduleId);
@@ -30,5 +31,8 @@ public interface SchedulePlaceRepository extends JpaRepository<SchedulePlace, Lo
         WHERE schedule_id = :srcId
         """, nativeQuery = true)
     void copyAllForClone(@Param("srcId") Long srcId, @Param("dstId") Long dstId);
+
+    Long countBySchedule_Id(Long scheduleId);
+
 }
 

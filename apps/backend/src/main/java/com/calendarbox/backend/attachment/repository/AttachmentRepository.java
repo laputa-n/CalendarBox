@@ -36,4 +36,8 @@ public interface AttachmentRepository extends JpaRepository<Attachment, Long> {
         WHERE schedule_id = :srcId
         """, nativeQuery = true)
     void copyAllDbOnly(@Param("srcId") Long srcId, @Param("dstId") Long dstId);
+
+    boolean existsBySchedule_IdAndIsImg(Long scheduleId, Boolean isImg);
+
+    Long countBySchedule_IdAndIsImg(Long scheduleId, Boolean isImg);
 }
