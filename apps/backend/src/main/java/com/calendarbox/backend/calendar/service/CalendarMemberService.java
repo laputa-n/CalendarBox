@@ -15,6 +15,10 @@ import com.calendarbox.backend.global.error.BusinessException;
 import com.calendarbox.backend.global.error.ErrorCode;
 import com.calendarbox.backend.member.domain.Member;
 import com.calendarbox.backend.member.repository.MemberRepository;
+import com.calendarbox.backend.notification.domain.Notification;
+import com.calendarbox.backend.notification.enums.NotificationType;
+import com.calendarbox.backend.notification.repository.NotificationRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -30,7 +34,8 @@ public class CalendarMemberService {
     private final CalendarMemberRepository calendarMemberRepository;
     private final CalendarRepository calendarRepository;
     private final MemberRepository memberRepository;
-
+    private final NotificationRepository notificationRepository;
+    private final ObjectMapper objectMapper;
     public InviteMembersResponse inviteMembers(Long inviterId, Long calendarId, InviteMembersRequest request){
         List<Long> memberIds = Optional.ofNullable(request)
                 .map(InviteMembersRequest::members)
@@ -51,6 +56,8 @@ public class CalendarMemberService {
         if (!inviterIsMember){
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
         }
+
+        Member inviter = memberRepository.findById(inviterId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
         Set<Long> orderedUnique = new LinkedHashSet<>(memberIds);
         List<Long> targets = new ArrayList<>(orderedUnique);
@@ -115,6 +122,37 @@ public class CalendarMemberService {
 
         if (!toInsert.isEmpty()){
             calendarMemberRepository.saveAll(toInsert);
+        }
+
+        List<Notification> notifications = new ArrayList<>();
+        for(Long targetId:successIds){
+            Member addressee = foundMap.get(targetId);
+            CalendarMember cm = existingByMemberId.get(targetId);
+            if (cm == null) {
+                cm = toInsert.stream()
+                        .filter(c -> c.getMember().getId().equals(targetId))
+                        .findFirst()
+                        .orElseThrow();
+            }
+            Notification notification = Notification.builder()
+                    .member(addressee)
+                    .actor(inviter)
+                    .type(NotificationType.INVITED_TO_CALENDAR)
+                    .resourceId(cm.getId())
+                    .payloadJson(
+                            toJson(Map.of(
+                                    "calendarId", calendar.getId(),
+                                    "calendarName", calendar.getName(),
+                                    "actorName", inviter.getName()
+                            ))
+                    )
+                    .dedupeKey("calendarInvite:" + cm.getId())
+                    .build();
+
+            notifications.add(notification);
+        }
+        if (!notifications.isEmpty()) {
+            notificationRepository.saveAll(notifications);
         }
 
         return new InviteMembersResponse(
@@ -182,5 +220,13 @@ public class CalendarMemberService {
         }
 
         return isWithdraw;
+    }
+
+    private String toJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "알림 페이로드 직렬화 실패");
+        }
     }
 }

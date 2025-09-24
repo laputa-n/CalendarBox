@@ -9,6 +9,9 @@ import com.calendarbox.backend.global.error.BusinessException;
 import com.calendarbox.backend.global.error.ErrorCode;
 import com.calendarbox.backend.member.domain.Member;
 import com.calendarbox.backend.member.repository.MemberRepository;
+import com.calendarbox.backend.notification.domain.Notification;
+import com.calendarbox.backend.notification.enums.NotificationType;
+import com.calendarbox.backend.notification.repository.NotificationRepository;
 import com.calendarbox.backend.schedule.domain.Schedule;
 import com.calendarbox.backend.schedule.domain.ScheduleParticipant;
 import com.calendarbox.backend.schedule.dto.request.AddParticipantRequest;
@@ -17,10 +20,12 @@ import com.calendarbox.backend.schedule.dto.response.AddParticipantResponse;
 import com.calendarbox.backend.schedule.dto.response.ScheduleParticipantResponse;
 import com.calendarbox.backend.schedule.repository.ScheduleParticipantRepository;
 import com.calendarbox.backend.schedule.repository.ScheduleRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
 import java.util.Objects;
 
 import static com.calendarbox.backend.schedule.enums.ScheduleParticipantStatus.INVITED;
@@ -34,6 +39,8 @@ public class ScheduleParticipantService {
     private final FriendshipRepository friendshipRepository;
     private final ScheduleRepository scheduleRepository;
     private final CalendarMemberRepository calendarMemberRepository;
+    private final ObjectMapper objectMapper;
+    private final NotificationRepository notificationRepository;
 
     public AddParticipantResponse add(Long userId, Long scheduleId, AddParticipantRequest request) {
 
@@ -76,6 +83,26 @@ public class ScheduleParticipantService {
 
         ScheduleParticipant sp = ScheduleParticipant.ofMember(s,addressee);
         s.addParticipant(sp);
+        scheduleParticipantRepository.save(sp);
+
+        Notification notification = Notification.builder()
+                .member(addressee)
+                .actor(requester)
+                .type(NotificationType.INVITED_TO_SCHEDULE)
+                .resourceId(sp.getId())
+                .payloadJson(
+                        toJson(Map.of(
+                                "scheduleId", s.getId(),
+                                "scheduleTitle", s.getTitle(),
+                                "scheduleStartAt", s.getStartAt(),
+                                "scheduleEndAt", s.getEndAt(),
+                                "actorName", requester.getName()
+                        ))
+                )
+                .dedupeKey("scheduleInvite:" + sp.getId())
+                .build();
+
+        notificationRepository.save(notification);
 
         return toAddParticipantResponse(sp);
     }
@@ -112,5 +139,13 @@ public class ScheduleParticipantService {
                 sp.getRespondedAt(),
                 sp.getStatus()
         );
+    }
+
+    private String toJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "알림 페이로드 직렬화 실패");
+        }
     }
 }
