@@ -12,9 +12,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -37,5 +35,15 @@ public class NotificationController {
         var data = notificationQueryService.getList(userId,pageable,onlyUnread,types);
 
         return ResponseEntity.ok(ApiResponse.ok("알림 목록 조회 성공", data));
+    }
+
+    @PatchMapping("/{notificationId}")
+    public ResponseEntity<ApiResponse<Void>> readNotification(
+            @AuthenticationPrincipal(expression = "id") Long userId,
+            @PathVariable Long notificationId
+    ){
+        notificationService.read(userId,notificationId);
+
+        return ResponseEntity.ok(ApiResponse.ok("알림 읽음 처리 성공", null));
     }
 }
