@@ -98,13 +98,33 @@ CREATE INDEX ix_friendship_requester_status ON friendship (requester_id, status)
 -- NOTIFICATION
 CREATE TABLE notification (
                               notification_id BIGSERIAL PRIMARY KEY,
-                              member_id BIGINT NOT NULL,
-                              category VARCHAR(100) NOT NULL,
-                              payload_json JSONB NOT NULL,
-                              read_at TIMESTAMPTZ,
-                              created_at TIMESTAMPTZ NOT NULL,
-                              CONSTRAINT fk_notification_member FOREIGN KEY (member_id) REFERENCES member(member_id)
+                              member_id       BIGINT NOT NULL REFERENCES member(member_id),
+                              actor_id        BIGINT NULL  REFERENCES member(member_id),
+                              type            VARCHAR(50) NOT NULL
+                                  CHECK (type IN (
+                                                  'INVITED_TO_CALENDAR',
+                                                  'INVITED_TO_SCHEDULE',
+                                                  'RECEIVED_FRIEND_REQUEST',
+                                                  'SYSTEM'
+                                      )),
+                              resource_id     BIGINT NULL, -- calendar_member_id / schedule_participant_id / friendship_id 등
+                              payload_json    JSONB NOT NULL DEFAULT '{}'::jsonb,
+                              read_at         TIMESTAMPTZ NULL,
+                              created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+                              dedupe_key      TEXT NULL UNIQUE
 );
+
+-- 인덱스: 미읽음 알림 조회 & 최신순 조회 빠르게
+CREATE INDEX ix_notification_member_unread
+    ON notification(member_id, read_at)
+    WHERE read_at IS NULL;
+
+CREATE INDEX ix_notification_member_created
+    ON notification(member_id, created_at DESC);
+
+-- 인덱스: 미읽음/최근 정렬 빠르게
+CREATE INDEX ix_notif_member_unread ON notification(member_id, read_at) WHERE read_at IS NULL;
+CREATE INDEX ix_notif_member_created ON notification(member_id, created_at DESC);
 
 -- PLACE
 CREATE TABLE place (

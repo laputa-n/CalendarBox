@@ -58,7 +58,8 @@ public enum ErrorCode {
     PLACE_NOT_FOUND("PLACE_NOT_FOUND",HttpStatus.NOT_FOUND,"장소를 찾을 수 없습니다."),
     SCHEDULE_PLACE_NOT_FOUND("SCHEDULE_PLACE_NOT_FOUND",HttpStatus.NOT_FOUND,"일정 장소를 찾을 수 없습니다."),
 
-    SCHEDULE_PARTICIPANT_NOT_FOUND("SCHEDULE_PARTICIPANT_NOT_FOUND", HttpStatus.NOT_FOUND,"일절 참가자를 찾을 수 없습니다");
+    SCHEDULE_PARTICIPANT_NOT_FOUND("SCHEDULE_PARTICIPANT_NOT_FOUND", HttpStatus.NOT_FOUND,"일정 참가자를 찾을 수 없습니다"),
+    NOTIFICATION_NOT_FOUND("NOTIFICATION_NOT_FOUND", HttpStatus.NOT_FOUND,"해당 알림읗 찾을 수 없습니다");
 
 
 
