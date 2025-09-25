@@ -338,17 +338,23 @@ CREATE TABLE receipt (
 
 -- CALENDAR_HISTORY
 CREATE TABLE calendar_history (
-                                  calendar_history_id BIGSERIAL PRIMARY KEY,
-                                  calendar_id BIGINT NOT NULL,
-                                  schedule_id BIGINT,
-                                  member_id BIGINT NOT NULL,
-                                  action VARCHAR(100) NOT NULL,
-                                  field VARCHAR(100) NOT NULL,
-                                  old_value TEXT,
-                                  new_value TEXT,
-                                  created_at TIMESTAMPTZ NOT NULL,
-                                  CONSTRAINT fk_history_calendar FOREIGN KEY (calendar_id) REFERENCES calendar(calendar_id),
-                                  CONSTRAINT fk_history_schedule FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id),
-                                  CONSTRAINT fk_history_member FOREIGN KEY (member_id) REFERENCES member(member_id)
+                         calendar_history_id BIGSERIAL PRIMARY KEY,
+                         calendar_id BIGINT NOT NULL,
+                         actor_id BIGINT NULL,
+                         entity_id BIGINT NOT NULL,
+                         type           VARCHAR(60) NOT NULL
+                             CHECK (type IN (
+                                             'CALENDAR_UPDATED',
+                                             'SCHEDULE_CREATED','SCHEDULE_UPDATED','SCHEDULE_DELETED',
+                                             'SCHEDULE_PARTICIPANT_ADDED','SCHEDULE_PARTICIPANT_REMOVED',
+                                             'SCHEDULE_LINK_ADDED','SCHEDULE_LINK_REMOVED',
+                                             'SCHEDULE_LOCATION_ADDED','SCHEDULE_LOCATION_UPDATED','SCHEDULE_LOCATION_REMOVED',
+                                             'SCHEDULE_ATTACHMENT_ADDED','SCHEDULE_ATTACHMENT_REMOVED'
+                                 )),
+                         changed_fields JSONB NOT NULL DEFAULT '{}'::jsonb,
+                         created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+                         CONSTRAINT fk_calendar_history_calendar FOREIGN KEY (calendar_id) REFERENCES calendar(calendar_id) ON DELETE CASCADE,
+                         CONSTRAINT fk_calendar_history_actor FOREIGN KEY (actor_id) REFERENCES member(member_id) ON DELETE SET NULL
 );
-
+CREATE INDEX ix_hist_calendar_time   ON calendar_history (calendar_id, created_at DESC);
+CREATE INDEX ix_hist_calendar_type   ON calendar_history (calendar_id, type, created_at DESC);
