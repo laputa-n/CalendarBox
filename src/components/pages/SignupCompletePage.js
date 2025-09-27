@@ -31,40 +31,50 @@ export const SignupCompletePage = () => {
     setMemberType(type);
   };
 
-const handleExistingMember = async () => {
-  try {
-    console.log('=== 기존회원 로그인 시작 ===');
-    await loginExistingMember();
-    console.log('=== 기존회원 로그인 완료 ===');
-    navigate('/dashboard');
-  } catch (error) {
-    console.error('=== 기존회원 로그인 실패 ===', error);
-    // 실패시 로그인 페이지로
-    navigate('/login');
-  }
-};
+  const handleExistingMember = async () => {
+    try {
+      console.log('=== 기존회원 로그인 시작 ===');
+      await loginExistingMember();
+      console.log('=== 기존회원 로그인 완료 ===');
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('=== 기존회원 로그인 실패 ===', error);
+      navigate('/login');
+    }
+  };
 
-const handleNewMemberSubmit = async (e) => {
-  e.preventDefault();
-  console.log('=== 회원가입 시작 ===');
-  console.log('폼 데이터:', formData);
-  console.log('signupToken:', localStorage.getItem('signupToken'));
-  
-  try {
-    setLoading(true);
-    const result = await completeSignup(formData);
-    console.log('=== 회원가입 완료 ===');
-    console.log('결과:', result);
-    console.log('저장된 authToken:', localStorage.getItem('authToken'));
+  const handleNewMemberSubmit = async (e) => {
+    e.preventDefault();
     
-    navigate('/dashboard');
-  } catch (error) {
-    console.error('=== 회원가입 실패 ===');
-    console.error('에러:', error);
-  } finally {
-    setLoading(false);
-  }
-};
+    try {
+      setLoading(true);
+      
+      // signupToken 가져오기 및 검증
+      const signupToken = localStorage.getItem('signupToken');
+      
+      if (!signupToken) {
+        throw new Error('회원가입 토큰이 없습니다.');
+      }
+      
+      console.log('=== 회원가입 시작 ===');
+      console.log('폼 데이터:', formData);
+      console.log('signupToken:', signupToken);
+      
+      // signupToken을 두 번째 인자로 전달
+      const result = await completeSignup(formData, signupToken);
+      
+      console.log('=== 회원가입 완료 ===');
+      console.log('결과:', result);
+      console.log('저장된 authToken:', localStorage.getItem('authToken'));
+      
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('=== 회원가입 실패 ===');
+      console.error('에러:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const containerStyle = {
     minHeight: '100vh',

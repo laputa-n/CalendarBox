@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext'; // 기존 context 사용
-import { useRouter } from '../hooks/useRouter'; // 기존 router 사용
+import { useRouter } from 'react-router-dom'; // 기존 router 사용
 
 const AssetizationApp = () => {
   const { user } = useAuth(); // 기존 인증 정보 활용

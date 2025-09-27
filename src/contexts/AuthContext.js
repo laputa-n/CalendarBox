@@ -20,47 +20,46 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const initializeAuth = async () => {
-  try {
-    console.log('=== initializeAuth 시작 ===');
-    setLoading(true);
-    const token = ApiService.getAuthToken();
-    console.log('localStorage에서 가져온 토큰:', token);
-    
-    if (token) {
-      try {
-        const data = await ApiService.getAuthStatus();
-        console.log('getAuthStatus 결과:', data);
-        if (data?.authenticated) {
-          setUser(data.member || data.user);
+    try {
+      console.log('=== initializeAuth 시작 ===');
+      setLoading(true);
+      const token = ApiService.getAuthToken();
+      console.log('localStorage에서 가져온 토큰:', token);
+      
+      if (token) {
+        try {
+          const data = await ApiService.getAuthStatus();
+          console.log('getAuthStatus 결과:', data);
+          if (data?.authenticated) {
+            setUser(data.member || data.user);
+            setIsAuthenticated(true);
+            console.log('인증 성공 - 사용자 설정 완료');
+          } else {
+            console.log('인증 실패 - 토큰 제거');
+            ApiService.removeAuthToken();
+            setUser(null);
+            setIsAuthenticated(false);
+          }
+        } catch (error) {
+          console.log('getAuthStatus 에러:', error);
+          // /auth/me가 없으니까 에러 발생, 토큰만 있으면 인증된 것으로 처리
           setIsAuthenticated(true);
-          console.log('인증 성공 - 사용자 설정 완료');
-        } else {
-          console.log('인증 실패 - 토큰 제거');
-          ApiService.removeAuthToken();
-          setUser(null);
-          setIsAuthenticated(false);
+          console.log('토큰 존재로 인증 처리');
         }
-      } catch (error) {
-        console.log('getAuthStatus 에러:', error);
-        // /auth/me가 없으니까 에러 발생, 토큰만 있으면 인증된 것으로 처리
-        setIsAuthenticated(true);
-        console.log('토큰 존재로 인증 처리');
+      } else {
+        console.log('토큰 없음 - 미인증 상태');
+        setUser(null);
+        setIsAuthenticated(false);
       }
-    } else {
-      console.log('토큰 없음 - 미인증 상태');
+    } catch (error) {
+      console.error('initializeAuth 에러:', error);
       setUser(null);
       setIsAuthenticated(false);
+    } finally {
+      console.log('=== initializeAuth 완료 ===');
+      setLoading(false);
     }
-  } catch (error) {
-    console.error('initializeAuth 에러:', error);
-    setUser(null);
-    setIsAuthenticated(false);
-  } finally {
-    console.log('=== initializeAuth 완료 ===');
-    setLoading(false);
-  }
-};
-
+  };
 
   const handleTokenRefresh = async () => {
     try {
@@ -82,55 +81,89 @@ export const AuthProvider = ({ children }) => {
   };
 
   // 카카오 콜백 처리
-  const handleKakaoCallback = async (callbackData) => {  // 매개변수 추가
-  try {
-    setLoading(true);
-    
-    if (callbackData.nextAction === 'COMPLETE_PROFILE') {
-      // 신규 회원
-      setSignupToken(callbackData.token);
-      return { isNewMember: true, email: callbackData.email };
-    } else {
-      // 기존 회원 로직
-      ApiService.setAuthToken(callbackData.token);
-      setUser(callbackData.member);
-      setIsAuthenticated(true);
-      return { isNewMember: false };
+  const handleKakaoCallback = async (callbackData) => {
+    try {
+      setLoading(true);
+      
+      if (callbackData.nextAction === 'COMPLETE_PROFILE') {
+        // 신규 회원
+        setSignupToken(callbackData.token);
+        return { isNewMember: true, email: callbackData.email };
+      } else {
+        // 기존 회원 로직
+        ApiService.setAuthToken(callbackData.token);
+        setUser(callbackData.member);
+        setIsAuthenticated(true);
+        return { isNewMember: false };
+      }
+    } catch (error) {
+      showError(error.message || '로그인에 실패했습니다.');
+      throw error;
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    showError(error.message || '로그인에 실패했습니다.');
-    throw error;
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   // 회원가입 완료
-const completeSignup = async (profileData) => {
+const completeSignup = async (profileData, signupToken) => {
   try {
     setLoading(true);
-    // localStorage에서 signupToken 가져오기
-    const token = localStorage.getItem('signupToken');
-    
+
+    const token = signupToken || localStorage.getItem("signupToken");
+
+    console.log("=== completeSignup 디버깅 정보 ===");
+    console.log("매개변수 signupToken:", signupToken);
+    console.log("localStorage signupToken:", localStorage.getItem("signupToken"));
+    console.log("최종 사용할 token:", token);
+    console.log("profileData:", JSON.stringify(profileData, null, 2));
+
     if (!token) {
-      throw new Error('회원가입 토큰이 없습니다.');
+      throw new Error("회원가입 토큰이 없습니다.");
     }
-    
-    console.log('signupToken 사용:', token);
-    const response = await ApiService.completeSignup(profileData, token);
-    
-    ApiService.setAuthToken(response.data.accessToken);
-    setUser(response.data.member);
-    setIsAuthenticated(true);
+
+    const requestData = {
+      name: profileData.name,
+      phoneNumber: profileData.phoneNumber,
+      nickname: profileData.nickname,
+    };
+
+    console.log("백엔드로 보낼 데이터:", JSON.stringify(requestData, null, 2));
+    console.log("Authorization 헤더:", `Bearer ${token}`);
+
+    // ✅ signupToken만 Authorization 헤더에 담아 호출
+    const response = await ApiService.completeSignup(requestData, token);
+
+    console.log("completeSignup - API 응답:", response);
+
+    const responseData = response.data || response;
+
+    if (responseData.accessToken) {
+      ApiService.setAuthToken(responseData.accessToken);
+      setUser(responseData.member || responseData.user);
+      setIsAuthenticated(true);
+    } else {
+      console.warn("응답에 accessToken이 없습니다:", responseData);
+      ApiService.setAuthToken(token);
+      setIsAuthenticated(true);
+    }
+
     setSignupToken(null);
-    
-    // localStorage에서 임시 토큰 제거
-    localStorage.removeItem('signupToken');
-    localStorage.removeItem('signupEmail');
-    
+    localStorage.removeItem("signupToken");
+    localStorage.removeItem("signupEmail");
+
     return response;
   } catch (error) {
-    showError(error.message || '회원가입에 실패했습니다.');
+    console.error("=== completeSignup 에러 상세 ===");
+    console.error("에러 메시지:", error.message);
+    console.error("에러 객체:", error);
+
+    if (error.response) {
+      console.error("응답 상태:", error.response.status);
+      console.error("응답 데이터:", error.response.data);
+      console.error("응답 헤더:", error.response.headers);
+    }
+
+    showError(error.message || "회원가입에 실패했습니다.");
     throw error;
   } finally {
     setLoading(false);
@@ -147,41 +180,53 @@ const completeSignup = async (profileData) => {
       setIsAuthenticated(false);
       setSignupToken(null);
       ApiService.removeAuthToken();
+      // 임시 토큰들도 정리
+      localStorage.removeItem('signupToken');
+      localStorage.removeItem('signupEmail');
       setLoading(false);
     }
   };
 
-const loginExistingMember = async () => {
-  try {
-    setLoading(true);
-    const token = localStorage.getItem('signupToken');
-    
-    if (!token) {
-      throw new Error('로그인 토큰이 없습니다.');
-    }
+  const loginExistingMember = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('signupToken');
+      
+      if (!token) {
+        throw new Error('로그인 토큰이 없습니다.');
+      }
 
-    // signupToken을 사용해서 실제 accessToken으로 변환하는 API 호출
-    // 또는 signupToken을 그대로 authToken으로 사용
-    ApiService.setAuthToken(token);
-    
-    // 사용자 정보 가져오기
-    const userInfo = await ApiService.getAuthStatus();
-    if (userInfo.authenticated) {
-      setUser(userInfo.member || userInfo.user);
-      setIsAuthenticated(true);
+      console.log('loginExistingMember - 사용할 토큰:', token);
+
+      // signupToken을 사용해서 실제 accessToken으로 변환하는 API 호출
+      // 또는 signupToken을 그대로 authToken으로 사용
+      ApiService.setAuthToken(token);
+      
+      // 사용자 정보 가져오기 시도
+      try {
+        const userInfo = await ApiService.getAuthStatus();
+        if (userInfo.authenticated) {
+          setUser(userInfo.member || userInfo.user);
+          setIsAuthenticated(true);
+        }
+      } catch (error) {
+        console.log('기존 회원 사용자 정보 조회 실패, 토큰으로만 인증 처리');
+        // API가 없어도 토큰이 있으면 인증된 것으로 처리
+        setIsAuthenticated(true);
+      }
+      
+      // 임시 토큰들 정리
+      localStorage.removeItem('signupToken');
+      localStorage.removeItem('signupEmail');
+      
+    } catch (error) {
+      console.error('loginExistingMember 에러:', error);
+      showError(error.message || '로그인에 실패했습니다.');
+      throw error;
+    } finally {
+      setLoading(false);
     }
-    
-    // 임시 토큰들 정리
-    localStorage.removeItem('signupToken');
-    localStorage.removeItem('signupEmail');
-    
-  } catch (error) {
-    showError(error.message || '로그인에 실패했습니다.');
-    throw error;
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   return (
     <AuthContext.Provider value={{
