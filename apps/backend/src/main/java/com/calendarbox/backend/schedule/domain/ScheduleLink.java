@@ -33,9 +33,10 @@ public class ScheduleLink {
     private Instant createdAt;
 
     @Builder
-    private ScheduleLink(String url, String label){
+    private ScheduleLink(Schedule schedule, String url, String label) {
+        this.schedule = schedule;
         this.url = url;
-        this.label = label;
+        this.label = (label == null || label.isBlank()) ? null : label;
     }
 
 
