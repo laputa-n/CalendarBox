@@ -25,9 +25,9 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                "/actuator/health", "/api/auth/kakao/callback",
+                                "/actuator/health", "/api/auth/kakao/callback","/api/auth/**",
                                 "/api/auth/signup/complete", "/api/auth/refresh", "/api/auth/logout",
-                                "/docs/**", "/api/auth/kakao/login", "/api/login/**", "/auth/kakao/**", "/error"
+                                "/docs/**", "/api/auth/kakao/login", "/api/login/**", "/api/auth/kakao/**", "/error"
 //                                ,"/api/places/search" // 테스트 위해 -> 테스트 완료 후 삭제
                         ).permitAll()
                         .requestMatchers("/api/**").authenticated()   // 보호가 필요한 경로

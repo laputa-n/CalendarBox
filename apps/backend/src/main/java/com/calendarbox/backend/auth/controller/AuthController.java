@@ -16,6 +16,8 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,7 +26,7 @@ import java.util.Optional;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("api/auth")
+@RequestMapping("/api/auth")
 public class AuthController {
     private final JwtService jwtService;
     private final SignupService signupService;
@@ -62,7 +64,25 @@ public class AuthController {
         refreshTokenService.save(member.getId(), refreshToken);
 
         MemberResponse mr = new MemberResponse(member.getId(), member.getName(), member.getEmail(), member.getPhoneNumber());
-        return ResponseEntity.ok(ApiResponse.ok("회원가입이 완료되었습니다", new LoginSuccessResponse(accessToken,refreshToken,mr)));
+
+        ResponseCookie accessCookie = ResponseCookie.from("access_token", accessToken)
+                .httpOnly(true)
+                .secure(false) // 로컬 테스트용 (실서비스는 true)
+                .sameSite("Lax")
+                .path("/")
+                .build();
+
+        ResponseCookie refreshCookie = ResponseCookie.from("refresh_token", refreshToken)
+                .httpOnly(true)
+                .secure(false)
+                .sameSite("Lax")
+                .path("/")
+                .build();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, accessCookie.toString())
+                .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
+                .body(ApiResponse.ok("회원가입이 완료되었습니다", new LoginSuccessResponse(accessToken, refreshToken, mr)));
     }
 
     @PostMapping("/refresh")
