@@ -17,6 +17,7 @@ import com.calendarbox.backend.schedule.dto.request.SchedulePlaceEditRequest;
 import com.calendarbox.backend.schedule.dto.response.SchedulePlaceDto;
 import com.calendarbox.backend.schedule.repository.SchedulePlaceRepository;
 import com.calendarbox.backend.schedule.repository.ScheduleRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -51,18 +52,44 @@ public class SchedulePlaceService {
     }
 
     public void delete(Long userId, Long scheduleId, Long schedulePlaceId){
+        Member user = memberRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
         SchedulePlace sp = schedulePlaceRepository.findById(schedulePlaceId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_PLACE_NOT_FOUND));
         schedulePlaceRepository.delete(sp);
+        Schedule s = sp.getSchedule();
+
+        CalendarHistory history = CalendarHistory.builder()
+                .calendar(s.getCalendar())
+                .actor(user)
+                .entityId(s.getId())
+                .type(CalendarHistoryType.SCHEDULE_LOCATION_REMOVED)
+                .changedFields("placeName: " + sp.getName())
+                .build();
+        calendarHistoryRepository.save(history);
     }
 
     public SchedulePlaceDto edit(Long userId, Long scheduleId, Long schedulePlaceId, SchedulePlaceEditRequest req){
+        Member user = memberRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
         String newName = normalize(req.name());
         if(schedulePlaceRepository.existsByScheduleIdAndName(scheduleId, newName)) throw new BusinessException(ErrorCode.SCHEDULE_PLACE_NAME_DUP);
 
         SchedulePlace sp = schedulePlaceRepository.findById(schedulePlaceId).orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_PLACE_NOT_FOUND));
+        String oldName = sp.getName();
         sp.changeName(newName);
+        Schedule s = sp.getSchedule();
 
+        Map<String,Object> diff = new HashMap<>();
+        diff.put("oldName", oldName);
+        diff.put("newName", newName);
+
+        CalendarHistory history = CalendarHistory.builder()
+                .calendar(s.getCalendar())
+                .actor(user)
+                .entityId(s.getId())
+                .type(CalendarHistoryType.SCHEDULE_LOCATION_UPDATED)
+                .changedFields(toJson(diff))
+                .build();
+        calendarHistoryRepository.save(history);
         return toDto(sp,sp.getPlace());
     }
 
@@ -235,5 +262,14 @@ public class SchedulePlaceService {
                 null,
                 null
         );
+    }
+
+    private String toJson(Object value){
+        try{
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException e){
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR,"알림 페이로드 직렬화 실패");
+
+        }
     }
 }
