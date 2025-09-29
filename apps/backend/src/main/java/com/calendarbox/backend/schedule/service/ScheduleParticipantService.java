@@ -2,7 +2,10 @@ package com.calendarbox.backend.schedule.service;
 
 
 import com.calendarbox.backend.calendar.domain.Calendar;
+import com.calendarbox.backend.calendar.domain.CalendarHistory;
+import com.calendarbox.backend.calendar.enums.CalendarHistoryType;
 import com.calendarbox.backend.calendar.enums.CalendarMemberStatus;
+import com.calendarbox.backend.calendar.repository.CalendarHistoryRepository;
 import com.calendarbox.backend.calendar.repository.CalendarMemberRepository;
 import com.calendarbox.backend.friendship.repository.FriendshipRepository;
 import com.calendarbox.backend.global.error.BusinessException;
@@ -25,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -41,6 +45,7 @@ public class ScheduleParticipantService {
     private final CalendarMemberRepository calendarMemberRepository;
     private final ObjectMapper objectMapper;
     private final NotificationRepository notificationRepository;
+    private final CalendarHistoryRepository calendarHistoryRepository;
 
     public AddParticipantResponse add(Long userId, Long scheduleId, AddParticipantRequest request) {
 
@@ -51,6 +56,8 @@ public class ScheduleParticipantService {
     }
 
     public void remove(Long userId, Long scheduleId, Long participantId) {
+
+        Member user = memberRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
         //권한 체크
         Schedule s = scheduleRepository.findById(scheduleId).orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
         Calendar c = s.getCalendar();
@@ -59,16 +66,41 @@ public class ScheduleParticipantService {
         ScheduleParticipant sp = scheduleParticipantRepository.findById(participantId).orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_PARTICIPANT_NOT_FOUND));
 
         s.removeParticipant(sp);
+
+        Map<String, Object> removedParticipant = new HashMap<>();
+        removedParticipant.put("removedParticipantName", sp.getName());
+
+        CalendarHistory history = CalendarHistory.builder()
+                .calendar(c)
+                .actor(user)
+                .entityId(s.getId())
+                .type(CalendarHistoryType.SCHEDULE_PARTICIPANT_REMOVED)
+                .changedFields(toJson(removedParticipant))
+                .build();
+        calendarHistoryRepository.save(history);
     }
 
     public ScheduleParticipantResponse respond(Long userId, Long scheduleId, Long participantId, ParticipantRespondRequest request){
         ScheduleParticipant sp = scheduleParticipantRepository.findById(participantId).orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_PARTICIPANT_NOT_FOUND));
         if(!Objects.equals(sp.getMember().getId(), userId)) throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
-
+        Schedule s = scheduleRepository.findById(scheduleId).orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
         if(sp.getStatus() != INVITED) return toResponse(sp);
 
         switch(request.action()){
-            case ACCEPT -> sp.accept();
+            case ACCEPT -> {
+                Map<String, Object> newParticipant = new HashMap<>();
+                newParticipant.put("newParticipantName", sp.getName());
+
+                CalendarHistory history = CalendarHistory.builder()
+                        .calendar(s.getCalendar())
+                        .actor(sp.getMember())
+                        .entityId(s.getId())
+                        .type(CalendarHistoryType.SCHEDULE_PARTICIPANT_ADDED)
+                        .changedFields(toJson(newParticipant))
+                        .build();
+                calendarHistoryRepository.save(history);
+                sp.accept();
+            }
             case REJECT -> sp.decline();
         }
         return toResponse(sp);
@@ -110,9 +142,23 @@ public class ScheduleParticipantService {
         String normalized = name == null? null: name.trim();
         if(normalized == null || normalized.isEmpty()) throw new BusinessException(ErrorCode.VALIDATION_ERROR);
 
+        Member user = memberRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
         Schedule s = scheduleRepository.findById(scheduleId).orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
         ScheduleParticipant sp = ScheduleParticipant.ofName(s,name);
         s.addParticipant(sp);
+
+
+        Map<String, Object> newParticipant = new HashMap<>();
+        newParticipant.put("newParticipantName", sp.getName());
+
+        CalendarHistory history = CalendarHistory.builder()
+                .calendar(s.getCalendar())
+                .actor(user)
+                .entityId(s.getId())
+                .type(CalendarHistoryType.SCHEDULE_PARTICIPANT_ADDED)
+                .changedFields(toJson(newParticipant))
+                .build();
+        calendarHistoryRepository.save(history);
 
         return toAddParticipantResponse(sp);
     }

@@ -2,7 +2,10 @@ package com.calendarbox.backend.schedule.service;
 
 import com.calendarbox.backend.attachment.repository.AttachmentRepository;
 import com.calendarbox.backend.calendar.domain.Calendar;
+import com.calendarbox.backend.calendar.domain.CalendarHistory;
+import com.calendarbox.backend.calendar.enums.CalendarHistoryType;
 import com.calendarbox.backend.calendar.enums.CalendarMemberStatus;
+import com.calendarbox.backend.calendar.repository.CalendarHistoryRepository;
 import com.calendarbox.backend.calendar.repository.CalendarMemberRepository;
 import com.calendarbox.backend.calendar.repository.CalendarRepository;
 import com.calendarbox.backend.global.error.BusinessException;
@@ -18,11 +21,15 @@ import com.calendarbox.backend.schedule.dto.response.CreateScheduleResponse;
 import com.calendarbox.backend.schedule.dto.response.ScheduleDto;
 import com.calendarbox.backend.schedule.enums.ScheduleTheme;
 import com.calendarbox.backend.schedule.repository.*;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -36,6 +43,8 @@ public class ScheduleService {
     private final AttachmentRepository attachmentRepository;
     private final CalendarRepository calendarRepository;
     private final CalendarMemberRepository calendarMemberRepository;
+    private final CalendarHistoryRepository calendarHistoryRepository;
+    private final ObjectMapper objectMapper;
 
 
     public CloneScheduleResponse clone(Long userId, Long calendarId, CloneScheduleRequest request) {
@@ -96,6 +105,14 @@ public class ScheduleService {
         Schedule schedule = new Schedule(calendar, request.title(), request.memo(), theme, request.startAt(),request.endAt(), user);
         scheduleRepository.save(schedule);
 
+        CalendarHistory history = CalendarHistory.builder()
+                .calendar(calendar)
+                .actor(user)
+                .entityId(schedule.getId())
+                .type(CalendarHistoryType.SCHEDULE_CREATED)
+                .build();
+        calendarHistoryRepository.save(history);
+
         return new CreateScheduleResponse(
                 schedule.getCalendar().getId(),
                 schedule.getId(),
@@ -125,15 +142,42 @@ public class ScheduleService {
         if (!newStart.isBefore(newEnd)) {
             throw new BusinessException(ErrorCode.START_AFTER_BEFORE);
         }
+        Map<String,Object> diff = new HashMap<>();
 
-        request.title().ifPresent(s::editTitle);
-        request.memo().ifPresent(s::editMemo);
-        request.theme().ifPresent(s::editTheme);
+        request.title().ifPresent(title -> {
+            String oldTitle = s.getTitle();
+            s.editTitle(title);
+            diff.put("title", Map.of("old", oldTitle, "new", title));
+        });
+        request.memo().ifPresent(memo -> {
+            String oldMemo = s.getMemo();
+            s.editMemo(memo);
+            diff.put("memo", Map.of("old", oldMemo, "new", memo));
+        });
+        request.theme().ifPresent(theme ->{
+            ScheduleTheme oldTheme = s.getTheme();
+            s.editTheme(theme);
+            diff.put("theme", Map.of("old", oldTheme, "new", theme));
+        });
+        if(request.startAt().isPresent() || request.endAt().isPresent()){
+            Instant oldStartAt = s.getStartAt();
+            Instant oldEndAt   = s.getEndAt();
+            diff.put("time",Map.of("oldStartAt",oldStartAt,"oldEndAt",oldEndAt,
+                                    "newStartAt", newStart, "newEndAt",newEnd));
+        }
         s.reschedule(newStart, newEnd);
         s.touchUpdateBy(user);
 
         if(!s.getStartAt().isBefore(s.getEndAt())) throw new BusinessException(ErrorCode.START_AFTER_BEFORE);
 
+        CalendarHistory history = CalendarHistory.builder()
+                .calendar(c)
+                .actor(user)
+                .entityId(s.getId())
+                .type(CalendarHistoryType.SCHEDULE_UPDATED)
+                .changedFields(toJson(diff))
+                .build();
+        calendarHistoryRepository.save(history);
         return new ScheduleDto(
                 s.getId(), s.getCalendar().getId(), s.getTitle(), s.getMemo(), s.getTheme()
                 , s.getStartAt(), s.getEndAt(), s.getCreatedBy().getId(), s.getUpdatedBy().getId()
@@ -151,6 +195,21 @@ public class ScheduleService {
 
         if(!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(c.getId(),user.getId(),CalendarMemberStatus.ACCEPTED) && !c.getOwner().getId().equals(user.getId())) throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
 
+
+        CalendarHistory history = CalendarHistory.builder()
+                .calendar(c)
+                .actor(user)
+                .entityId(s.getId())
+                .type(CalendarHistoryType.SCHEDULE_DELETED)
+                .build();
+        calendarHistoryRepository.save(history);
         scheduleRepository.delete(s);
+    }
+    private String toJson(Object value){
+        try{
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException e) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "알림 페이로드 직렬화 실패");
+        }
     }
 }

@@ -1,7 +1,12 @@
 package com.calendarbox.backend.schedule.service;
 
+import com.calendarbox.backend.calendar.domain.CalendarHistory;
+import com.calendarbox.backend.calendar.enums.CalendarHistoryType;
+import com.calendarbox.backend.calendar.repository.CalendarHistoryRepository;
 import com.calendarbox.backend.global.error.BusinessException;
 import com.calendarbox.backend.global.error.ErrorCode;
+import com.calendarbox.backend.member.domain.Member;
+import com.calendarbox.backend.member.repository.MemberRepository;
 import com.calendarbox.backend.place.domain.Place;
 import com.calendarbox.backend.place.repository.PlaceRepository;
 import com.calendarbox.backend.schedule.domain.Schedule;
@@ -12,6 +17,7 @@ import com.calendarbox.backend.schedule.dto.request.SchedulePlaceEditRequest;
 import com.calendarbox.backend.schedule.dto.response.SchedulePlaceDto;
 import com.calendarbox.backend.schedule.repository.SchedulePlaceRepository;
 import com.calendarbox.backend.schedule.repository.ScheduleRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,15 +35,18 @@ public class SchedulePlaceService {
     private final SchedulePlaceRepository schedulePlaceRepository;
     private final PlaceRepository placeRepository;
     private final ScheduleRepository scheduleRepository;
+    private final ObjectMapper objectMapper;
+    private final MemberRepository memberRepository;
+    private final CalendarHistoryRepository calendarHistoryRepository;
 
     public SchedulePlaceDto addPlace(Long userId, Long scheduleId, AddSchedulePlaceRequest req){
         //user 검증 필요
         int nextPos = schedulePlaceRepository.findMaxPositionByScheduleId(scheduleId)+1;
 
         return switch(req.mode()){
-            case MANUAL -> handleManual(scheduleId,req,nextPos);
-            case EXISTING -> handleExisting(scheduleId,req,nextPos);
-            case PROVIDER -> handleProvider(scheduleId,req,nextPos);
+            case MANUAL -> handleManual(userId,scheduleId,req,nextPos);
+            case EXISTING -> handleExisting(userId,scheduleId,req,nextPos);
+            case PROVIDER -> handleProvider(userId,scheduleId,req,nextPos);
         };
     }
 
@@ -89,7 +98,8 @@ public class SchedulePlaceService {
 
         return list;
     }
-    private SchedulePlaceDto handleProvider(Long scheduleId, AddSchedulePlaceRequest req, int nextPos) {
+    private SchedulePlaceDto handleProvider(Long userId, Long scheduleId, AddSchedulePlaceRequest req, int nextPos) {
+        Member user = memberRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
         Place p = placeRepository.findByProviderAndProviderPlaceKey(req.provider(), req.providerPlaceKey())
                 .orElseGet(() -> {
                     Place np = Place.builder()
@@ -119,11 +129,21 @@ public class SchedulePlaceService {
                 .position(nextPos)
                 .build();
         schedulePlaceRepository.save(sp);
+
+        CalendarHistory history = CalendarHistory.builder()
+                .calendar(s.getCalendar())
+                .actor(user)
+                .entityId(s.getId())
+                .type(CalendarHistoryType.SCHEDULE_LOCATION_ADDED)
+                .changedFields("placeName: " + n)
+                .build();
+        calendarHistoryRepository.save(history);
         return toDto(sp,p);
     }
-    private SchedulePlaceDto handleExisting(Long scheduleId, AddSchedulePlaceRequest req, int nextPos) {
+    private SchedulePlaceDto handleExisting(Long userId, Long scheduleId, AddSchedulePlaceRequest req, int nextPos) {
         if(req.placeId() == null) throw new BusinessException(ErrorCode.EXISTING_PLACE_ID_NEED);
 
+        Member user = memberRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
         Place p = placeRepository.findById(req.placeId()).orElseThrow(() -> new BusinessException(ErrorCode.PLACE_NOT_FOUND));
 
         if(schedulePlaceRepository.existsByScheduleIdAndPlaceId(scheduleId, p.getId())) {
@@ -141,10 +161,20 @@ public class SchedulePlaceService {
                 .build();
         schedulePlaceRepository.save(sp);
 
+        CalendarHistory history = CalendarHistory.builder()
+                .calendar(s.getCalendar())
+                .actor(user)
+                .entityId(s.getId())
+                .type(CalendarHistoryType.SCHEDULE_LOCATION_ADDED)
+                .changedFields("placeName: " + n)
+                .build();
+        calendarHistoryRepository.save(history);
+
         return toDto(sp,p);
     }
 
-    private SchedulePlaceDto handleManual(Long scheduleId, AddSchedulePlaceRequest request, int nextPos) {
+    private SchedulePlaceDto handleManual(Long userId, Long scheduleId, AddSchedulePlaceRequest request, int nextPos) {
+        Member user = memberRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
         String normalized = normalize(request.name());
         if(normalized == null || normalized.isBlank()){
             throw new BusinessException(ErrorCode.SCHEDULE_PLACE_NAME_NEED);
@@ -160,6 +190,15 @@ public class SchedulePlaceService {
                 .position(nextPos)
                 .build();
         schedulePlaceRepository.save(sp);
+
+        CalendarHistory history = CalendarHistory.builder()
+                .calendar(s.getCalendar())
+                .actor(user)
+                .entityId(s.getId())
+                .type(CalendarHistoryType.SCHEDULE_LOCATION_ADDED)
+                .changedFields("placeName: " + normalized)
+                .build();
+        calendarHistoryRepository.save(history);
 
         return toDto(sp,null);
     }
