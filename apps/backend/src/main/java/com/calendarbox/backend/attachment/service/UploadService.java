@@ -7,6 +7,10 @@ import com.calendarbox.backend.attachment.dto.request.PresignRequest;
 import com.calendarbox.backend.attachment.dto.response.AttachmentDto;
 import com.calendarbox.backend.attachment.dto.response.PresignResponse;
 import com.calendarbox.backend.attachment.repository.AttachmentRepository;
+import com.calendarbox.backend.calendar.domain.CalendarHistory;
+import com.calendarbox.backend.calendar.enums.CalendarHistoryType;
+import com.calendarbox.backend.calendar.repository.CalendarHistoryRepository;
+import com.calendarbox.backend.calendar.repository.CalendarRepository;
 import com.calendarbox.backend.global.infra.storage.StorageClient;
 import com.calendarbox.backend.member.repository.MemberRepository;
 import com.calendarbox.backend.schedule.repository.ScheduleRepository;
@@ -28,9 +32,11 @@ public class UploadService {
 
     private final StorageClient storage;
     private final UploadCache cache;
-    private final AttachmentRepository attRepo;
-    private final ScheduleRepository schRepo; // 기존 것
-    private final MemberRepository memRepo;   // 기존 것
+    private final AttachmentRepository attachmentRepository;
+    private final ScheduleRepository scheduleRepository; // 기존 것
+    private final MemberRepository memberRepository;   // 기존 것
+    private final CalendarRepository calendarRepository;
+    private final CalendarHistoryRepository calendarHistoryRepository;
 
     @Transactional(readOnly = true)
     public PresignResponse presign(Long userId, PresignRequest req) {
@@ -55,14 +61,25 @@ public class UploadService {
 
         storage.assertExists(req.objectKey()); // 실제 업로드 확인
 
-        var schedule = schRepo.getReferenceById(ctx.scheduleId());
-        var member = memRepo.getReferenceById(userId);
-        int pos = attRepo.findMaxPosition(schedule.getId()) + 1;
+        var schedule = scheduleRepository.getReferenceById(ctx.scheduleId());
+        var member = memberRepository.getReferenceById(userId);
+        var calendar = calendarRepository.getReferenceById(schedule.getCalendar().getId());
+        int pos = attachmentRepository.findMaxPosition(schedule.getId()) + 1;
 
-        var saved = attRepo.save(Attachment.of(
+        var saved = attachmentRepository.save(Attachment.of(
                 schedule, member, ctx.filename(), req.objectKey(), ctx.contentType(), ctx.size(), pos
         ));
         cache.remove(req.uploadId());
+
+        CalendarHistory history = CalendarHistory.builder()
+                .calendar(calendar)
+                .actor(member)
+                .entityId(schedule.getId())
+                .type(CalendarHistoryType.SCHEDULE_ATTACHMENT_ADDED)
+                .changedFields("attachmentName: " + saved.getOriginalName())
+                .build();
+        calendarHistoryRepository.save(history);
+
         return new AttachmentDto(saved.getId(), saved.getOriginalName(), saved.getMimeType(), saved.getByteSize(), saved.getPosition());
     }
 }
