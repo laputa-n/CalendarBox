@@ -36,8 +36,8 @@ public class CalendarHistory {
     @Enumerated(EnumType.STRING)
     private CalendarHistoryType type;
 
-    @Column(name = "change_fields", nullable=false, columnDefinition = "jsonb")
-    private String changeFields = "{}";
+    @Column(name = "changed_fields", nullable=false, columnDefinition = "jsonb")
+    private String changedFields = "{}";
 
     @CreatedDate
     @Column(name = "created_at")
@@ -48,11 +48,11 @@ public class CalendarHistory {
                             Member actor,
                             Long entityId,
                             CalendarHistoryType type,
-                            String changeFields) {
+                            String changedFields) {
         this.calendar = calendar;
         this.actor = actor;
         this.entityId = entityId;
         this.type = type;
-        this.changeFields = (changeFields == null ? "{}" : changeFields);
+        this.changedFields = (changedFields == null ? "{}" : changedFields);
     }
 }
