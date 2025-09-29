@@ -5,13 +5,22 @@ import com.calendarbox.backend.auth.service.JwtService;
 import com.calendarbox.backend.auth.service.RefreshTokenService;
 import com.calendarbox.backend.auth.service.SignupService;
 import com.calendarbox.backend.global.dto.ApiResponse;
+import com.calendarbox.backend.global.error.BusinessException;
+import com.calendarbox.backend.global.error.ErrorCode;
+import com.calendarbox.backend.kakao.domain.KakaoAccount;
+import com.calendarbox.backend.kakao.repository.KakaoAccountRepository;
 import com.calendarbox.backend.kakao.service.KakaoTempStore;
 import com.calendarbox.backend.member.domain.Member;
 import com.calendarbox.backend.member.repository.MemberRepository;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Arrays;
+import java.util.Optional;
 
 @RestController
 @RequiredArgsConstructor
@@ -22,6 +31,7 @@ public class AuthController {
     private final RefreshTokenService refreshTokenService;
     private final MemberRepository memberRepository;
     private final KakaoTempStore kakaoTempStore;
+    private final KakaoAccountRepository kakaoAccountRepository;
 
     @PostMapping("/signup/complete")
     public ResponseEntity<ApiResponse<LoginSuccessResponse>> completeProfile(
@@ -85,5 +95,34 @@ public class AuthController {
             } catch (Exception ignore) {}
         }
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<?> me(HttpServletRequest req) {
+        // 1. 쿠키에서 access_token 읽기
+        var accessToken = readCookie(req, "access_token")
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_LOGGED_IN));
+
+        // 2. 토큰 검증 → memberId 반환
+        Long memberId = jwtService.verifyAccessToken(accessToken);
+
+        // 3. Member 조회 (MemberRepository 사용)
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+
+        // 4. MemberResponse 리턴
+        return ResponseEntity.ok(
+                new MemberResponse(member.getId(), member.getName(), member.getEmail(), member.getPhoneNumber())
+        );
+    }
+
+    private Optional<String> readCookie(HttpServletRequest request, String name) {
+        if (request.getCookies() == null) {
+            return Optional.empty();
+        }
+        return Arrays.stream(request.getCookies())
+                .filter(c -> c.getName().equals(name))
+                .map(Cookie::getValue)
+                .findFirst();
     }
 }

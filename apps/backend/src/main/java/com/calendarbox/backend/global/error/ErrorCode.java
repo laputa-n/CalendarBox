@@ -9,6 +9,7 @@ public enum ErrorCode {
     INTERNAL_ERROR("INTERNAL_ERROR", HttpStatus.INTERNAL_SERVER_ERROR, "서버에서 오류가 발생했습니다."),
     EXTERNAL_API_ERROR("EXTERNAL_API_ERROR", HttpStatus.BAD_GATEWAY,"외부 API 연동 중 오류가 발생했습니다."),
     // 인증/인가
+    NOT_LOGGED_IN("NOT_LOGGED_IN", HttpStatus.NOT_FOUND,"로그인이 되어있지 않습니다."),
     AUTH_INVALID_TOKEN("AUTH_INVALID_TOKEN", HttpStatus.UNAUTHORIZED, "인증 토큰이 유효하지 않습니다."),
     AUTH_FORBIDDEN("AUTH_FORBIDDEN", HttpStatus.FORBIDDEN, "접근 권한이 없습니다."),
 
