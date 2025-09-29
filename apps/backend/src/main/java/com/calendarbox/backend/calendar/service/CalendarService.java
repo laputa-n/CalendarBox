@@ -90,7 +90,7 @@ public class CalendarService {
                 .actor(user)
                 .entityId(c.getId())
                 .type(CalendarHistoryType.CALENDAR_UPDATED)
-                .changeFields(toJson(diff))
+                .changedFields(toJson(diff))
                 .build();
         calendarHistoryRepository.save(history);
 
