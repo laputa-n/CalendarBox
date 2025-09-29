@@ -12,14 +12,19 @@ import com.calendarbox.backend.auth.service.JwtService;
 import com.calendarbox.backend.kakao.domain.KakaoAccount;
 import com.calendarbox.backend.kakao.repository.KakaoAccountRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Arrays;
 import java.util.Optional;
 
 @Slf4j
@@ -36,18 +41,12 @@ public class KakaoLoginController {
     private final ObjectMapper objectMapper;
 
     @GetMapping("/callback")
-    public ResponseEntity<?> callback(@RequestParam("code") String code) {
-        // 1) access+refresh 획득
+    public ResponseEntity<?> callback(@RequestParam("code") String code, HttpServletResponse resp) {
         var token = kakaoService.exchangeToken(code);
-
-        // 2) 사용자 정보
-        KakaoUserInfoResponseDto info = kakaoService.getUserInfo(token.getAccessToken());
+        var info  = kakaoService.getUserInfo(token.getAccessToken());
         Long kakaoId = info.getId();
         String email  = info.getKakaoAccount().getEmail();
 
-        log.info("Kakao callback: kakaoId={}, email={}", kakaoId, email); //테스트를 위한 임시 로그
-
-        // 3) 기존 회원이면 즉시 로그인
         var m = kakaoAccountRepository.findByProviderUserId(kakaoId).map(KakaoAccount::getMember);
         if (m.isPresent()) {
             Member member = m.get();
@@ -55,17 +54,50 @@ public class KakaoLoginController {
             String refreshToken = jwtService.issueRefreshToken(member);
             refreshTokenService.save(member.getId(), refreshToken);
 
-            MemberResponse mr = new MemberResponse(member.getId(), member.getName(), member.getEmail(), member.getPhoneNumber());
-            return ResponseEntity.ok(new LoginSuccessResponse(accessToken, refreshToken, mr));
+            resp.addHeader("Set-Cookie", ResponseCookie.from("access_token", accessToken)
+                    .httpOnly(true).secure(false).sameSite("Lax").path("/").build().toString());
+            resp.addHeader("Set-Cookie", ResponseCookie.from("refresh_token", refreshToken)
+                    .httpOnly(true).secure(false).sameSite("Lax").path("/").build().toString());
+
+            return ResponseEntity.status(302)
+                    .header("Location", "http://localhost:3000/login/success")
+                    .build();
         }
 
-        // 4) 신규 → 임시 저장
-        var profileMap = objectMapper.convertValue(
-                info, new com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String,Object>>() {});
-        kakaoTempStore.save(kakaoId, token.getRefreshToken(), profileMap);
+        // 신규
+        kakaoTempStore.save(kakaoId, token.getRefreshToken(),
+                objectMapper.convertValue(info, new com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String,Object>>() {}));
 
-        // 5) 추가 입력 단계 안내
         String signupToken = jwtService.issueTempSignupToken(kakaoId, email);
-        return ResponseEntity.ok(new NextActionResponse("COMPLETE_PROFILE", signupToken, email));
+
+        resp.addHeader("Set-Cookie", ResponseCookie.from("signup_token", signupToken)
+                .httpOnly(true).secure(false).sameSite("Lax").path("/").maxAge(300).build().toString());
+
+        return ResponseEntity.status(302)
+                .header("Location", "http://localhost:3000/signup/complete")
+                .build();
+    }
+
+    @GetMapping("/next")
+    public ResponseEntity<?> next(HttpServletRequest req) {
+        // 1. 쿠키에서 signup_token 읽기
+        var signupToken = readCookie(req, "signup_token").orElseThrow();
+
+        // 2. jwtService로 토큰 유효성 검증 및 claims(토큰 내용물) 꺼내기
+        var claims = jwtService.verifyTempSignupToken(signupToken);
+
+        // 3. 응답으로 NextActionResponse 리턴
+        return ResponseEntity.ok(
+                new NextActionResponse("COMPLETE_PROFILE", null, claims.email())
+        );
+    }
+    private Optional<String> readCookie(HttpServletRequest request, String name) {
+        if (request.getCookies() == null) {
+            return Optional.empty();
+        }
+        return Arrays.stream(request.getCookies())
+                .filter(c -> c.getName().equals(name))
+                .map(Cookie::getValue)
+                .findFirst();
     }
 }
