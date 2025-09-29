@@ -35,9 +35,10 @@ public class AuthController {
 
     @PostMapping("/signup/complete")
     public ResponseEntity<ApiResponse<LoginSuccessResponse>> completeProfile(
-            @RequestHeader("X-Signup-Token") String signupToken,
+            HttpServletRequest request,
             @Valid @RequestBody CompleteProfileReq req) {
-
+        String signupToken = readCookie(request, "signup_token")
+                .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_ERROR));
         SignupClaims claims = jwtService.verifyTempSignupToken(signupToken);
 
         // ★ 임시 저장 로드
