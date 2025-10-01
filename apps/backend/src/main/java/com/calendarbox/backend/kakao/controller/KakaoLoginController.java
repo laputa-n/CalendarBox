@@ -1,12 +1,9 @@
 package com.calendarbox.backend.kakao.controller;
 
-import com.calendarbox.backend.auth.dto.MemberResponse;
 import com.calendarbox.backend.auth.service.RefreshTokenService;
 import com.calendarbox.backend.kakao.service.KakaoService;
-import com.calendarbox.backend.kakao.dto.KakaoUserInfoResponseDto;
 import com.calendarbox.backend.kakao.service.KakaoTempStore;
 import com.calendarbox.backend.member.domain.Member;
-import com.calendarbox.backend.auth.dto.LoginSuccessResponse;
 import com.calendarbox.backend.auth.dto.NextActionResponse;
 import com.calendarbox.backend.auth.service.JwtService;
 import com.calendarbox.backend.kakao.domain.KakaoAccount;
@@ -55,9 +52,9 @@ public class KakaoLoginController {
             refreshTokenService.save(member.getId(), refreshToken);
 
             resp.addHeader("Set-Cookie", ResponseCookie.from("access_token", accessToken)
-                    .httpOnly(true).secure(false).sameSite("Lax").path("/").build().toString());
+                    .httpOnly(true).secure(false).sameSite("Lax").path("/").maxAge(60 * 60).build().toString());
             resp.addHeader("Set-Cookie", ResponseCookie.from("refresh_token", refreshToken)
-                    .httpOnly(true).secure(false).sameSite("Lax").path("/").build().toString());
+                    .httpOnly(true).secure(false).sameSite("Lax").path("/api/auth").maxAge(14 * 24 * 60 * 60).build().toString());
 
             return ResponseEntity.status(302)
                     .header("Location", "http://localhost:3000/login/success")

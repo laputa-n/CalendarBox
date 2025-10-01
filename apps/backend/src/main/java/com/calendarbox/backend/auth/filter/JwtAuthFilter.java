@@ -4,6 +4,7 @@ import com.calendarbox.backend.auth.dto.UserPrincipal;
 import com.calendarbox.backend.auth.service.JwtService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -30,9 +31,25 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                                     FilterChain chain)
             throws ServletException, IOException {
 
+        String token = null;
+
+        // 1. Authorization 헤더 우선
         String auth = req.getHeader("Authorization");
         if (auth != null && auth.startsWith("Bearer ")) {
-            String token = auth.substring(7);
+            token = auth.substring(7);
+        }
+
+        // 2. 없으면 access_token 쿠키 시도
+        if (token == null && req.getCookies() != null) {
+            for (Cookie c : req.getCookies()) {
+                if ("access_token".equals(c.getName())) {
+                    token = c.getValue();
+                    break;
+                }
+            }
+        }
+
+        if (token != null) {
             try {
                 Long memberId = jwtService.verifyAccessToken(token);
                 UserPrincipal principal = new UserPrincipal(
@@ -42,7 +59,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
-                                principal, // ★ principal을 Long → UserPrincipal
+                                principal,
                                 null,
                                 principal.authorities()
                         );
@@ -54,6 +71,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 return;
             }
         }
+
         chain.doFilter(req, res);
     }
+
 }
