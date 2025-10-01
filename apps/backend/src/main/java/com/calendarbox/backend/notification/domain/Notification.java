@@ -4,6 +4,8 @@ import com.calendarbox.backend.member.domain.Member;
 import com.calendarbox.backend.notification.enums.NotificationType;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
@@ -35,6 +37,7 @@ public class Notification {
     @Column(name = "resource_id")
     private Long resourceId;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "payload_json", nullable = false, columnDefinition = "jsonb")
     private String payloadJson = "{}";
 
