@@ -1,334 +1,174 @@
-// components/pages/SignupCompletePage.js
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+// SignupCompletePage.js
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
+import { LoadingSpinner } from "../common/LoadingSpinner";
+import { ApiService } from "../../services/apiService";
 
 export const SignupCompletePage = () => {
   const navigate = useNavigate();
-  const { completeSignup, loginExistingMember } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState('');
-  const [memberType, setMemberType] = useState(''); // 'new' 또는 'existing'
+  const { completeSignup, loading } = useAuth();
+
   const [formData, setFormData] = useState({
-    name: '',
-    phoneNumber: '',
-    nickname: ''
+    name: "",
+    phoneNumber: "",
+    nickname: "",
   });
 
-  useEffect(() => {
-    const signupEmail = localStorage.getItem('signupEmail');
-    const signupToken = localStorage.getItem('signupToken');
-    
-    if (!signupToken) {
-      navigate('/login');
-      return;
-    }
-    
-    setEmail(signupEmail || '');
-  }, [navigate]);
-
-  const handleMemberTypeSelect = (type) => {
-    setMemberType(type);
-  };
-
-  const handleExistingMember = async () => {
+  const [errors, setErrors] = useState({});
+  const [email, setEmail] = useState("");
+useEffect(() => {
+  const fetchNext = async () => {
     try {
-      console.log('=== 기존회원 로그인 시작 ===');
-      await loginExistingMember();
-      console.log('=== 기존회원 로그인 완료 ===');
-      navigate('/dashboard');
-    } catch (error) {
-      console.error('=== 기존회원 로그인 실패 ===', error);
-      navigate('/login');
+       const data = await ApiService.getNextAction();
+      console.log("[SignupCompletePage] /auth/kakao/next 응답:", data);
+      setEmail(data.email || "(카카오 이메일)");
+    } catch (err) {
+      console.error("이메일 불러오기 실패:", err);
+      setEmail("(카카오 이메일)");
     }
   };
-
-  const handleNewMemberSubmit = async (e) => {
-    e.preventDefault();
-    
-    try {
-      setLoading(true);
-      
-      // signupToken 가져오기 및 검증
-      const signupToken = localStorage.getItem('signupToken');
-      
-      if (!signupToken) {
-        throw new Error('회원가입 토큰이 없습니다.');
-      }
-      
-      console.log('=== 회원가입 시작 ===');
-      console.log('폼 데이터:', formData);
-      console.log('signupToken:', signupToken);
-      
-      // signupToken을 두 번째 인자로 전달
-      const result = await completeSignup(formData, signupToken);
-      
-      console.log('=== 회원가입 완료 ===');
-      console.log('결과:', result);
-      console.log('저장된 authToken:', localStorage.getItem('authToken'));
-      
-      navigate('/dashboard');
-    } catch (error) {
-      console.error('=== 회원가입 실패 ===');
-      console.error('에러:', error);
-    } finally {
-      setLoading(false);
+  fetchNext();
+}, []);
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.name.trim()) newErrors.name = "이름을 입력해주세요.";
+    if (!formData.phoneNumber.trim()) {
+      newErrors.phoneNumber = "전화번호를 입력해주세요.";
+    } else if (!/^01[0-9]-?[0-9]{3,4}-?[0-9]{4}$/.test(formData.phoneNumber)) {
+      newErrors.phoneNumber = "올바른 전화번호 형식이 아닙니다.";
     }
+    if (!formData.nickname.trim()) {
+      newErrors.nickname = "닉네임을 입력해주세요.";
+    } else if (formData.nickname.length < 2 || formData.nickname.length > 20) {
+      newErrors.nickname = "닉네임은 2-20자 사이여야 합니다.";
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
-  const containerStyle = {
-    minHeight: '100vh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f9fafb',
-    padding: '1rem'
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
-  const cardStyle = {
-    backgroundColor: 'white',
-    padding: '2rem',
-    borderRadius: '0.5rem',
-    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-    width: '100%',
-    maxWidth: '28rem'
-  };
+  const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (!validateForm()) return;
 
-  const buttonStyle = {
-    width: '100%',
-    padding: '1rem',
-    borderRadius: '0.375rem',
-    border: '1px solid #d1d5db',
-    backgroundColor: 'white',
-    cursor: 'pointer',
-    fontSize: '1rem',
-    marginBottom: '1rem',
-    transition: 'all 0.2s'
-  };
+  try {
+    // 👉 AuthContext에서 가져온 completeSignup 호출
+    await completeSignup({ ...formData, email });
 
-  const selectedButtonStyle = {
-    ...buttonStyle,
-    backgroundColor: '#4f46e5',
-    color: 'white',
-    borderColor: '#4f46e5'
-  };
+    // 회원가입 성공 시 대시보드 이동
+    navigate("/dashboard", { replace: true });
+  } catch (error) {
+    console.error("회원가입 완료 실패:", error);
+    setErrors({
+      submit: error.message || "회원가입에 실패했습니다. 다시 시도해주세요.",
+    });
+  }
+};
 
-  // 회원 유형 선택 화면
-  if (!memberType) {
+  if (loading) {
     return (
-      <div style={containerStyle}>
-        <div style={cardStyle}>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem', textAlign: 'center' }}>
-            회원 유형을 선택해주세요
-          </h2>
-          <p style={{ textAlign: 'center', color: '#6b7280', marginBottom: '2rem' }}>
-            {email}
-          </p>
-          
-          <button
-            style={buttonStyle}
-            onClick={() => handleMemberTypeSelect('new')}
-            onMouseOver={(e) => e.target.style.backgroundColor = '#f3f4f6'}
-            onMouseOut={(e) => e.target.style.backgroundColor = 'white'}
-          >
-            <div style={{ textAlign: 'left' }}>
-              <h3 style={{ fontWeight: '600', marginBottom: '0.25rem' }}>신규 회원</h3>
-              <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>
-                처음 서비스를 이용합니다
-              </p>
-            </div>
-          </button>
-
-          <button
-            style={buttonStyle}
-            onClick={() => handleMemberTypeSelect('existing')}
-            onMouseOver={(e) => e.target.style.backgroundColor = '#f3f4f6'}
-            onMouseOut={(e) => e.target.style.backgroundColor = 'white'}
-          >
-            <div style={{ textAlign: 'left' }}>
-              <h3 style={{ fontWeight: '600', marginBottom: '0.25rem' }}>기존 회원</h3>
-              <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>
-                이미 가입된 계정입니다
-              </p>
-            </div>
-          </button>
-        </div>
+      <div style={styles.container}>
+        <LoadingSpinner size="3rem" text="처리 중..." />
       </div>
     );
   }
 
-  // 기존 회원 확인 화면
-  if (memberType === 'existing') {
-    return (
-      <div style={containerStyle}>
-        <div style={cardStyle}>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem', textAlign: 'center' }}>
-            기존 회원 확인
-          </h2>
-          <p style={{ textAlign: 'center', color: '#6b7280', marginBottom: '2rem' }}>
-            {email} 계정으로 로그인합니다
-          </p>
-          
-          <button
-            onClick={handleExistingMember}
-            style={{
-              width: '100%',
-              backgroundColor: '#4f46e5',
-              color: 'white',
-              padding: '0.75rem',
-              borderRadius: '0.375rem',
-              border: 'none',
-              fontSize: '1rem',
-              fontWeight: '500',
-              cursor: 'pointer',
-              marginBottom: '0.5rem'
-            }}
-          >
-            로그인 하기
-          </button>
-          
-          <button
-            onClick={() => setMemberType('')}
-            style={{
-              width: '100%',
-              backgroundColor: 'transparent',
-              color: '#6b7280',
-              padding: '0.75rem',
-              borderRadius: '0.375rem',
-              border: '1px solid #d1d5db',
-              fontSize: '0.875rem',
-              cursor: 'pointer'
-            }}
-          >
-            뒤로 가기
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // 신규 회원 정보 입력 화면
   return (
-    <div style={containerStyle}>
-      <div style={cardStyle}>
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem', textAlign: 'center' }}>
-          신규 회원 정보 입력
-        </h2>
-        
-        <form onSubmit={handleNewMemberSubmit}>
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.5rem' }}>
-              이메일
-            </label>
-            <input
-              type="email"
-              value={email}
-              disabled
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '1px solid #d1d5db',
-                borderRadius: '0.375rem',
-                backgroundColor: '#f9fafb'
-              }}
-            />
-          </div>
-          
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.5rem' }}>
-              이름 *
+    <div style={styles.container}>
+      <div style={styles.card}>
+        <h1 style={styles.title}>신규회원 정보 입력</h1>
+        <p style={styles.subtitle}>정보를 입력해주세요</p>
+
+        <div style={styles.emailInfo}>
+          <label style={styles.label}>이메일</label>
+          <div style={styles.emailDisplay}>{email ? email : "이메일을 불러오는 중..."}
+</div>
+        </div>
+
+        <form onSubmit={handleSubmit} style={styles.form}>
+          {/* 이름 */}
+          <div style={styles.formGroup}>
+            <label htmlFor="name" style={styles.label}>
+              이름 <span style={styles.required}>*</span>
             </label>
             <input
               type="text"
-              required
+              id="name"
+              name="name"
               value={formData.name}
-              onChange={(e) => setFormData({...formData, name: e.target.value})}
-              placeholder="실명을 입력해주세요"
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '1px solid #d1d5db',
-                borderRadius: '0.375rem'
-              }}
+              onChange={handleChange}
+              style={{ ...styles.input, ...(errors.name ? styles.inputError : {}) }}
+              placeholder="홍길동"
             />
+            {errors.name && <span style={styles.errorText}>{errors.name}</span>}
           </div>
 
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.5rem' }}>
-              닉네임 *
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.nickname}
-              onChange={(e) => setFormData({...formData, nickname: e.target.value})}
-              placeholder="다른 사용자에게 표시될 이름"
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '1px solid #d1d5db',
-                borderRadius: '0.375rem'
-              }}
-            />
-          </div>
-          
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.5rem' }}>
-              전화번호 *
+          {/* 전화번호 */}
+          <div style={styles.formGroup}>
+            <label htmlFor="phoneNumber" style={styles.label}>
+              전화번호 <span style={styles.required}>*</span>
             </label>
             <input
               type="tel"
-              required
+              id="phoneNumber"
+              name="phoneNumber"
               value={formData.phoneNumber}
-              onChange={(e) => setFormData({...formData, phoneNumber: e.target.value})}
+              onChange={handleChange}
+              style={{ ...styles.input, ...(errors.phoneNumber ? styles.inputError : {}) }}
               placeholder="010-1234-5678"
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '1px solid #d1d5db',
-                borderRadius: '0.375rem'
-              }}
             />
+            {errors.phoneNumber && <span style={styles.errorText}>{errors.phoneNumber}</span>}
           </div>
-          
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: '100%',
-              backgroundColor: '#4f46e5',
-              color: 'white',
-              padding: '0.75rem',
-              borderRadius: '0.375rem',
-              border: 'none',
-              fontSize: '1rem',
-              fontWeight: '500',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.6 : 1,
-              marginBottom: '0.5rem'
-            }}
-          >
-            {loading ? '처리 중...' : '회원가입 완료'}
-          </button>
 
-          <button
-            type="button"
-            onClick={() => setMemberType('')}
-            style={{
-              width: '100%',
-              backgroundColor: 'transparent',
-              color: '#6b7280',
-              padding: '0.75rem',
-              borderRadius: '0.375rem',
-              border: '1px solid #d1d5db',
-              fontSize: '0.875rem',
-              cursor: 'pointer'
-            }}
-          >
-            뒤로 가기
+          {/* 닉네임 */}
+          <div style={styles.formGroup}>
+            <label htmlFor="nickname" style={styles.label}>
+              닉네임 <span style={styles.required}>*</span>
+            </label>
+            <input
+              type="text"
+              id="nickname"
+              name="nickname"
+              value={formData.nickname}
+              onChange={handleChange}
+              style={{ ...styles.input, ...(errors.nickname ? styles.inputError : {}) }}
+              placeholder="닉네임 (2-20자)"
+            />
+            {errors.nickname && <span style={styles.errorText}>{errors.nickname}</span>}
+          </div>
+
+          {/* 제출 에러 */}
+          {errors.submit && <div style={styles.submitError}>{errors.submit}</div>}
+
+          <button type="submit" style={styles.submitButton} disabled={loading}>
+            {loading ? "처리 중..." : "회원가입 완료"}
           </button>
         </form>
       </div>
     </div>
   );
+};
+
+const styles = {
+  container: { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#f9fafb", padding: "2rem" },
+  card: { backgroundColor: "white", borderRadius: "12px", boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)", padding: "3rem", width: "100%", maxWidth: "500px" },
+  title: { fontSize: "2rem", fontWeight: "bold", color: "#1f2937", marginBottom: "0.5rem", textAlign: "center" },
+  subtitle: { fontSize: "1rem", color: "#6b7280", marginBottom: "2rem", textAlign: "center" },
+  emailInfo: { marginBottom: "1.5rem", padding: "1rem", backgroundColor: "#f3f4f6", borderRadius: "8px" },
+  emailDisplay: { fontSize: "1rem", color: "#374151", fontWeight: "500" },
+  form: { display: "flex", flexDirection: "column", gap: "1.5rem" },
+  formGroup: { display: "flex", flexDirection: "column", gap: "0.5rem" },
+  label: { fontSize: "0.875rem", fontWeight: "600", color: "#374151" },
+  required: { color: "#ef4444" },
+  input: { padding: "0.75rem", fontSize: "1rem", border: "1px solid #d1d5db", borderRadius: "8px", outline: "none", transition: "border-color 0.2s" },
+  inputError: { borderColor: "#ef4444" },
+  errorText: { fontSize: "0.875rem", color: "#ef4444", marginTop: "0.25rem" },
+  submitError: { padding: "0.75rem", backgroundColor: "#fee2e2", borderRadius: "8px", color: "#dc2626", fontSize: "0.875rem", textAlign: "center" },
+  submitButton: { padding: "0.875rem", fontSize: "1rem", fontWeight: "600", color: "white", backgroundColor: "#3b82f6", border: "none", borderRadius: "8px", cursor: "pointer", transition: "background-color 0.2s", marginTop: "1rem" },
 };

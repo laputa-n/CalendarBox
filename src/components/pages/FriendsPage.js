@@ -8,7 +8,6 @@ import {
   Trash2, 
   Search,
   Send,
-  Clock,
   Mail
 } from 'lucide-react';
 import { useFriends } from '../../contexts/FriendContext';
@@ -16,31 +15,33 @@ import { validateEmail } from '../../utils/validationUtils';
 import { LoadingSpinner } from '../common/LoadingSpinner';
 
 export const FriendsPage = () => {
-  // 기존 데이터
+  // Context에서 데이터 가져오기 (기본값 설정)
   const { 
-    pendingFriendships, 
-    acceptedFriendships, 
-    sendFriendRequest, 
-    acceptFriendship, 
-    rejectFriendship,
-    removeFriend,
-    loading,
-    
-    // 새로운 데이터와 메서드들
-    receivedRequests,
-    sentRequests,
-    searchResults,
-    searchLoading,
-    sendFriendRequestById,
+    receivedRequests = { content: [], loading: false },
+    sentRequests = { content: [], loading: false },
+     acceptedFriendships = [],
+    searchResults = [],
+    searchLoading = false,
+    loading = false,
+    sendFriendRequest,
     acceptFriendRequest,
     rejectFriendRequest,
+    removeFriend,
     fetchReceivedRequests,
     fetchSentRequests,
     searchUsers
   } = useFriends();
   
+  // 기존 코드 호환성을 위한 변수들
+  const pendingFriendships = receivedRequests.content?.filter(r => r.status === 'PENDING') || [];
+  
+  // 메서드명 매핑 (기존 코드 호환)
+  const acceptFriendship = acceptFriendRequest;
+  const rejectFriendship = rejectFriendRequest;
+  const sendFriendRequestById = sendFriendRequest;
+  
   // 상태 관리
-  const [activeTab, setActiveTab] = useState('friends'); // friends, search, received, sent
+  const [activeTab, setActiveTab] = useState('friends');
   const [showAddForm, setShowAddForm] = useState(false);
   const [friendEmail, setFriendEmail] = useState('');
   const [emailError, setEmailError] = useState('');
@@ -53,7 +54,7 @@ export const FriendsPage = () => {
     } else if (activeTab === 'sent') {
       fetchSentRequests();
     }
-  }, [activeTab]);
+  },[activeTab]);
 
   // 검색 처리
   const handleSearch = (query) => {
@@ -334,7 +335,7 @@ export const FriendsPage = () => {
                   <button
                     onClick={() => {
                       if (window.confirm('정말로 친구를 삭제하시겠습니까?')) {
-                        removeFriend(friendship.id);
+                        removeFriend(friendship.friendshipId);
                       }
                     }}
                     style={{

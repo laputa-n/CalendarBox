@@ -11,7 +11,7 @@ export const LoginPage = () => {
   try {
     setLoading(true);
     // AuthContext의 startKakaoLogin 대신 직접 페이지 이동
-    window.location.href = 'http://localhost:8080/login/page';
+    window.location.href = 'http://localhost:8080/api/auth/kakao/login';
   } catch (error) {
     console.error('Login failed:', error);
   } finally {

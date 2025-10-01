@@ -13,11 +13,15 @@ import { formatDate, formatTime, isToday, addDays, getMonthDays } from '../../ut
 
 export const Dashboard = () => {
   const { user } = useAuth();
-  const { calendars } = useCalendars();
-  const { schedules } = useSchedules();
-  const { acceptedFriendships } = useFriends();
-  const { notifications, unreadCount } = useNotifications();
+  const { calendars = [] } = useCalendars();  
+  const { schedules = [] } = useSchedules();  
+  const { acceptedFriendships = [] } = useFriends();  
+  const { notifications = {}, unreadCount = 0 } = useNotifications();  
   const navigate = useNavigate();
+  const safeCalendars = Array.isArray(calendars) ? calendars : [];
+  const safeSchedules = Array.isArray(schedules) ? schedules : [];
+  const safeFriendships = Array.isArray(acceptedFriendships) ? acceptedFriendships : [];
+  const safeNotifications = notifications?.content || [];
   
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);

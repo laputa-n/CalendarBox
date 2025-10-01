@@ -9,40 +9,18 @@ const API_CONFIG = {
 const API_BASE_URL = API_CONFIG[process.env.NODE_ENV] || API_CONFIG.development;
 
 export class ApiService {
-  static getAuthToken() {
-    return localStorage.getItem('authToken');
-  }
-
-  static setAuthToken(token) {
-    localStorage.setItem('authToken', token);
-  }
-
-  static removeAuthToken() {
-    localStorage.removeItem('authToken');
-  }
-
-  static handleApiResponse(response) {
-    if (response.code && response.code !== 200 && response.code !== 201) {
-      throw new Error(response.message || `API Error: ${response.code}`);
-    }
-    return response.data || response;
-  }
-
   /**
-   * request(endpoint, { method, headers, body, allowUnauthed, skipAuth })
+   * 공통 fetch 래퍼
    */
   static async request(endpoint, options = {}) {
-    const token = this.getAuthToken();
-    const { allowUnauthed = false, skipAuth = false, headers = {}, ...rest } = options;
-
+    const { headers = {}, ...rest } = options;
     const hasBody = rest.body !== undefined && rest.body !== null;
 
     const config = {
-      credentials: 'include',
+      credentials: 'include', // ✅ 항상 쿠키 포함
       ...rest,
       headers: {
         ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
-        ...(token && !skipAuth ? { Authorization: `Bearer ${token}` } : {}), // ✅ skipAuth 처리
         ...headers,
       },
     };
@@ -50,21 +28,6 @@ export class ApiService {
     const res = await fetch(`${API_BASE_URL}${endpoint}`, config);
 
     if (!res.ok) {
-      if (allowUnauthed && (res.status === 401 || res.status === 403)) {
-        const ct = res.headers.get('content-type') || '';
-        if (ct.includes('application/json')) {
-          const data = await res.json().catch(() => ({}));
-          return data?.authenticated !== undefined ? data : { authenticated: false };
-        }
-        return { authenticated: false };
-      }
-
-      if (res.status === 401) {
-        this.removeAuthToken();
-        const txt = await res.text().catch(() => '');
-        throw new Error(txt || '인증이 만료되었습니다. 다시 로그인해주세요.');
-      }
-
       const ct = res.headers.get('content-type') || '';
       const errorData = ct.includes('application/json')
         ? await res.json().catch(() => ({}))
@@ -76,39 +39,40 @@ export class ApiService {
     return contentType.includes('application/json') ? await res.json() : res;
   }
 
-  // === 카카오 로그인 관련 ===
+  // === 카카오 로그인 ===
   static getKakaoLoginUrl() {
     return `${API_BASE_URL}/auth/kakao/login`;
   }
 
-  static async handleKakaoCallback(code) {
-    return this.request('/auth/kakao/callback', {
-      method: 'POST',
-      body: JSON.stringify({ code }),
-    });
+ // === 인증 관련 ===
+static async getAuthStatus() {
+  // 👉 /auth/me가 쿠키 검사 후 { member: {...} } 리턴
+  return this.request('/auth/me', { method: 'GET' });
+}
+
+static async completeSignup(signupData) {
+  return this.request('/auth/signup/complete', {
+    method: 'POST',
+    body: JSON.stringify(signupData),
+  });
+}
+
+// ✅ 신규 회원 이메일 확인용 API
+static async getNextAction() {
+  return this.request('/auth/kakao/next', {
+    method: 'GET',
+    credentials: 'include', // 👉 쿠키 항상 포함
+  });
+}
+  static async logout() {
+    return this.request('/auth/logout', { method: 'POST' });
   }
 
-  // === 회원가입 완료 ===
-  static async completeSignup(signupData, signupToken) {
-    return this.request('/auth/signup/complete', {
-      method: 'POST',
-      skipAuth: true,  // ✅ 기존 authToken 제거
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${signupToken}`,  // ✅ signupToken만 전달
-      },
-      body: JSON.stringify({
-        name: signupData.name,
-        phoneNumber: signupData.phoneNumber,
-        nickname: signupData.nickname, // 안전하게 같이 전달
-      }),
-    });
+  static async refreshToken() {
+    return this.request('/auth/refresh', { method: 'POST' });
   }
 
-  static async getAuthStatus() {
-    return this.request('/auth/me', { allowUnauthed: true });
-  }
-
+  // === 유저 프로필 ===
   static async getUserProfile() {
     return this.request('/auth/profile');
   }
@@ -120,28 +84,17 @@ export class ApiService {
     });
   }
 
-  static async refreshToken() {
-    return this.request('/auth/refresh', { method: 'POST' });
-  }
-
   // === 친구 관련 ===
   static async getFriendships() {
     return this.request('/friendships/received');
   }
 
-  static async sendFriendRequest(friendEmail) {
-    return this.request('/friendships/request', {
-      method: 'POST',
-      body: JSON.stringify({ friendEmail }),
-    });
-  }
-
-  static async acceptFriendship(friendshipId) {
-    return this.request(`/friendships/${friendshipId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status: 'accepted' }),
-    });
-  }
+ static async sendFriendRequest(friendEmail) {
+  return this.request('/friendships/request', {
+    method: 'POST',
+    body: JSON.stringify({ query: friendEmail }), 
+  });
+}
 
   static async rejectFriendship(friendshipId) {
     return this.request(`/friendships/${friendshipId}`, {
@@ -153,16 +106,15 @@ export class ApiService {
   static async removeFriend(friendshipId) {
     return this.request(`/friendships/${friendshipId}`, { method: 'DELETE' });
   }
-
   static async sendFriendRequestById(addresseeId) {
     return this.request('/friendships/request', {
       method: 'POST',
-      body: JSON.stringify({ addresseeId }),
+      body: JSON.stringify({ query: addresseeId }),
     });
   }
 
   static async getReceivedFriendRequests(page = 1, size = 10, status = null) {
-    let endpoint = `/friendships/received?page=${page}&size=${size}`;
+    let endpoint = `/friendships/received?page=${page - 1}&size=${size}`;
     if (status) {
       endpoint += `&status=${status}`;
     }
@@ -170,29 +122,30 @@ export class ApiService {
   }
 
   static async getSentFriendRequests(page = 1, size = 10) {
-    return this.request(`/friendships/sent?page=${page}&size=${size}`);
+    return this.request(`/friendships/sent?page=${page - 1}&size=${size}`);
   }
 
-  static async acceptFriendRequest(friendshipId) {
-    return this.request(`/friendships/${friendshipId}?action=accept`, {
-      method: 'PUT',
-    });
-  }
 
-  static async rejectFriendRequest(friendshipId) {
-    return this.request(`/friendships/${friendshipId}?action=reject`, {
-      method: 'PUT',
-    });
-  }
+  static async getAcceptedFriendships(page = 1, size = 20) {
+  return this.request(`/friendships/accepted?page=${page - 1}&size=${size}`);
+}
 
-  static async searchUsers(query, page = 1, size = 10) {
-    const params = new URLSearchParams({ q: query, page, size });
-    return this.request(`/users/search?${params}`);
-  }
+static async acceptFriendRequest(friendshipId) {
+  return this.request(`/friendships/${friendshipId}`, {
+    method: 'PATCH',  // PUT → PATCH
+    body: JSON.stringify({ action: 'ACCEPT' })  // body 추가
+  });
+}
 
+static async rejectFriendRequest(friendshipId) {
+  return this.request(`/friendships/${friendshipId}`, {
+    method: 'PATCH',  // PUT → PATCH
+    body: JSON.stringify({ action: 'REJECT' })  // body 추가
+  });
+}
   // === 캘린더 관련 API ===
   static async getCalendars(page = 1, size = 20) {
-    const response = await this.request(`/calendars?page=${page}&size=${size}`);
+    const response = await this.request(`/calendars?page=${page - 1}&size=${size}`);
     return this.handleApiResponse(response);
   }
 
