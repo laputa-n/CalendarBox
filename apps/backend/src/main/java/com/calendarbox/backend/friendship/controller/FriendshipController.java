@@ -25,7 +25,6 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/friendships")
 public class FriendshipController {
     private final FriendshipService friendshipService;
-    private final FriendshipRepository friendshipRepository;
     private final FriendshipQueryService friendshipQueryService;
 
     @PostMapping("/request")
@@ -78,7 +77,18 @@ public class FriendshipController {
             @RequestParam(defaultValue = "10") int size
     ){
         Pageable pageable = PageRequest.of(page,size, Sort.by(Sort.Direction.DESC, "createdAt"));
+
         var data = friendshipQueryService.sent(userId,status,pageable);
+
         return ResponseEntity.ok(ApiResponse.ok("보낸 친구 요청 목록 조회 성공", data));
+    }
+
+    @DeleteMapping("/{friendshipId}")
+    public ResponseEntity<ApiResponse<Void>> delete(
+            @AuthenticationPrincipal(expression="id")Long userId,
+            @PathVariable Long friendshipId
+    ){
+        friendshipService.delete(userId, friendshipId);
+        return ResponseEntity.ok(ApiResponse.ok("친구 삭제 완료",null));
     }
 }

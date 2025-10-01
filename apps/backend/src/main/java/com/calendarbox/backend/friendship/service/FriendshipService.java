@@ -63,8 +63,6 @@ public class FriendshipService {
                                 "actorName", requester.getName()
                         ))
                 )
-                .createdAt(Instant.now())
-                .readAt(null)
                 .dedupeKey("friendRequest:" + friendship.getId())
                 .build();
 
@@ -94,6 +92,18 @@ public class FriendshipService {
                 f.getStatus(), f.getCreatedAt(), f.getRespondedAt()
         );
     }
+
+    public void delete(Long userId,Long friendshipId){
+        Member user = memberRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        Friendship f = friendshipRepository.findById(friendshipId).orElseThrow(() -> new BusinessException(ErrorCode.FRIENDSHIP_NOT_FOUND));
+        if(!f.getRequester().getId().equals(user.getId()) && !f.getAddressee().getId().equals(user.getId())){
+            throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+        }
+        if(f.getStatus() != FriendshipStatus.ACCEPTED) throw new BusinessException(ErrorCode.FRIENDSHIP_INVALID_STATE);
+
+        friendshipRepository.delete(f);
+    }
+
 
     @Transactional(readOnly = true)
     public Page<Friendship> inbox(Long userId, Pageable pageable){
