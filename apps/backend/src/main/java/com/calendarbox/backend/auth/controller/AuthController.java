@@ -14,15 +14,20 @@ import com.calendarbox.backend.member.domain.Member;
 import com.calendarbox.backend.member.repository.MemberRepository;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Optional;
+
+import static com.calendarbox.backend.auth.util.AuthCookieUtil.*;
 
 @RestController
 @RequiredArgsConstructor
@@ -36,58 +41,50 @@ public class AuthController {
     private final KakaoAccountRepository kakaoAccountRepository;
 
     @PostMapping("/signup/complete")
-    public ResponseEntity<ApiResponse<LoginSuccessResponse>> completeProfile(
+    public ResponseEntity<ApiResponse<MemberResponse>> completeProfile(
             HttpServletRequest request,
+            HttpServletResponse response,
             @Valid @RequestBody CompleteProfileReq req) {
+
         String signupToken = readCookie(request, "signup_token")
                 .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_ERROR));
         SignupClaims claims = jwtService.verifyTempSignupToken(signupToken);
 
-        // ★ 임시 저장 로드
         var temp = kakaoTempStore.load(claims.kakaoId()).orElse(null);
 
-        // ★ 6-인자 버전 호출(임시값이 없으면 null 전달)
         Member member = signupService.createMemberWithKakao(
-                claims.kakaoId(),
-                claims.email(),
-                req.name(),
-                req.phoneNumber(),
+                claims.kakaoId(), claims.email(), req.name(), req.phoneNumber(),
                 temp == null ? null : temp.profileJson(),
                 temp == null ? null : temp.refreshToken()
         );
-
-        // 사용 후 제거
         kakaoTempStore.delete(claims.kakaoId());
 
         String accessToken  = jwtService.issueAccessToken(member);
         String refreshToken = jwtService.issueRefreshToken(member);
         refreshTokenService.save(member.getId(), refreshToken);
 
+        boolean local = isLocal(request);
+        response.addHeader(HttpHeaders.SET_COOKIE, buildAccessCookie(accessToken, local).toString());
+        response.addHeader(HttpHeaders.SET_COOKIE, buildRefreshCookie(refreshToken, local).toString());
+
+        ResponseCookie expiredSignup = ResponseCookie.from("signup_token", "")
+                .httpOnly(true)
+                .secure(!local)
+                .sameSite(local ? "Lax" : "None")
+                .path("/")   // 원래 발급된 경로와 맞춰야 함
+                .maxAge(0)   // 즉시 만료
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, expiredSignup.toString());
+
         MemberResponse mr = new MemberResponse(member.getId(), member.getName(), member.getEmail(), member.getPhoneNumber());
-
-        ResponseCookie accessCookie = ResponseCookie.from("access_token", accessToken)
-                .httpOnly(true)
-                .secure(false) // 로컬 테스트용 (실서비스는 true)
-                .sameSite("Lax")
-                .path("/")
-                .build();
-
-        ResponseCookie refreshCookie = ResponseCookie.from("refresh_token", refreshToken)
-                .httpOnly(true)
-                .secure(false)
-                .sameSite("Lax")
-                .path("/")
-                .build();
-
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, accessCookie.toString())
-                .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
-                .body(ApiResponse.ok("회원가입이 완료되었습니다", new LoginSuccessResponse(accessToken, refreshToken, mr)));
+        return ResponseEntity.ok(ApiResponse.ok("회원가입이 완료되었습니다", mr));
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<ApiResponse<LoginSuccessResponse>> refresh(
-            @RequestHeader("X-Refresh-Token") String refreshToken) {
+    public ResponseEntity<ApiResponse<MemberResponse>> refresh(HttpServletRequest req,
+                                                               HttpServletResponse resp) {
+        String refreshToken = readCookie(req, "refresh_token")
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_LOGGED_IN));
 
         RefreshClaims claims = jwtService.verifyRefreshToken(refreshToken);
         Long memberId = claims.memberId();
@@ -97,24 +94,31 @@ public class AuthController {
             return ResponseEntity.status(401).build();
         }
 
-        Member member = memberRepository.findById(memberId).orElseThrow();
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+
         String newAccess  = jwtService.issueAccessToken(member);
-        String newRefresh = jwtService.issueRefreshToken(member);
+        String newRefresh = jwtService.issueRefreshToken(member); // 회전 권장
         refreshTokenService.replace(memberId, newRefresh);
 
-        MemberResponse memberResponse = new MemberResponse(member.getId(), member.getName(), member.getEmail(), member.getPhoneNumber());
-        return ResponseEntity.ok(ApiResponse.ok("토큰 재발급 성공",new LoginSuccessResponse(newAccess, newRefresh,memberResponse)));
+        boolean local = isLocal(req);
+        resp.addHeader(HttpHeaders.SET_COOKIE, buildAccessCookie(newAccess, local).toString());
+        resp.addHeader(HttpHeaders.SET_COOKIE, buildRefreshCookie(newRefresh, local).toString());
+
+        MemberResponse mr = new MemberResponse(member.getId(), member.getName(), member.getEmail(), member.getPhoneNumber());
+        return ResponseEntity.ok(ApiResponse.ok("토큰 재발급 성공", mr));
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(
-            @RequestHeader(value="Authorization", required=false) String auth) {
-        if (auth != null && auth.startsWith("Bearer ")) {
-            try {
-                Long memberId = jwtService.verifyAccessToken(auth.substring(7));
-                refreshTokenService.delete(memberId);
-            } catch (Exception ignore) {}
+    public ResponseEntity<Void> logout(@AuthenticationPrincipal(expression = "id") Long memberId,
+                                       HttpServletRequest req,
+                                       HttpServletResponse resp) {
+        if (memberId != null) {
+            refreshTokenService.delete(memberId);
         }
+        boolean local = isLocal(req);
+        resp.addHeader(HttpHeaders.SET_COOKIE, deleteCookie("access_token", local, "/").toString());
+        resp.addHeader(HttpHeaders.SET_COOKIE, deleteCookie("refresh_token", local, "/api/auth").toString());
         return ResponseEntity.noContent().build();
     }
 
