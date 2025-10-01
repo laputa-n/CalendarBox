@@ -16,6 +16,7 @@ public interface FriendshipRepository extends JpaRepository<Friendship, Long> {
     boolean existsByRequesterIdAndAddresseeIdAndStatusIn(Long requesterId, Long addresseeId,Collection<FriendshipStatus> statuses);
 
     Optional<Friendship> findByIdAndAddresseeId(Long friendshipId, Long addresseeId);
+    Optional<Friendship> findByIdAndAddresseeIdAndStatus(Long friendshipId, Long addresseeId,FriendshipStatus status);
     Optional<Friendship> findByIdAndRequesterId(Long friendshipId, Long requesterId);
 
     Page<Friendship> findByAddresseeIdAndStatus(Long addresseeId, FriendshipStatus status, Pageable pageable);

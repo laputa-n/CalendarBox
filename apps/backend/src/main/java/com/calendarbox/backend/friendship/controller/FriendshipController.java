@@ -44,26 +44,14 @@ public class FriendshipController {
 
     @PatchMapping("/{friendshipId}")
     public ResponseEntity<ApiResponse<FriendRespondResponse>> respond(
-            @PathVariable Long friendshipId,
             @AuthenticationPrincipal(expression = "id") Long userId,
+            @PathVariable Long friendshipId,
             @Valid @RequestBody FriendRespondRequest request
     ){
-        switch(request.action()){
+        var data = switch(request.action()){
             case ACCEPT -> friendshipService.accept(friendshipId, userId);
             case REJECT -> friendshipService.reject(friendshipId, userId);
-        }
-
-        Friendship f = friendshipRepository.findById(friendshipId)
-                .orElseThrow(() -> new IllegalStateException("Friendship not found after respond"));
-
-        var data = new FriendRespondResponse(
-                f.getId(),
-                f.getRequester().getId(),
-                f.getAddressee().getId(),
-                f.getStatus(),
-                f.getCreatedAt(),
-                f.getRespondedAt()
-        );
+        };
 
         String msg = (request.action() == Action.ACCEPT)
                 ? "친구 요청을 수락했습니다."

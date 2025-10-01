@@ -3,6 +3,7 @@ package com.calendarbox.backend.friendship.service;
 import com.calendarbox.backend.friendship.domain.Friendship;
 import com.calendarbox.backend.friendship.dto.request.FriendRequest;
 import com.calendarbox.backend.friendship.dto.response.FriendRequestResponse;
+import com.calendarbox.backend.friendship.dto.response.FriendRespondResponse;
 import com.calendarbox.backend.friendship.enums.FriendshipStatus;
 import com.calendarbox.backend.friendship.enums.SentQueryStatus;
 import com.calendarbox.backend.friendship.repository.FriendshipRepository;
@@ -69,16 +70,26 @@ public class FriendshipService {
         return new FriendRequestResponse(friendship.getId(),requester.getId(), addressee.getId(), friendship.getCreatedAt());
     }
 
-    public void accept(Long friendshipId, Long userId){
-        Friendship f = friendshipRepository.findByIdAndAddresseeId(friendshipId,userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_FORBIDDEN));
+    public FriendRespondResponse accept(Long friendshipId, Long userId){
+        Friendship f = friendshipRepository.findByIdAndAddresseeIdAndStatus(friendshipId,userId,FriendshipStatus.PENDING)
+                .orElseThrow(() -> new BusinessException(ErrorCode.FRIENDSHIP_INVALID_STATE));
         f.accept();
+
+        return new FriendRespondResponse(
+                f.getId(), f.getRequester().getId(), f.getAddressee().getId(),
+                f.getStatus(), f.getCreatedAt(), f.getRespondedAt()
+        );
     }
 
-    public void reject(Long friendshipId, Long userId){
-        Friendship f = friendshipRepository.findByIdAndAddresseeId(friendshipId,userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_FORBIDDEN));
+    public FriendRespondResponse reject(Long friendshipId, Long userId){
+        Friendship f = friendshipRepository.findByIdAndAddresseeIdAndStatus(friendshipId,userId,FriendshipStatus.PENDING)
+                .orElseThrow(() -> new BusinessException(ErrorCode.FRIENDSHIP_INVALID_STATE));
         f.reject();
+
+        return new FriendRespondResponse(
+                f.getId(), f.getRequester().getId(), f.getAddressee().getId(),
+                f.getStatus(), f.getCreatedAt(), f.getRespondedAt()
+        );
     }
 
     @Transactional(readOnly = true)
