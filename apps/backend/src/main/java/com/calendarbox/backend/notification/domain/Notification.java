@@ -41,7 +41,6 @@ public class Notification {
     @Column(name = "payload_json", nullable = false, columnDefinition = "jsonb")
     private String payloadJson = "{}";
 
-    @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -54,6 +53,13 @@ public class Notification {
     public void read(){
         if (this.readAt == null) {
             this.readAt = Instant.now();
+        }
+    }
+
+    @PrePersist
+    public void onCreate(){
+        if (createdAt == null) {
+            createdAt = Instant.now();
         }
     }
 }

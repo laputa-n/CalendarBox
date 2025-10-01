@@ -22,6 +22,7 @@ import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -62,6 +63,8 @@ public class FriendshipService {
                                 "actorName", requester.getName()
                         ))
                 )
+                .createdAt(Instant.now())
+                .readAt(null)
                 .dedupeKey("friendRequest:" + friendship.getId())
                 .build();
 
