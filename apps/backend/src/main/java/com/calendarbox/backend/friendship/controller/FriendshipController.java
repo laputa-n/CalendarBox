@@ -1,6 +1,5 @@
 package com.calendarbox.backend.friendship.controller;
 
-import com.calendarbox.backend.friendship.domain.Friendship;
 import com.calendarbox.backend.friendship.dto.request.FriendRequest;
 import com.calendarbox.backend.friendship.dto.request.FriendRespondRequest;
 import com.calendarbox.backend.friendship.dto.response.*;
@@ -8,14 +7,12 @@ import com.calendarbox.backend.friendship.enums.Action;
 import com.calendarbox.backend.friendship.enums.FriendshipStatus;
 import com.calendarbox.backend.friendship.enums.SentQueryStatus;
 import com.calendarbox.backend.friendship.repository.FriendshipRepository;
+import com.calendarbox.backend.friendship.service.FriendshipQueryService;
 import com.calendarbox.backend.friendship.service.FriendshipService;
 import com.calendarbox.backend.global.dto.ApiResponse;
 import com.calendarbox.backend.global.dto.PageResponse;
-import com.calendarbox.backend.global.error.BusinessException;
-import com.calendarbox.backend.global.error.ErrorCode;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -23,52 +20,34 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/friendships")
 public class FriendshipController {
     private final FriendshipService friendshipService;
     private final FriendshipRepository friendshipRepository;
+    private final FriendshipQueryService friendshipQueryService;
 
     @PostMapping("/request")
     public ResponseEntity<ApiResponse<FriendRequestResponse>> requestFriend(
             @AuthenticationPrincipal(expression= "id") Long requesterId,
-            @RequestBody FriendRequest friendRequest
+            @Valid @RequestBody FriendRequest friendRequest
     ) {
-        Long friendshipId = friendshipService.request(requesterId, friendRequest);
-
-        Friendship f = friendshipRepository.findById(friendshipId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.FRIENDSHIP_NOT_FOUNT));
-
-        var data = new FriendRequestResponse(friendshipId,requesterId,f.getRequester().getId(),f.getCreatedAt());
+        var data = friendshipService.request(requesterId, friendRequest);
 
         return ResponseEntity.ok(ApiResponse.ok("친구 요청을 보냈습니다.", data));
     }
 
     @PatchMapping("/{friendshipId}")
     public ResponseEntity<ApiResponse<FriendRespondResponse>> respond(
-            @PathVariable Long friendshipId,
             @AuthenticationPrincipal(expression = "id") Long userId,
+            @PathVariable Long friendshipId,
             @Valid @RequestBody FriendRespondRequest request
     ){
-        switch(request.action()){
+        var data = switch(request.action()){
             case ACCEPT -> friendshipService.accept(friendshipId, userId);
             case REJECT -> friendshipService.reject(friendshipId, userId);
-        }
-
-        Friendship f = friendshipRepository.findById(friendshipId)
-                .orElseThrow(() -> new IllegalStateException("Friendship not found after respond"));
-
-        var data = new FriendRespondResponse(
-                f.getId(),
-                f.getRequester().getId(),
-                f.getAddressee().getId(),
-                f.getStatus(),
-                f.getCreatedAt(),
-                f.getRespondedAt()
-        );
+        };
 
         String msg = (request.action() == Action.ACCEPT)
                 ? "친구 요청을 수락했습니다."
@@ -86,28 +65,9 @@ public class FriendshipController {
             ){
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
 
-        Page<Friendship> pageResult = friendshipService.received(userId, status, pageable);
+        var data = friendshipQueryService.received(userId, status, pageable);
 
-        List<ReceivedItemResponse> content = pageResult.getContent().stream()
-                .map(f -> new ReceivedItemResponse(
-                        f.getId(),
-                        f.getRequester().getId(),
-                        f.getAddressee().getId(),
-                        f.getStatus(),
-                        f.getCreatedAt(),
-                        f.getRespondedAt()
-                ))
-                .toList();
-
-        var data = new PageResponse<>(
-                content,
-                pageResult.getNumber(),
-                pageResult.getSize(),
-                pageResult.getTotalElements(),
-                pageResult.getTotalPages()
-        );
-
-        return ResponseEntity.ok(ApiResponse.ok("받은 친구 요청 목록입니다.",data));
+        return ResponseEntity.ok(ApiResponse.ok("받은 친구 요청 목록 조회 성공",data));
     }
 
     @GetMapping("/sent")
@@ -117,28 +77,8 @@ public class FriendshipController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ){
-        Pageable pageable = PageRequest.of(page,size, Sort.by(Sort.Direction.DESC, "creadtedAt"));
-
-        Page<Friendship> pageResult = friendshipService.sent(userId, status, pageable);
-
-        var content = pageResult.getContent().stream()
-                .map(f-> new SentItemResponse(
-                        f.getId(),
-                        f.getAddressee().getId(),
-                        (f.getStatus() == FriendshipStatus.ACCEPTED)?"ACCEPTED":"REQUESTED",
-                        f.getCreatedAt(),
-                        f.getRespondedAt()
-
-                ))
-                .toList();
-        var data = new PageResponse<>(
-                content,
-                pageResult.getNumber(),
-                pageResult.getSize(),
-                pageResult.getTotalElements(),
-                pageResult.getTotalPages()
-        );
-
+        Pageable pageable = PageRequest.of(page,size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        var data = friendshipQueryService.sent(userId,status,pageable);
         return ResponseEntity.ok(ApiResponse.ok("보낸 친구 요청 목록 조회 성공", data));
     }
 }
