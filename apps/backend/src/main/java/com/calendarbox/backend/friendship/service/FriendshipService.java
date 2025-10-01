@@ -2,6 +2,7 @@ package com.calendarbox.backend.friendship.service;
 
 import com.calendarbox.backend.friendship.domain.Friendship;
 import com.calendarbox.backend.friendship.dto.request.FriendRequest;
+import com.calendarbox.backend.friendship.dto.response.FriendRequestResponse;
 import com.calendarbox.backend.friendship.enums.FriendshipStatus;
 import com.calendarbox.backend.friendship.enums.SentQueryStatus;
 import com.calendarbox.backend.friendship.repository.FriendshipRepository;
@@ -32,22 +33,23 @@ public class FriendshipService {
     private final ObjectMapper objectMapper;
     private final NotificationRepository notificationRepository;
 
-    public Long request(Long requesterId, FriendRequest request){
+    public FriendRequestResponse request(Long requesterId, FriendRequest request){
+        Member requester = memberRepository.findById(requesterId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
         Member addressee = memberRepository.findByEmail(request.query())
                 .or(() -> memberRepository.findByPhoneNumber(request.query()))
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
-        if(friendshipRepository.existsByRequesterIdAndAddresseeId(requesterId,addressee.getId())){
+        if (requester.getId().equals(addressee.getId())) {
+            throw new BusinessException(ErrorCode.FRIENDSHIP_SELF_REQUEST);
+        }
+        if(friendshipRepository.existsByRequesterIdAndAddresseeIdAndStatusIn(requesterId,addressee.getId(),List.of(FriendshipStatus.ACCEPTED, FriendshipStatus.PENDING))
+        || friendshipRepository.existsByRequesterIdAndAddresseeIdAndStatusIn(addressee.getId(),requester.getId(),List.of(FriendshipStatus.ACCEPTED, FriendshipStatus.PENDING))){
             throw new BusinessException(ErrorCode.VALIDATION_ERROR,"이미 보낸 요청이 있습니다.");
         }
 
-        Member requester = memberRepository.findById(requesterId).get();
-
         Friendship friendship = Friendship.request(requester,addressee);
-
-
-
         friendshipRepository.save(friendship);
+
         Notification notification = Notification.builder()
                 .member(addressee)
                 .actor(requester)
@@ -63,7 +65,8 @@ public class FriendshipService {
                 .build();
 
         notificationRepository.save(notification);
-        return friendship.getId();
+
+        return new FriendRequestResponse(friendship.getId(),requester.getId(), addressee.getId(), friendship.getCreatedAt());
     }
 
     public void accept(Long friendshipId, Long userId){

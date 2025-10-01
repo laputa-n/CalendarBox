@@ -35,14 +35,9 @@ public class FriendshipController {
     @PostMapping("/request")
     public ResponseEntity<ApiResponse<FriendRequestResponse>> requestFriend(
             @AuthenticationPrincipal(expression= "id") Long requesterId,
-            @RequestBody FriendRequest friendRequest
+            @Valid @RequestBody FriendRequest friendRequest
     ) {
-        Long friendshipId = friendshipService.request(requesterId, friendRequest);
-
-        Friendship f = friendshipRepository.findById(friendshipId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.FRIENDSHIP_NOT_FOUNT));
-
-        var data = new FriendRequestResponse(friendshipId,requesterId,f.getRequester().getId(),f.getCreatedAt());
+        var data = friendshipService.request(requesterId, friendRequest);
 
         return ResponseEntity.ok(ApiResponse.ok("친구 요청을 보냈습니다.", data));
     }
