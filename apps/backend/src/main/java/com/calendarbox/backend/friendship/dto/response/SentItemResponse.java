@@ -5,6 +5,7 @@ import java.time.Instant;
 public record SentItemResponse(
         Long friendshipId,
         Long addresseeId,
+        String addresseeName,
         String status,
         Instant creadtedAt,
         Instant respondedAt

@@ -8,6 +8,7 @@ public record ReceivedItemResponse(
         Long friendshipId,
         Long requesterId,
         Long addresseeId,
+        String requesterName,
         FriendshipStatus status,
         Instant createdAt,
         Instant respondedAt

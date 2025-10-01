@@ -97,24 +97,6 @@ public class FriendshipService {
         return friendshipRepository.findByAddresseeIdAndStatus(userId, FriendshipStatus.PENDING,pageable);
     }
 
-    @Transactional(readOnly = true)
-    public Page<Friendship> received(Long userId, @Nullable FriendshipStatus status, Pageable pageable){
-        if (status == null){
-            return friendshipRepository.findByAddresseeId(userId, pageable);
-        }
-        return friendshipRepository.findByAddresseeIdAndStatus(userId, status, pageable);
-    }
-
-    @Transactional(readOnly = true)
-    public Page<Friendship> sent(Long requesterId, @Nullable SentQueryStatus status, Pageable pageable){
-        if (status == null){
-            return friendshipRepository.findByRequesterId(requesterId, pageable);
-        }
-        return switch(status){
-            case ACCEPTED -> friendshipRepository.findByRequesterIdAndStatus(requesterId, FriendshipStatus.ACCEPTED, pageable);
-            case REQUESTED -> friendshipRepository.findByRequesterIdAndStatusIn(requesterId, List.of(FriendshipStatus.PENDING,FriendshipStatus.REJECTED), pageable);
-        };
-    }
 
     private String toJson(Object value) {
         try {
