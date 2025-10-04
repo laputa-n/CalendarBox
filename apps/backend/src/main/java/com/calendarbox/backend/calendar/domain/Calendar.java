@@ -78,7 +78,7 @@ public class Calendar {
     public void changeVisibility(Visibility visibility){
         this.visibility = Objects.requireNonNull(visibility);
     }
-
+    public void changeType(CalendarType type){ this.type = Objects.requireNonNull(type); }
     public void addMember(CalendarMember calendarMember) {
         if (calendarMember == null) return;
         this.calendarMembers.add(calendarMember);

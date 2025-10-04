@@ -7,6 +7,7 @@ import com.calendarbox.backend.calendar.dto.request.CalendarEditRequest;
 import com.calendarbox.backend.calendar.dto.response.CalendarEditResponse;
 import com.calendarbox.backend.calendar.dto.response.CreateCalendarResponse;
 import com.calendarbox.backend.calendar.enums.CalendarHistoryType;
+import com.calendarbox.backend.calendar.enums.CalendarMemberStatus;
 import com.calendarbox.backend.calendar.enums.CalendarType;
 import com.calendarbox.backend.calendar.enums.Visibility;
 import com.calendarbox.backend.calendar.repository.CalendarHistoryRepository;
@@ -67,10 +68,9 @@ public class CalendarService {
 
     public CalendarEditResponse editCalendar(Long userId, Long calendarId, CalendarEditRequest request){
         Member user = memberRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
-        Calendar c = calendarRepository.findByIdAndOwner_Id(calendarId,userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.CALENDAR_NOT_FOUND));
+        Calendar c = calendarRepository.findByIdAndOwner_Id(calendarId,userId).orElseThrow(() -> new BusinessException(ErrorCode.CALENDAR_NOT_FOUND));
 
-        if (request.name() == null && request.visibility() == null) {
+        if (request.name() == null && request.visibility() == null && request.type() == null) {
             throw new BusinessException(ErrorCode.REQUEST_NO_CHANGES);
         }
         Map<String,Object> diff = new LinkedHashMap<>();
@@ -91,6 +91,12 @@ public class CalendarService {
             diff.put("visibility",Map.of("old",oldVisibility,"new",request.visibility()));
         }
 
+        if(request.type() != null){
+            CalendarType oldType = c.getType();
+            c.changeType(request.type());
+            diff.put("type",Map.of("old",oldType,"new",request.type()));
+        }
+
         CalendarHistory history = CalendarHistory.builder()
                 .calendar(c)
                 .actor(user)
@@ -100,11 +106,11 @@ public class CalendarService {
                 .build();
         calendarHistoryRepository.save(history);
 
-
         return new CalendarEditResponse(
                 c.getId(),
                 c.getName(),
                 c.getVisibility(),
+                c.getType(),
                 c.getUpdatedAt()
         );
     }
@@ -113,20 +119,17 @@ public class CalendarService {
         Calendar calendar = calendarRepository.findByIdAndOwner_Id(calendarId,userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.CALENDAR_NOT_FOUND));
 
-        boolean wasDefault = calendarMemberRepository.existsByCalendar_IdAndMember_IdAndIsDefaultTrue(calendarId,userId);
-
-        calendarMemberRepository.deleteByCalendarId(calendarId);
-
         calendarRepository.delete(calendar);
+    }
 
-        if (wasDefault && !calendarMemberRepository.existsByMember_IdAndIsDefaultTrue(userId)) {
-            List<CalendarMember> cand = calendarMemberRepository
-                    .findDefaultCandidate(userId, PageRequest.of(0, 1));
-            if (!cand.isEmpty()) {
-                calendarMemberRepository.unsetDefaultForMember(userId);
-                cand.get(0).makeDefault();
-            }
-        }
+    public void setDefault(Long memberId, Long calendarId){
+        boolean hasLink = calendarMemberRepository
+                .existsByCalendar_IdAndMember_IdAndStatusIn(
+                        calendarId, memberId, List.of(CalendarMemberStatus.ACCEPTED));
+        if(!hasLink) throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+
+        calendarMemberRepository.unsetDefaultForMember(memberId);
+        calendarMemberRepository.setDefault(memberId, calendarId);
     }
     private String toJson(Object value){
         try{

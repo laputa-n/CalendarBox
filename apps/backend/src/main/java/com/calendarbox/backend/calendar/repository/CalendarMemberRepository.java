@@ -177,4 +177,15 @@ where cm.calendar.id = :calendarId
     /** 그룹 멤버(PENDING 포함) 체크에 쓰는 exists */
     boolean existsByCalendar_IdAndMember_IdAndStatusIn(Long calendarId, Long memberId,
                                                        Collection<com.calendarbox.backend.calendar.enums.CalendarMemberStatus> statuses);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+update CalendarMember cm
+   set cm.isDefault = true
+ where cm.member.id   = :memberId
+   and cm.calendar.id = :calendarId
+   and cm.status = com.calendarbox.backend.calendar.enums.CalendarMemberStatus.ACCEPTED
+""")
+    int setDefault(@Param("memberId") Long memberId,
+                   @Param("calendarId") Long calendarId);
 }

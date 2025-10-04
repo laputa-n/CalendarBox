@@ -95,9 +95,9 @@ public class CalendarController {
             @PathVariable Long calendarId,
             @Valid @RequestBody InviteMembersRequest request
             ){
-        InviteMembersResponse response = calendarMemberService.inviteMembers(userId, calendarId, request);
+        var data = calendarMemberService.inviteMembers(userId, calendarId, request);
 
-        return ResponseEntity.ok(ApiResponse.ok("캘린더 초대 성공",response));
+        return ResponseEntity.ok(ApiResponse.ok("캘린더 초대 성공",data));
     }
 
     @GetMapping("/calendars/{calendarId}/members")
@@ -112,6 +112,15 @@ public class CalendarController {
         var pageResult = calendarMemberQueryService.listMembers(viewerId, calendarId, status, sort, PageRequest.of(page,size));
         var data = PageResponse.of(pageResult);
         return ResponseEntity.ok(ApiResponse.ok("캘린더 멤버 목록 조회 성공", data));
+    }
+
+    @PutMapping("/calendars/{calendarId}/default")
+    public ResponseEntity<ApiResponse<Void>> setDefault(
+            @AuthenticationPrincipal(expression = "id") Long userId,
+            @PathVariable Long calendarId
+    ){
+        calendarService.setDefault(userId, calendarId);
+        return ResponseEntity.ok(ApiResponse.ok("기본 캘린더 설정 완료",null));
     }
 
     @PatchMapping("/calendar-members/{calendarMemberId}")
