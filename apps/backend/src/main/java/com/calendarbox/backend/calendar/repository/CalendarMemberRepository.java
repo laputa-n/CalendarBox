@@ -56,22 +56,16 @@ select new com.calendarbox.backend.calendar.dto.response.CalendarListItem(
 )
 from CalendarMember cmTarget
 join cmTarget.calendar c
-left join CalendarMember cmViewer
-       on cmViewer.calendar = c
-      and cmViewer.member.id = :viewerId
-      and cmViewer.status = com.calendarbox.backend.calendar.enums.CalendarMemberStatus.ACCEPTED
 where cmTarget.member.id = :targetId
   and cmTarget.status = com.calendarbox.backend.calendar.enums.CalendarMemberStatus.ACCEPTED
   and (
         c.visibility = com.calendarbox.backend.calendar.enums.Visibility.PUBLIC
         or c.visibility = com.calendarbox.backend.calendar.enums.Visibility.PROTECTED
-        or cmViewer.id is not null
       )
   and (:type is null or c.type = :type)
 order by c.name asc, c.id desc
 """)
     Page<CalendarListItem> findFriendVisible(
-            @Param("viewerId") Long viewerId,
             @Param("targetId") Long targetId,
             @Param("type") CalendarType type,
             Pageable pageable
@@ -164,4 +158,34 @@ order by c.name asc, c.id desc
       and cm.status in :statuses
     """)
     List<Long> findCalendarIdsByMemberIdAndStatuses(@Param("memberId")Long memberId, @Param("statuses")List<CalendarMemberStatus> statuses);
+
+    @Query("""
+select case when count(cm) > 0 then true else false end
+from CalendarMember cm
+join Friendship f
+where cm.calendar.id = :calendarId
+  and cm.status = com.calendarbox.backend.calendar.enums.CalendarMemberStatus.ACCEPTED
+  and f.status = com.calendarbox.backend.friendship.enums.FriendshipStatus.ACCEPTED
+  and (
+       (f.requester.id = :viewerId and f.addressee.id = cm.member.id)
+    or (f.addressee.id = :viewerId and f.requester.id = cm.member.id)
+  )
+""")
+    boolean existsFriendshipWithAnyAcceptedMember(@Param("calendarId") Long calendarId,
+                                                  @Param("viewerId") Long viewerId);
+
+    /** 그룹 멤버(PENDING 포함) 체크에 쓰는 exists */
+    boolean existsByCalendar_IdAndMember_IdAndStatusIn(Long calendarId, Long memberId,
+                                                       Collection<com.calendarbox.backend.calendar.enums.CalendarMemberStatus> statuses);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+update CalendarMember cm
+   set cm.isDefault = true
+ where cm.member.id   = :memberId
+   and cm.calendar.id = :calendarId
+   and cm.status = com.calendarbox.backend.calendar.enums.CalendarMemberStatus.ACCEPTED
+""")
+    int setDefault(@Param("memberId") Long memberId,
+                   @Param("calendarId") Long calendarId);
 }

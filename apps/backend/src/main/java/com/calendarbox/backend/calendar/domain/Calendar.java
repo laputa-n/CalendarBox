@@ -16,20 +16,14 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @EntityListeners(AuditingEntityListener.class)
-@Table(
-        indexes = {
-                @Index(name = "idx_calendar_owner", columnList = "owner_id")
-        },
-        uniqueConstraints = {
-                @UniqueConstraint(name = "uk_calendar_owner_name", columnNames = {"owner_id", "name"})
-        }
-)
 public class Calendar {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -41,8 +35,7 @@ public class Calendar {
     private Member owner;
 
     @Column(nullable = false, length = 100)
-    @NotBlank
-    @Size(max = 100)
+    @NotBlank @Size(max = 100)
     private String name;
 
     @Enumerated(EnumType.STRING)
@@ -60,6 +53,9 @@ public class Calendar {
     @LastModifiedDate
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    @OneToMany(mappedBy = "calendar", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<CalendarMember> calendarMembers = new ArrayList<>();
 
     private Calendar(Member owner, String name, CalendarType type, Visibility visibility) {
         this.owner = Objects.requireNonNull(owner);
@@ -82,12 +78,16 @@ public class Calendar {
     public void changeVisibility(Visibility visibility){
         this.visibility = Objects.requireNonNull(visibility);
     }
-
-    @PrePersist
-    void onCreate(){
-        this.createdAt = Instant.now();
+    public void changeType(CalendarType type){ this.type = Objects.requireNonNull(type); }
+    public void addMember(CalendarMember calendarMember) {
+        if (calendarMember == null) return;
+        this.calendarMembers.add(calendarMember);
+        calendarMember.setCalendar(this);
     }
 
-    @LastModifiedDate
-    void onUpdate(){ this.updatedAt = Instant.now(); }
+    public void removeMember(CalendarMember calendarMember) {
+        if (calendarMember == null) return;
+        this.calendarMembers.remove(calendarMember);
+        calendarMember.setCalendar(null);
+    }
 }

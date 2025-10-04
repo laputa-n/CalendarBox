@@ -1,5 +1,8 @@
 package com.calendarbox.backend.auth.service;
 
+import com.calendarbox.backend.calendar.domain.Calendar;
+import com.calendarbox.backend.calendar.domain.CalendarMember;
+import com.calendarbox.backend.calendar.repository.CalendarRepository;
 import com.calendarbox.backend.global.error.ErrorCode;
 import com.calendarbox.backend.kakao.domain.KakaoAccount;
 import com.calendarbox.backend.kakao.repository.KakaoAccountRepository;
@@ -18,6 +21,7 @@ public class SignupService {
 
     private final MemberRepository memberRepository;
     private final KakaoAccountRepository kakaoAccountRepository;
+    private final CalendarRepository calendarRepository;
 
     @Transactional
     public Member createMemberWithKakao(Long kakaoId, String email, String name, String phone) {
@@ -50,6 +54,14 @@ public class SignupService {
                 .build();
         kakaoAccountRepository.save(link);
 
+        Calendar calendar = Calendar.create(m,m.getName()+"님의 기본 캘린더",null,null);
+
+        CalendarMember calendarMember = CalendarMember.create(calendar, m, true);
+
+        calendar.addMember(calendarMember);
+        m.addMember(calendarMember);
+
+        calendarRepository.save(calendar);
         return m;
     }
 }

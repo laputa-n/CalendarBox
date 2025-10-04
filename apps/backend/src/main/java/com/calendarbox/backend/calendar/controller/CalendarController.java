@@ -42,18 +42,9 @@ public class CalendarController {
             @AuthenticationPrincipal (expression = "id") Long userId,
             @Valid @RequestBody CreateCalendarRequest request
     ){
-        Calendar c = calendarService.create(userId, request.name(), request.type(), request.visibility(), request.isDefault());
-        var data = new CreateCalendarResponse(
-                        c.getId(),
-                        c.getOwner().getId(),
-                        c.getName(),
-                        c.getType(),
-                        c.getVisibility(),
-                        c.getCreatedAt()
-                );
+        var data = calendarService.create(userId, request.name(), request.type(), request.visibility(), request.isDefault());
 
-        URI location = URI.create("/api/calendars/" + c.getId());
-        return ResponseEntity.created(location).body(ApiResponse.ok("캘린더가 생성되었습니다.", data));
+        return ResponseEntity.ok(ApiResponse.ok("캘린더가 생성되었습니다.", data));
     }
 
     @GetMapping("/calendars")
@@ -104,9 +95,9 @@ public class CalendarController {
             @PathVariable Long calendarId,
             @Valid @RequestBody InviteMembersRequest request
             ){
-        InviteMembersResponse response = calendarMemberService.inviteMembers(userId, calendarId, request);
+        var data = calendarMemberService.inviteMembers(userId, calendarId, request);
 
-        return ResponseEntity.ok(ApiResponse.ok("캘린더 초대 성공",response));
+        return ResponseEntity.ok(ApiResponse.ok("캘린더 초대 성공",data));
     }
 
     @GetMapping("/calendars/{calendarId}/members")
@@ -121,6 +112,15 @@ public class CalendarController {
         var pageResult = calendarMemberQueryService.listMembers(viewerId, calendarId, status, sort, PageRequest.of(page,size));
         var data = PageResponse.of(pageResult);
         return ResponseEntity.ok(ApiResponse.ok("캘린더 멤버 목록 조회 성공", data));
+    }
+
+    @PutMapping("/calendars/{calendarId}/default")
+    public ResponseEntity<ApiResponse<Void>> setDefault(
+            @AuthenticationPrincipal(expression = "id") Long userId,
+            @PathVariable Long calendarId
+    ){
+        calendarService.setDefault(userId, calendarId);
+        return ResponseEntity.ok(ApiResponse.ok("기본 캘린더 설정 완료",null));
     }
 
     @PatchMapping("/calendar-members/{calendarMemberId}")
