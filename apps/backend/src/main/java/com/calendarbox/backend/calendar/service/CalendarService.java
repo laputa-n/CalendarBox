@@ -5,6 +5,7 @@ import com.calendarbox.backend.calendar.domain.CalendarHistory;
 import com.calendarbox.backend.calendar.domain.CalendarMember;
 import com.calendarbox.backend.calendar.dto.request.CalendarEditRequest;
 import com.calendarbox.backend.calendar.dto.response.CalendarEditResponse;
+import com.calendarbox.backend.calendar.dto.response.CreateCalendarResponse;
 import com.calendarbox.backend.calendar.enums.CalendarHistoryType;
 import com.calendarbox.backend.calendar.enums.CalendarType;
 import com.calendarbox.backend.calendar.enums.Visibility;
@@ -35,7 +36,7 @@ public class CalendarService {
     private final CalendarHistoryRepository calendarHistoryRepository;
     private final ObjectMapper objectMapper;
 
-    public Calendar create(Long creatorId, String name, CalendarType type, Visibility visibility, boolean isDefault){
+    public CreateCalendarResponse create(Long creatorId, String name, CalendarType type, Visibility visibility, boolean isDefault){
         Member creator = memberRepository.findByIdForUpdate(creatorId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
@@ -51,12 +52,19 @@ public class CalendarService {
         }
 
         CalendarMember calendarMember = CalendarMember.create(calendar,creator,makeDefault);
-        calendarMemberRepository.save(calendarMember);
+        calendar.getCalendarMembers().add(calendarMember);
+        creator.getCalendarMembers().add(calendarMember);
 
-        return calendar;
+        return new CreateCalendarResponse(
+                calendar.getId(),
+                calendar.getOwner().getId(),
+                calendar.getName(),
+                calendar.getType(),
+                calendar.getVisibility(),
+                calendar.getCreatedAt()
+        );
     }
 
-    @Transactional
     public CalendarEditResponse editCalendar(Long userId, Long calendarId, CalendarEditRequest request){
         Member user = memberRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
         Calendar c = calendarRepository.findByIdAndOwner_Id(calendarId,userId)
@@ -101,7 +109,6 @@ public class CalendarService {
         );
     }
 
-    @Transactional
     public void deleteCalendar(Long userId, Long calendarId){
         Calendar calendar = calendarRepository.findByIdAndOwner_Id(calendarId,userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.CALENDAR_NOT_FOUND));

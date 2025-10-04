@@ -42,18 +42,9 @@ public class CalendarController {
             @AuthenticationPrincipal (expression = "id") Long userId,
             @Valid @RequestBody CreateCalendarRequest request
     ){
-        Calendar c = calendarService.create(userId, request.name(), request.type(), request.visibility(), request.isDefault());
-        var data = new CreateCalendarResponse(
-                        c.getId(),
-                        c.getOwner().getId(),
-                        c.getName(),
-                        c.getType(),
-                        c.getVisibility(),
-                        c.getCreatedAt()
-                );
+        var data = calendarService.create(userId, request.name(), request.type(), request.visibility(), request.isDefault());
 
-        URI location = URI.create("/api/calendars/" + c.getId());
-        return ResponseEntity.created(location).body(ApiResponse.ok("캘린더가 생성되었습니다.", data));
+        return ResponseEntity.ok(ApiResponse.ok("캘린더가 생성되었습니다.", data));
     }
 
     @GetMapping("/calendars")
