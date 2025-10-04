@@ -1,6 +1,7 @@
 package com.calendarbox.backend.calendar.service;
 
 import com.calendarbox.backend.calendar.domain.Calendar;
+import com.calendarbox.backend.calendar.domain.CalendarMember;
 import com.calendarbox.backend.calendar.dto.response.CalendarDetail;
 import com.calendarbox.backend.calendar.dto.response.CalendarListItem;
 import com.calendarbox.backend.calendar.enums.CalendarMemberStatus;
@@ -11,6 +12,8 @@ import com.calendarbox.backend.calendar.repository.CalendarRepository;
 import com.calendarbox.backend.friendship.repository.FriendshipRepository;
 import com.calendarbox.backend.global.error.BusinessException;
 import com.calendarbox.backend.global.error.ErrorCode;
+import com.calendarbox.backend.member.domain.Member;
+import com.calendarbox.backend.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -18,6 +21,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 @Service
@@ -28,6 +33,7 @@ public class CalendarQueryService {
     private final CalendarMemberRepository calendarMemberRepository;
     private final FriendshipRepository friendshipRepository;
     private final CalendarRepository calendarRepository;
+    private final MemberRepository memberRepository;
 
     public Page<CalendarListItem> listCalendars(
             Long viewerId,
@@ -54,19 +60,76 @@ public class CalendarQueryService {
         return calendarMemberRepository.findFriendVisible(targetId, type, fixed);
     }
 
-    public CalendarDetail getCalendarDetail(Long userId, Long calendarId){
-        Optional<Calendar> c = calendarRepository.findById(calendarId);
-        if (c.isEmpty()) {
-            throw new BusinessException(ErrorCode.CALENDAR_NOT_FOUND);
-        }
-        Calendar cal = c.get();
-        if(!calendarMemberRepository.existsByMember_IdAndCalendar_Id(userId, calendarId)){
-            throw new BusinessException(ErrorCode.CALENDAR_NOT_FOUND);
-        }
-        CalendarType ct = cal.getType();
+    @Transactional(readOnly = true)
+    public CalendarDetail getCalendarDetail(Long viewerId, Long calendarId) {
+        Calendar cal = calendarRepository.findById(calendarId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CALENDAR_NOT_FOUND));
 
-        CalendarDetail cd = ct.equals(CalendarType.GROUP)? new CalendarDetail(cal.getId(), cal.getName(),cal.getType(), cal.getVisibility(), calendarMemberRepository.countCalendarMembersByCalendarId(calendarId), cal.getCreatedAt(),cal.getUpdatedAt()): new CalendarDetail(cal.getId(), cal.getName(),cal.getType(), cal.getVisibility(),null, cal.getCreatedAt(),cal.getUpdatedAt());
-        return cd;
+        Long ownerId = cal.getOwner().getId();
+
+        if (Objects.equals(ownerId, viewerId)) {
+            return toDetail(cal);
+        }
+
+        boolean isGroup = cal.getType() == CalendarType.GROUP;
+
+        boolean isGroupMember = isGroup && calendarMemberRepository
+                .existsByCalendar_IdAndMember_IdAndStatusIn(
+                        calendarId, viewerId,
+                        List.of(
+                                CalendarMemberStatus.ACCEPTED,
+                                CalendarMemberStatus.INVITED
+                        )
+                );
+
+        switch (cal.getType()) {
+            case PERSONAL -> {
+                return switch (cal.getVisibility()) {
+                    case PUBLIC -> toDetail(cal);
+                    case PROTECTED -> {
+                        boolean friendWithOwner = friendshipRepository.existsAcceptedBetween(viewerId, ownerId);
+                        if (friendWithOwner) yield toDetail(cal);
+                        throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+                    }
+                    case PRIVATE -> {
+                        throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+                    }
+                };
+            }
+            case GROUP -> {
+                return switch (cal.getVisibility()) {
+                    case PUBLIC -> toDetail(cal);
+                    case PROTECTED -> {
+                        if (isGroupMember || isFriendWithAnyAcceptedMember(viewerId, calendarId)) {
+                            yield toDetail(cal);
+                        }
+                        throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+                    }
+                    case PRIVATE -> {
+                        if (isGroupMember) yield toDetail(cal);
+                        throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+                    }
+                };
+            }
+            default -> throw new BusinessException(ErrorCode.VALIDATION_ERROR);
+        }
+    }
+
+    private boolean isFriendWithAnyAcceptedMember(Long viewerId, Long calendarId) {
+        return calendarMemberRepository.existsFriendshipWithAnyAcceptedMember(calendarId, viewerId);
+    }
+    private CalendarDetail toDetail(Calendar c){
+        return (c.getType() == CalendarType.GROUP)
+                ? new CalendarDetail(
+                c.getId(), c.getName(), c.getType(), c.getVisibility(),
+                calendarMemberRepository.countCalendarMembersByCalendarId(c.getId()),
+                c.getCreatedAt(), c.getUpdatedAt()
+        )
+                : new CalendarDetail(
+                c.getId(), c.getName(), c.getType(), c.getVisibility(),
+                null,
+                c.getCreatedAt(), c.getUpdatedAt()
+        );
     }
     private Pageable fixSort(Pageable p) {
         int page = (p == null) ? 0 : p.getPageNumber();

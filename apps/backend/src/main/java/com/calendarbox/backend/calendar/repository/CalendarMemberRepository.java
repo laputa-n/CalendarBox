@@ -158,4 +158,23 @@ order by c.name asc, c.id desc
       and cm.status in :statuses
     """)
     List<Long> findCalendarIdsByMemberIdAndStatuses(@Param("memberId")Long memberId, @Param("statuses")List<CalendarMemberStatus> statuses);
+
+    @Query("""
+select case when count(cm) > 0 then true else false end
+from CalendarMember cm
+join Friendship f
+where cm.calendar.id = :calendarId
+  and cm.status = com.calendarbox.backend.calendar.enums.CalendarMemberStatus.ACCEPTED
+  and f.status = com.calendarbox.backend.friendship.enums.FriendshipStatus.ACCEPTED
+  and (
+       (f.requester.id = :viewerId and f.addressee.id = cm.member.id)
+    or (f.addressee.id = :viewerId and f.requester.id = cm.member.id)
+  )
+""")
+    boolean existsFriendshipWithAnyAcceptedMember(@Param("calendarId") Long calendarId,
+                                                  @Param("viewerId") Long viewerId);
+
+    /** 그룹 멤버(PENDING 포함) 체크에 쓰는 exists */
+    boolean existsByCalendar_IdAndMember_IdAndStatusIn(Long calendarId, Long memberId,
+                                                       Collection<com.calendarbox.backend.calendar.enums.CalendarMemberStatus> statuses);
 }
