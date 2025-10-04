@@ -16,6 +16,8 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 @Entity
@@ -60,6 +62,9 @@ public class Calendar {
     @LastModifiedDate
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    @OneToMany(mappedBy = "calendar", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<CalendarMember> calendarMembers = new ArrayList<>();
 
     private Calendar(Member owner, String name, CalendarType type, Visibility visibility) {
         this.owner = Objects.requireNonNull(owner);

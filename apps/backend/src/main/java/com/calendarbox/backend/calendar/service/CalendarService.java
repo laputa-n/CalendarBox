@@ -27,14 +27,14 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
+@Transactional
 public class CalendarService {
     private final CalendarRepository calendarRepository;
     private final MemberRepository memberRepository;
     private final CalendarMemberRepository calendarMemberRepository;
     private final CalendarHistoryRepository calendarHistoryRepository;
     private final ObjectMapper objectMapper;
-    @Transactional
+
     public Calendar create(Long creatorId, String name, CalendarType type, Visibility visibility, boolean isDefault){
         Member creator = memberRepository.findByIdForUpdate(creatorId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));

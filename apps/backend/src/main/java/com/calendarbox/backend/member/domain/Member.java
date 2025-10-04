@@ -1,5 +1,6 @@
 package com.calendarbox.backend.member.domain;
 
+import com.calendarbox.backend.calendar.domain.CalendarMember;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -7,6 +8,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @Entity
@@ -33,6 +36,9 @@ public class Member {
 
     @Column(name = "last_login_at")
     private Instant lastLoginAt;
+
+    @OneToMany(mappedBy = "member", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    private List<CalendarMember> calendarMembers = new ArrayList<>();
 
     @Builder
     public Member(String name, String email, String phoneNumber) {
