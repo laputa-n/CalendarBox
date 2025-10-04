@@ -24,14 +24,6 @@ import java.util.Objects;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @EntityListeners(AuditingEntityListener.class)
-@Table(
-        indexes = {
-                @Index(name = "idx_calendar_owner", columnList = "owner_id")
-        },
-        uniqueConstraints = {
-                @UniqueConstraint(name = "uk_calendar_owner_name", columnNames = {"owner_id", "name"})
-        }
-)
 public class Calendar {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -43,8 +35,7 @@ public class Calendar {
     private Member owner;
 
     @Column(nullable = false, length = 100)
-    @NotBlank
-    @Size(max = 100)
+    @NotBlank @Size(max = 100)
     private String name;
 
     @Enumerated(EnumType.STRING)
@@ -88,11 +79,15 @@ public class Calendar {
         this.visibility = Objects.requireNonNull(visibility);
     }
 
-    @PrePersist
-    void onCreate(){
-        this.createdAt = Instant.now();
+    public void addMember(CalendarMember calendarMember) {
+        if (calendarMember == null) return;
+        this.calendarMembers.add(calendarMember);
+        calendarMember.setCalendar(this);
     }
 
-    @LastModifiedDate
-    void onUpdate(){ this.updatedAt = Instant.now(); }
+    public void removeMember(CalendarMember calendarMember) {
+        if (calendarMember == null) return;
+        this.calendarMembers.remove(calendarMember);
+        calendarMember.setCalendar(null);
+    }
 }

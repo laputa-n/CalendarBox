@@ -58,8 +58,8 @@ public class SignupService {
 
         CalendarMember calendarMember = CalendarMember.create(calendar, m, true);
 
-        calendar.getCalendarMembers().add(calendarMember);
-        m.getCalendarMembers().add(calendarMember);
+        calendar.addMember(calendarMember);
+        m.addMember(calendarMember);
 
         calendarRepository.save(calendar);
         return m;

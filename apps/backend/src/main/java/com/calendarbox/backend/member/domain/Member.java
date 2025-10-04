@@ -47,4 +47,16 @@ public class Member {
         this.phoneNumber = phoneNumber;
         this.createdAt = Instant.now();
     }
+
+    public void addMember(CalendarMember calendarMember) {
+        if (calendarMember == null) return;
+        this.calendarMembers.add(calendarMember);
+        calendarMember.setMember(this);
+    }
+
+    public void removeMember(CalendarMember calendarMember) {
+        if (calendarMember == null) return;
+        this.calendarMembers.remove(calendarMember);
+        calendarMember.setMember(null);
+    }
 }

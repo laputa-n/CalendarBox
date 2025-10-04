@@ -52,8 +52,8 @@ public class CalendarService {
         }
 
         CalendarMember calendarMember = CalendarMember.create(calendar,creator,makeDefault);
-        calendar.getCalendarMembers().add(calendarMember);
-        creator.getCalendarMembers().add(calendarMember);
+        calendar.addMember(calendarMember);
+        creator.addMember(calendarMember);
 
         return new CreateCalendarResponse(
                 calendar.getId(),
