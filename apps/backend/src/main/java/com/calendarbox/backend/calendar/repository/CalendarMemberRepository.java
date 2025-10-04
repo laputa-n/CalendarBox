@@ -56,22 +56,16 @@ select new com.calendarbox.backend.calendar.dto.response.CalendarListItem(
 )
 from CalendarMember cmTarget
 join cmTarget.calendar c
-left join CalendarMember cmViewer
-       on cmViewer.calendar = c
-      and cmViewer.member.id = :viewerId
-      and cmViewer.status = com.calendarbox.backend.calendar.enums.CalendarMemberStatus.ACCEPTED
 where cmTarget.member.id = :targetId
   and cmTarget.status = com.calendarbox.backend.calendar.enums.CalendarMemberStatus.ACCEPTED
   and (
         c.visibility = com.calendarbox.backend.calendar.enums.Visibility.PUBLIC
         or c.visibility = com.calendarbox.backend.calendar.enums.Visibility.PROTECTED
-        or cmViewer.id is not null
       )
   and (:type is null or c.type = :type)
 order by c.name asc, c.id desc
 """)
     Page<CalendarListItem> findFriendVisible(
-            @Param("viewerId") Long viewerId,
             @Param("targetId") Long targetId,
             @Param("type") CalendarType type,
             Pageable pageable

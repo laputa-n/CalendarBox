@@ -15,7 +15,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,9 +25,9 @@ import java.util.Optional;
 @Transactional(readOnly = true)
 public class CalendarQueryService {
 
-    private final CalendarMemberRepository cmRepo;
-    private final FriendshipRepository friendshipRepo;
-    private final CalendarRepository calRepo;
+    private final CalendarMemberRepository calendarMemberRepository;
+    private final FriendshipRepository friendshipRepository;
+    private final CalendarRepository calendarRepository;
 
     public Page<CalendarListItem> listCalendars(
             Long viewerId,
@@ -44,31 +43,29 @@ public class CalendarQueryService {
         Pageable fixed = fixSort(pageable); // name ASC, id DESC
 
         if (selfView) {
-            return cmRepo.findSelf(targetId, status,type, visibility, fixed);
+            return calendarMemberRepository.findSelf(targetId, status,type, visibility, fixed);
         }
 
-        // 친구 관계 확인 (정책)
-        boolean friends = friendshipRepo.existsAcceptedBetween(viewerId, targetId);
+        boolean friends = friendshipRepository.existsAcceptedBetween(viewerId, targetId);
         if (!friends) {
-            // 403 또는 빈 페이지 중 택1. 보통 403 권장.
             throw new BusinessException(ErrorCode.FRIENDSHIP_REQUIRED);
         }
 
-        return cmRepo.findFriendVisible(viewerId, targetId, type, fixed);
+        return calendarMemberRepository.findFriendVisible(targetId, type, fixed);
     }
 
     public CalendarDetail getCalendarDetail(Long userId, Long calendarId){
-        Optional<Calendar> c = calRepo.findById(calendarId);
-        if (!c.isPresent()) {
+        Optional<Calendar> c = calendarRepository.findById(calendarId);
+        if (c.isEmpty()) {
             throw new BusinessException(ErrorCode.CALENDAR_NOT_FOUND);
         }
         Calendar cal = c.get();
-        if(!cmRepo.existsByMember_IdAndCalendar_Id(userId, calendarId)){
+        if(!calendarMemberRepository.existsByMember_IdAndCalendar_Id(userId, calendarId)){
             throw new BusinessException(ErrorCode.CALENDAR_NOT_FOUND);
         }
         CalendarType ct = cal.getType();
 
-        CalendarDetail cd = ct.equals(CalendarType.GROUP)? new CalendarDetail(cal.getId(), cal.getName(),cal.getType(), cal.getVisibility(),cmRepo.countCalendarMembersByCalendarId(calendarId), cal.getCreatedAt(),cal.getUpdatedAt()): new CalendarDetail(cal.getId(), cal.getName(),cal.getType(), cal.getVisibility(),null, cal.getCreatedAt(),cal.getUpdatedAt());
+        CalendarDetail cd = ct.equals(CalendarType.GROUP)? new CalendarDetail(cal.getId(), cal.getName(),cal.getType(), cal.getVisibility(), calendarMemberRepository.countCalendarMembersByCalendarId(calendarId), cal.getCreatedAt(),cal.getUpdatedAt()): new CalendarDetail(cal.getId(), cal.getName(),cal.getType(), cal.getVisibility(),null, cal.getCreatedAt(),cal.getUpdatedAt());
         return cd;
     }
     private Pageable fixSort(Pageable p) {
