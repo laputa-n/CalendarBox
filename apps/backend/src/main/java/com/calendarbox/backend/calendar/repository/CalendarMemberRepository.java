@@ -20,7 +20,7 @@ import java.util.List;
 
 public interface CalendarMemberRepository extends JpaRepository<CalendarMember, Long> {
 
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Modifying(flushAutomatically = true)
     @Query("update CalendarMember cm set cm.isDefault = false where cm.member.id = :memberId and cm.isDefault = true")
     int unsetDefaultForMember(@Param("memberId") Long memberId);
 

@@ -105,6 +105,8 @@ public class FriendshipService {
     }
 
 
+
+
     @Transactional(readOnly = true)
     public Page<Friendship> inbox(Long userId, Pageable pageable){
         return friendshipRepository.findByAddresseeIdAndStatus(userId, FriendshipStatus.PENDING,pageable);
