@@ -29,7 +29,7 @@ where m.deletedAt is null
   and m.id <> :viewerId
   and (
        (:emailToken is not null and lower(m.email) like concat(:emailToken, '%'))
-    or (:phoneToken is not null and function('regexp_replace', coalesce(m.phoneNumber, ''), '[^0-9]', '', 'g') like concat(:phoneToken, '%'))
+    or (:phoneToken is not null and concat('', function('regexp_replace', coalesce(m.phoneNumber, ''), '[^0-9]', '', 'g')) like concat(:phoneToken, '%'))
   )
 """)
     Page<MemberSearchItem> searchByEmailOrPhone(
