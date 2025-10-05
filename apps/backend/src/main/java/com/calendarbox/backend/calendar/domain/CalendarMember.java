@@ -22,17 +22,6 @@ import java.util.Objects;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @EntityListeners(AuditingEntityListener.class)
-@Table(
-        name = "calendar_member",
-        indexes = {
-                @Index(name = "idx_cm_calendar", columnList = "calendar_id"),
-                @Index(name = "idx_cm_member", columnList = "member_id"),
-                @Index(name = "idx_cm_member_status", columnList = "member_id, status")
-        },
-        uniqueConstraints = {
-                @UniqueConstraint(name = "uk_cm_calendar_member", columnNames = {"calendar_id", "member_id"})
-        }
-)
 public class CalendarMember {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -60,6 +49,7 @@ public class CalendarMember {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    @LastModifiedDate
     @Column(name = "responded_at")
     private Instant respondedAt;
 
@@ -80,13 +70,11 @@ public class CalendarMember {
     public void accept() {
         if (this.status == CalendarMemberStatus.ACCEPTED) return;
         this.status = CalendarMemberStatus.ACCEPTED;
-        this.respondedAt = Instant.now();
     }
 
     public void reject() {
         if (this.status == CalendarMemberStatus.REJECTED) return;
         this.status = CalendarMemberStatus.REJECTED;
-        this.respondedAt = Instant.now();
     }
 
     public void reinvite(){
