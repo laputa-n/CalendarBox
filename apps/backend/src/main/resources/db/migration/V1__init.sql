@@ -14,6 +14,9 @@ CREATE TABLE member (
                         last_login_at TIMESTAMPTZ
 );
 
+create index ix_member_email_lower  on member (lower(email));
+create index ix_member_phone_digits on member ((regexp_replace(phone_number, '\D', '', 'g')));
+
 -- KAKAO ACCOUNT (1:1 with member)
 CREATE TABLE kakao_account (
                                kakao_account_id BIGSERIAL PRIMARY KEY,
