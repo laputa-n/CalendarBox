@@ -136,6 +136,18 @@ public class ScheduleParticipantService {
 
         notificationRepository.save(notification);
 
+        Map<String, Object> newParticipant = new HashMap<>();
+        newParticipant.put("newParticipantName", sp.getName());
+
+        CalendarHistory history = CalendarHistory.builder()
+                .calendar(s.getCalendar())
+                .actor(requester)
+                .entityId(s.getId())
+                .type(CalendarHistoryType.SCHEDULE_PARTICIPANT_ADDED)
+                .changedFields(toJson(newParticipant))
+                .build();
+        calendarHistoryRepository.save(history);
+
         return toAddParticipantResponse(sp);
     }
     private AddParticipantResponse addName(Long userId, Long scheduleId, String name) {

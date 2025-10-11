@@ -13,6 +13,13 @@ public record CreateScheduleResponse(
         Instant startAt,
         Instant endAt,
         Long createdBy,
-        Instant createdAt
-) {
+        Instant createdAt,
+
+        int linkCount,
+        int todoCount,
+        int reminderCount,
+        int participantCount,
+        int placeCount,
+        Boolean hasRecurrence
+        ) {
 }
