@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Getter
@@ -14,12 +15,21 @@ public class ScheduleReminder {
     @Column(name = "schedule_reminder_id")
     private Long id;
 
+    @Setter(AccessLevel.PROTECTED)
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "schedule_id", nullable = false)
     private Schedule schedule;
 
     @Column(name = "minutes_before", nullable = false)
     private int minutesBefore;
+
+    private ScheduleReminder(int minutesBefore){
+        this.minutesBefore = minutesBefore;
+    }
+
+    public static ScheduleReminder of(int minutesBefore){
+        return new ScheduleReminder(minutesBefore);
+    }
 
     public static ScheduleReminder create(Schedule schedule, int minutesBefore) {
         ScheduleReminder r = new ScheduleReminder();

@@ -4,8 +4,12 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
@@ -15,6 +19,7 @@ public class ScheduleRecurrenceException {
     @Column(name = "schedule_recurrence_exception_id")
     private Long id;
 
+    @Setter(AccessLevel.PROTECTED)
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "schedule_recurrence_id", nullable = false)
     private ScheduleRecurrence scheduleRecurrence;
@@ -22,10 +27,10 @@ public class ScheduleRecurrenceException {
     @Column(name = "exception_date", nullable = false)
     private LocalDate exceptionDate;
 
-    public static ScheduleRecurrenceException of(ScheduleRecurrence recurrence, LocalDate exceptionDate) {
-        ScheduleRecurrenceException e = new ScheduleRecurrenceException();
-        e.scheduleRecurrence = recurrence;
-        e.exceptionDate = exceptionDate;
-        return e;
+    private ScheduleRecurrenceException(LocalDate exceptionDate) {
+        this.exceptionDate = exceptionDate;
+    }
+    public static ScheduleRecurrenceException of(LocalDate exceptionDate) {
+        return new ScheduleRecurrenceException(exceptionDate);
     }
 }

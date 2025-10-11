@@ -87,6 +87,13 @@ public class Schedule {
     @OrderBy("position Asc, id ASC")
     private List<Attachment> attachments = new ArrayList<>();
 
+    @OneToMany(mappedBy = "schedule", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("createdAt Asc, id Asc")
+    private List<ScheduleRecurrence> recurrences = new ArrayList<>();
+
+    @OneToMany(mappedBy = "schedule", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("minutesBefore Asc, id Asc")
+    private List<ScheduleReminder> reminders = new ArrayList<>();
 
     public Schedule(Calendar c, String title, String memo, ScheduleTheme theme, Instant startAt, Instant endAt, Member createdBy) {
         this.calendar = c;
@@ -145,6 +152,26 @@ public class Schedule {
     public void removeParticipant(ScheduleParticipant sp) {
         participants.remove(sp);   // <-- orphanRemoval 트리거
         sp.setSchedule(null);
+    }
+
+    public void addReminder(ScheduleReminder reminder) {
+        reminders.add(reminder);
+        reminder.setSchedule(this);
+    }
+
+    public void removeReminder(ScheduleReminder reminder) {
+        reminders.remove(reminder);
+        reminder.setSchedule(null);
+    }
+
+    public void addRecurrence(ScheduleRecurrence recurrence) {
+        recurrences.add(recurrence);
+        recurrence.setSchedule(this);
+    }
+
+    public void removeRecurrence(ScheduleRecurrence recurrence) {
+        recurrences.remove(recurrence);
+        recurrence.setSchedule(null);
     }
 
     public static Schedule cloneHeader(

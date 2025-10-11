@@ -32,13 +32,14 @@ public class ScheduleLink {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-    @Builder
-    private ScheduleLink(Schedule schedule, String url, String label) {
-        this.schedule = schedule;
+    private ScheduleLink(String url, String label) {
         this.url = url;
         this.label = (label == null || label.isBlank()) ? null : label;
     }
 
+    public static ScheduleLink of(String url, String label){
+        return new ScheduleLink(url,label);
+    }
 
     void setSchedule(Schedule schedule){
         this.schedule = schedule;

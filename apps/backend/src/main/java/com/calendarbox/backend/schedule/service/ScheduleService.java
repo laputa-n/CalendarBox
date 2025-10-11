@@ -12,13 +12,14 @@ import com.calendarbox.backend.global.error.BusinessException;
 import com.calendarbox.backend.global.error.ErrorCode;
 import com.calendarbox.backend.member.domain.Member;
 import com.calendarbox.backend.member.repository.MemberRepository;
-import com.calendarbox.backend.schedule.domain.Schedule;
+import com.calendarbox.backend.schedule.domain.*;
 import com.calendarbox.backend.schedule.dto.request.CloneScheduleRequest;
 import com.calendarbox.backend.schedule.dto.request.CreateScheduleRequest;
 import com.calendarbox.backend.schedule.dto.request.EditScheduleRequest;
 import com.calendarbox.backend.schedule.dto.response.CloneScheduleResponse;
 import com.calendarbox.backend.schedule.dto.response.CreateScheduleResponse;
 import com.calendarbox.backend.schedule.dto.response.ScheduleDto;
+import com.calendarbox.backend.schedule.enums.RecurrenceFreq;
 import com.calendarbox.backend.schedule.enums.ScheduleParticipantStatus;
 import com.calendarbox.backend.schedule.enums.ScheduleTheme;
 import com.calendarbox.backend.schedule.repository.*;
@@ -29,8 +30,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -111,8 +115,81 @@ public class ScheduleService {
 
         ScheduleTheme theme = (request.theme() == null)? ScheduleTheme.BLACK : request.theme();
         Schedule schedule = new Schedule(calendar, request.title(), request.memo(), theme, request.startAt(),request.endAt(), user);
-        scheduleRepository.save(schedule);
 
+
+        // 1. 링크
+        if(request.links() != null) {
+            for(var l : request.links()) {
+                schedule.addLink(ScheduleLink.of(l.url(), l.label()));
+            }
+        }
+
+        // 2. 투두
+        if(request.todos() != null){
+            for(var t:request.todos()){
+                schedule.addTodo(ScheduleTodo.of(t.content(),t.isDone(),t.orderNo()));
+            }
+        }
+
+        // 3. 리마인더
+        if(request.reminders() != null){
+            for(var r:request.reminders()){
+                schedule.addReminder(ScheduleReminder.of(r.minutesBefore()));
+            }
+        }
+
+        // 4. 반복
+        if (request.recurrence() != null) {
+            var r = request.recurrence();
+
+            if (!r.until().isAfter(schedule.getEndAt())) {
+                throw new BusinessException(ErrorCode.RECURRENCE_UNTIL_BEFORE_END);
+            }
+
+            Set<String> byDay = r.byDay();
+            if (r.freq() == RecurrenceFreq.WEEKLY && (byDay == null || byDay.isEmpty())) {
+                var zone = ZoneId.of("Asia/Seoul");
+                var dow = schedule.getStartAt().atZone(zone).getDayOfWeek();
+                String token = switch (dow) {
+                    case MONDAY -> "MO";
+                    case TUESDAY -> "TU";
+                    case WEDNESDAY -> "WE";
+                    case THURSDAY -> "TH";
+                    case FRIDAY -> "FR";
+                    case SATURDAY -> "SA";
+                    case SUNDAY -> "SU";
+                };
+                byDay = Set.of(token);
+            }
+
+            String[] byDayArr = (byDay == null) ? null :
+                    byDay.stream().filter(Objects::nonNull).map(s -> s.trim().toUpperCase())
+                            .distinct().sorted().toArray(String[]::new);
+            Integer[] byMonthdayArr = (r.byMonthday() == null) ? null :
+                    r.byMonthday().stream().distinct().sorted().toArray(Integer[]::new);
+            Integer[] byMonthArr = (r.byMonth() == null) ? null :
+                    r.byMonth().stream().distinct().sorted().toArray(Integer[]::new);
+
+            ScheduleRecurrence sr = ScheduleRecurrence.of(
+                    r.freq(), r.intervalCount(), byDayArr, byMonthdayArr, byMonthArr, r.until()
+            );
+
+            // 예외일 추가
+            if (r.exceptions() != null && !r.exceptions().isEmpty()) {
+                var uniq = r.exceptions().stream().distinct().sorted().toList();
+                for (var exDate : uniq) {
+                    sr.addException(ScheduleRecurrenceException.of(exDate));
+                }
+            }
+
+            // Schedule 애그리거트로 편입
+            schedule.addRecurrence(sr);
+        }
+        // 5. 참가자
+        // 6. 장소
+        // 7. 첨부
+
+        scheduleRepository.save(schedule);
         CalendarHistory history = CalendarHistory.builder()
                 .calendar(calendar)
                 .actor(user)

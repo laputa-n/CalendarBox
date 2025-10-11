@@ -2,6 +2,7 @@ package com.calendarbox.backend.schedule.service;
 
 import com.calendarbox.backend.global.error.BusinessException;
 import com.calendarbox.backend.global.error.ErrorCode;
+import com.calendarbox.backend.schedule.domain.ScheduleRecurrence;
 import com.calendarbox.backend.schedule.domain.ScheduleRecurrenceException;
 import com.calendarbox.backend.schedule.dto.request.RecurrenceExceptionRequest;
 import com.calendarbox.backend.schedule.dto.response.RecurrenceExceptionResponse;
@@ -24,8 +25,12 @@ public class RecurrenceExceptionService {
         if (scheduleRecurrenceExceptionRepository.existsByScheduleRecurrence_IdAndExceptionDate(recurrence.getId(), req.exceptionDate()))
             throw new BusinessException(ErrorCode.RECURRENCE_EXDATE_DUP);
 
-        var saved = scheduleRecurrenceExceptionRepository.save(ScheduleRecurrenceException.of(recurrence, req.exceptionDate()));
-        return new RecurrenceExceptionResponse(saved.getId(), saved.getExceptionDate());
+        var ex = ScheduleRecurrenceException.of(req.exceptionDate());
+        recurrence.addException(ex);
+
+        scheduleRecurrenceRepository.save(recurrence);
+
+        return new RecurrenceExceptionResponse(ex.getId(), ex.getExceptionDate());
     }
 
     public void delete(Long userId, Long exceptionId) {
