@@ -106,15 +106,14 @@ public class CalendarController {
             @PathVariable Long calendarId,
             @RequestParam(required = false) CalendarMemberStatus status,
             @RequestParam(required = false, defaultValue = "NAME_ASC")CalendarMemberSort sort,
-            @RequestParam(required = false, defaultValue = "0") int page,
-            @RequestParam(required = false, defaultValue = "10") int size
+            Pageable pageable
             ){
-        var pageResult = calendarMemberQueryService.listMembers(viewerId, calendarId, status, sort, PageRequest.of(page,size));
+        var pageResult = calendarMemberQueryService.listMembers(viewerId, calendarId, status, sort, pageable);
         var data = PageResponse.of(pageResult);
         return ResponseEntity.ok(ApiResponse.ok("캘린더 멤버 목록 조회 성공", data));
     }
 
-    @PutMapping("/calendars/{calendarId}/default")
+    @PatchMapping("/calendars/{calendarId}/default")
     public ResponseEntity<ApiResponse<Void>> setDefault(
             @AuthenticationPrincipal(expression = "id") Long userId,
             @PathVariable Long calendarId
