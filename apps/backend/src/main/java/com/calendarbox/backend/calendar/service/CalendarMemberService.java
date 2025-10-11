@@ -37,6 +37,8 @@ public class CalendarMemberService {
     private final NotificationRepository notificationRepository;
     private final ObjectMapper objectMapper;
     public InviteMembersResponse inviteMembers(Long inviterId, Long calendarId, InviteMembersRequest request){
+        Member inviter = memberRepository.findById(inviterId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+
         List<Long> memberIds = Optional.ofNullable(request)
                 .map(InviteMembersRequest::members)
                 .orElse(Collections.emptyList());
@@ -56,8 +58,6 @@ public class CalendarMemberService {
         if (!inviterIsMember){
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
         }
-
-        Member inviter = memberRepository.findById(inviterId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
         Set<Long> orderedUnique = new LinkedHashSet<>(memberIds);
         List<Long> targets = new ArrayList<>(orderedUnique);
@@ -190,14 +190,13 @@ public class CalendarMemberService {
         );
     }
 
-    public boolean deleteCalendarMember(Long userId, Long calendarMemberId){
+    public String deleteCalendarMember(Long userId, Long calendarMemberId){
         Member user = memberRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
         CalendarMember calendarMember = calendarMemberRepository.findById(calendarMemberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.CALENDAR_MEMBER_NOT_FOUND));
 
-        boolean wasDefault = calendarMember.isDefault();
         Long targetId = calendarMember.getMember().getId();
 
         boolean isWithdraw = false;
@@ -210,16 +209,10 @@ public class CalendarMemberService {
             calendarMemberRepository.delete(calendarMember);
         }
 
-        if (wasDefault && !calendarMemberRepository.existsByMember_IdAndIsDefaultTrue(targetId)) {
-            List<CalendarMember> cand = calendarMemberRepository
-                    .findDefaultCandidate(targetId, PageRequest.of(0, 1));
-            if (!cand.isEmpty()) {
-                calendarMemberRepository.unsetDefaultForMember(targetId);
-                cand.get(0).makeDefault();
-            }
-        }
-
-        return isWithdraw;
+        String msg = isWithdraw?
+                calendarMember.getCalendar().getName() + " 캘린더에서 탈퇴했습니다.":
+                calendarMember.getCalendar().getName() + " 캘린더에서 " + calendarMember.getMember().getName() + "님을 추방시켰습니다.";
+        return msg;
     }
 
     private String toJson(Object value) {

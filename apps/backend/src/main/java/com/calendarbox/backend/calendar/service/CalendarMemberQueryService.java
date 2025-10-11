@@ -28,7 +28,7 @@ public class CalendarMemberQueryService {
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
         }
 
-        Pageable p = PageRequest.of(pageable.getPageNumber(),pageable.getPageSize());
+        Pageable p = fixSort(pageable);
 
         return switch(sort){
             case NAME_ASC -> calendarMemberRepository.findMembersOrderByNameAsc(calendarId,status,p);
@@ -36,5 +36,11 @@ public class CalendarMemberQueryService {
             case CREATED_ASC -> calendarMemberRepository.findMembersOrderByCreatedAtAsc(calendarId,status,p);
             case CREATED_DESC -> calendarMemberRepository.findMembersOrderByCreatedAtDesc(calendarId,status,p);
         };
+    }
+
+    private Pageable fixSort(Pageable p) {
+        int page = (p == null) ? 0 : p.getPageNumber();
+        int size = (p == null) ? 10 : p.getPageSize();
+        return PageRequest.of(page, size);
     }
 }

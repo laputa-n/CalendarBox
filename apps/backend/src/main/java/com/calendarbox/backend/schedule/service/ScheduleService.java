@@ -19,6 +19,7 @@ import com.calendarbox.backend.schedule.dto.request.EditScheduleRequest;
 import com.calendarbox.backend.schedule.dto.response.CloneScheduleResponse;
 import com.calendarbox.backend.schedule.dto.response.CreateScheduleResponse;
 import com.calendarbox.backend.schedule.dto.response.ScheduleDto;
+import com.calendarbox.backend.schedule.enums.ScheduleParticipantStatus;
 import com.calendarbox.backend.schedule.enums.ScheduleTheme;
 import com.calendarbox.backend.schedule.repository.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -44,6 +45,7 @@ public class ScheduleService {
     private final CalendarRepository calendarRepository;
     private final CalendarMemberRepository calendarMemberRepository;
     private final CalendarHistoryRepository calendarHistoryRepository;
+    private final ScheduleParticipantRepository scheduleParticipantRepository;
     private final ObjectMapper objectMapper;
 
 
@@ -55,9 +57,11 @@ public class ScheduleService {
         Member creator = memberRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
         Calendar targetCalendar = calendarRepository.findById(calendarId).orElseThrow(() -> new BusinessException(ErrorCode.CALENDAR_NOT_FOUND));
 
-        //권한 체크 넣어야 함
+        if(calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(targetCalendar.getId(), creator.getId(), CalendarMemberStatus.ACCEPTED)) throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
 
         Schedule src = scheduleRepository.findById(request.sourceScheduleId()).orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
+
+        if(!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(src.getCalendar().getId(), creator.getId(), CalendarMemberStatus.ACCEPTED) || !scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatus(src.getId(), creator.getId(), ScheduleParticipantStatus.ACCEPTED)) throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
 
         Instant reqStart = request.startAt();
         Instant reqEnd = request.endAt();
@@ -71,11 +75,15 @@ public class ScheduleService {
         } else if (reqStart != null && reqEnd != null) {
             effStart = reqStart;
             effEnd   = reqEnd;
+        } else if (reqEnd != null){
+            effStart = src.getStartAt();
+            effEnd = reqEnd;
         } else {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR);
+            effStart = reqStart;
+            effEnd = src.getEndAt();
         }
 
-        if(!effStart.isBefore(effEnd)) throw new BusinessException(ErrorCode.VALIDATION_ERROR);
+        if(!effStart.isBefore(effEnd)) throw new BusinessException(ErrorCode.START_AFTER_BEFORE);
 
         Schedule dst = Schedule.cloneHeader(src,targetCalendar,creator,effStart,effEnd);
 
