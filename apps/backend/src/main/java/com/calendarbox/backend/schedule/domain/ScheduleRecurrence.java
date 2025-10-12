@@ -5,12 +5,15 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
@@ -22,6 +25,7 @@ public class ScheduleRecurrence {
     @Column(name = "schedule_recurrence_id")
     private Long id;
 
+    @Setter(AccessLevel.PROTECTED)
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "schedule_id", nullable = false)
     private Schedule schedule;
@@ -51,22 +55,33 @@ public class ScheduleRecurrence {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
-    public static ScheduleRecurrence of(Schedule schedule,
+    @OneToMany(mappedBy = "scheduleRecurrence", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("exceptionDate ASC, id ASC")
+    private List<ScheduleRecurrenceException> exceptions = new ArrayList<>();
+
+
+    private ScheduleRecurrence(RecurrenceFreq freq,
+                               int intervalCount,
+                               String[] byDay,
+                               Integer[] byMonthday,
+                               Integer[] byMonth,
+                               Instant until){
+        this.freq = freq;
+        this.intervalCount = intervalCount;
+        this.byDay = byDay;
+        this.byMonthday = byMonthday;
+        this.byMonth = byMonth;
+        this.until = until;
+    }
+
+    public static ScheduleRecurrence of(
                                         RecurrenceFreq freq,
                                         int intervalCount,
                                         String[] byDay,
                                         Integer[] byMonthday,
                                         Integer[] byMonth,
                                         Instant until) {
-        ScheduleRecurrence r = new ScheduleRecurrence();
-        r.schedule = schedule;
-        r.freq = freq;
-        r.intervalCount = intervalCount;
-        r.byDay = byDay;
-        r.byMonthday = byMonthday;
-        r.byMonth = byMonth;
-        r.until = until;
-        return r;
+        return new ScheduleRecurrence(freq, intervalCount, byDay, byMonthday, byMonth, until);
     }
 
     public void changeRule(RecurrenceFreq freq, int intervalCount,
@@ -77,5 +92,14 @@ public class ScheduleRecurrence {
         this.byMonthday = byMonthday;
         this.byMonth = byMonth;
         this.until = until;
+    }
+
+    public void addException(ScheduleRecurrenceException e) {
+        exceptions.add(e);
+        e.setScheduleRecurrence(this);
+    }
+    public void removeException(ScheduleRecurrenceException e) {
+        exceptions.remove(e);
+        e.setScheduleRecurrence(null);
     }
 }

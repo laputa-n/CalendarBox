@@ -42,6 +42,16 @@ public class ScheduleTodo {
     private Instant updatedAt;
 
 
+    private ScheduleTodo(String content, boolean isDone, int orderNo){
+        this.content = content;
+        this.isDone = isDone;
+        this.orderNo = orderNo;
+    }
+
+    public static ScheduleTodo of(String content, boolean isDone, int orderNo){
+        return new ScheduleTodo(content,isDone,orderNo);
+    }
+
     public static ScheduleTodo create(Schedule schedule, String content, int orderNo) {
         ScheduleTodo t = new ScheduleTodo();
         t.schedule = schedule;

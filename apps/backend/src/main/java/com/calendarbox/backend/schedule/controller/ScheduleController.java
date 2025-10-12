@@ -32,14 +32,7 @@ public class ScheduleController {
     ){
         var data = scheduleService.create(userId,calendarId,request);
 
-        var location = ServletUriComponentsBuilder
-                .fromCurrentRequest()      // 호출된 URL 기준 (프록시 경로/버전 포함)
-                .path("/{id}")
-                .buildAndExpand(data.scheduleId())
-                .toUri();
-
-        return ResponseEntity.created(location)
-                .body(ApiResponse.ok("일정 생성 성공", data));
+        return ResponseEntity.ok(ApiResponse.ok("일정 생성 성공", data));
     }
 
     @PatchMapping("/schedules/{scheduleId}")

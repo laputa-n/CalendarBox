@@ -1,6 +1,5 @@
 package com.calendarbox.backend.global.error;
 
-import org.springframework.http.HttpOutputMessage;
 import org.springframework.http.HttpStatus;
 
 public enum ErrorCode {
@@ -46,7 +45,8 @@ public enum ErrorCode {
     RECURRENCE_EXDATE_DUP("RECURRENCE_EXDATE_DUP", HttpStatus.CONFLICT, "예외 날짜가 이미 존재합니다."),
     RECURRENCE_EXDATE_NOT_FOUND("RECURRENCE_EXDATE_NOT_FOUND", HttpStatus.NOT_FOUND, "예외 날짜가 존재하지 않습니다."),
     SCHEDULE_RECUR_EXDATE_MISMATCH("SCHEDULE_RECUR_EXDATE_MISMATCH", HttpStatus.BAD_REQUEST, "예외 날짜가 해당 스케줄 반복에 속하지 않습니다."),
-    RECURRENCE_UNTIL_BEFORE_START("RECURRENCE_UNTIL_BEFORE_START", HttpStatus.BAD_REQUEST, "반복 종료일은 스케줄 시작일 이후여야 합니다."),
+    RECURRENCE_UNTIL_BEFORE_END("RECURRENCE_UNTIL_BEFORE_END", HttpStatus.BAD_REQUEST, "반복 종료일은 스케줄 종료일 이후여야 합니다."),
+    RECURRENCE_ALREADY_EXISTS("RECURRENCE_ALREADY_EXISTS", HttpStatus.CONFLICT,"예외가 이미 존재합니다."),
 
     REMINDER_MINUTES_DUP("REMINDER_MINUTES_DUP", HttpStatus.CONFLICT,"리마인더가 이미 존재합니다."),
     REMINDER_NOT_FOUND("REMINDER_NOT_FOUND", HttpStatus.NOT_FOUND, "리마인더가 존재하지 않습니다"),

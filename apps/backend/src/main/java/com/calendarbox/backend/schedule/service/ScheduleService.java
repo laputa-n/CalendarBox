@@ -8,17 +8,24 @@ import com.calendarbox.backend.calendar.enums.CalendarMemberStatus;
 import com.calendarbox.backend.calendar.repository.CalendarHistoryRepository;
 import com.calendarbox.backend.calendar.repository.CalendarMemberRepository;
 import com.calendarbox.backend.calendar.repository.CalendarRepository;
+import com.calendarbox.backend.friendship.repository.FriendshipRepository;
 import com.calendarbox.backend.global.error.BusinessException;
 import com.calendarbox.backend.global.error.ErrorCode;
 import com.calendarbox.backend.member.domain.Member;
 import com.calendarbox.backend.member.repository.MemberRepository;
-import com.calendarbox.backend.schedule.domain.Schedule;
+import com.calendarbox.backend.notification.domain.Notification;
+import com.calendarbox.backend.notification.enums.NotificationType;
+import com.calendarbox.backend.notification.repository.NotificationRepository;
+import com.calendarbox.backend.place.domain.Place;
+import com.calendarbox.backend.place.repository.PlaceRepository;
+import com.calendarbox.backend.schedule.domain.*;
 import com.calendarbox.backend.schedule.dto.request.CloneScheduleRequest;
 import com.calendarbox.backend.schedule.dto.request.CreateScheduleRequest;
 import com.calendarbox.backend.schedule.dto.request.EditScheduleRequest;
 import com.calendarbox.backend.schedule.dto.response.CloneScheduleResponse;
 import com.calendarbox.backend.schedule.dto.response.CreateScheduleResponse;
 import com.calendarbox.backend.schedule.dto.response.ScheduleDto;
+import com.calendarbox.backend.schedule.enums.RecurrenceFreq;
 import com.calendarbox.backend.schedule.enums.ScheduleParticipantStatus;
 import com.calendarbox.backend.schedule.enums.ScheduleTheme;
 import com.calendarbox.backend.schedule.repository.*;
@@ -28,9 +35,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
+import java.time.ZoneId;
+import java.util.*;
+
+import static com.calendarbox.backend.schedule.enums.ScheduleParticipantStatus.INVITED;
 
 @Service
 @RequiredArgsConstructor
@@ -47,6 +57,9 @@ public class ScheduleService {
     private final CalendarHistoryRepository calendarHistoryRepository;
     private final ScheduleParticipantRepository scheduleParticipantRepository;
     private final ObjectMapper objectMapper;
+    private final FriendshipRepository friendshipRepository;
+    private final NotificationRepository notificationRepository;
+    private final PlaceRepository placeRepository;
 
 
     public CloneScheduleResponse clone(Long userId, Long calendarId, CloneScheduleRequest request) {
@@ -111,8 +124,211 @@ public class ScheduleService {
 
         ScheduleTheme theme = (request.theme() == null)? ScheduleTheme.BLACK : request.theme();
         Schedule schedule = new Schedule(calendar, request.title(), request.memo(), theme, request.startAt(),request.endAt(), user);
-        scheduleRepository.save(schedule);
 
+
+        // 1. 링크
+        if(request.links() != null) {
+            for(var l : request.links()) {
+                schedule.addLink(ScheduleLink.of(l.url(), l.label()));
+            }
+        }
+
+        // 2. 투두
+        if(request.todos() != null){
+            for(var t:request.todos()){
+                schedule.addTodo(ScheduleTodo.of(t.content(),t.isDone(),t.orderNo()));
+            }
+        }
+
+        // 3. 리마인더
+        if(request.reminders() != null){
+            for(var r:request.reminders()){
+                schedule.addReminder(ScheduleReminder.of(r.minutesBefore()));
+            }
+        }
+
+        // 4. 반복
+        if (request.recurrence() != null) {
+            var r = request.recurrence();
+
+            if (!r.until().isAfter(schedule.getEndAt())) {
+                throw new BusinessException(ErrorCode.RECURRENCE_UNTIL_BEFORE_END);
+            }
+
+            Set<String> byDay = r.byDay();
+            if (r.freq() == RecurrenceFreq.WEEKLY && (byDay == null || byDay.isEmpty())) {
+                var zone = ZoneId.of("Asia/Seoul");
+                var dow = schedule.getStartAt().atZone(zone).getDayOfWeek();
+                String token = switch (dow) {
+                    case MONDAY -> "MO";
+                    case TUESDAY -> "TU";
+                    case WEDNESDAY -> "WE";
+                    case THURSDAY -> "TH";
+                    case FRIDAY -> "FR";
+                    case SATURDAY -> "SA";
+                    case SUNDAY -> "SU";
+                };
+                byDay = Set.of(token);
+            }
+
+            String[] byDayArr = (byDay == null) ? null :
+                    byDay.stream().filter(Objects::nonNull).map(s -> s.trim().toUpperCase())
+                            .distinct().sorted().toArray(String[]::new);
+            Integer[] byMonthdayArr = (r.byMonthday() == null) ? null :
+                    r.byMonthday().stream().distinct().sorted().toArray(Integer[]::new);
+            Integer[] byMonthArr = (r.byMonth() == null) ? null :
+                    r.byMonth().stream().distinct().sorted().toArray(Integer[]::new);
+
+            ScheduleRecurrence sr = ScheduleRecurrence.of(
+                    r.freq(), r.intervalCount(), byDayArr, byMonthdayArr, byMonthArr, r.until()
+            );
+
+            if (r.exceptions() != null && !r.exceptions().isEmpty()) {
+                var uniq = r.exceptions().stream().distinct().sorted().toList();
+                for (var exDate : uniq) {
+                    sr.addException(ScheduleRecurrenceException.of(exDate));
+                }
+            }
+
+            schedule.addRecurrence(sr);
+        }
+
+        // 5. 참가자
+        if(request.participants() != null) {
+            for (var participant : request.participants()) {
+                switch(participant.mode()) {
+                    case FRIEND -> {
+                        Member friend = memberRepository.findById(participant.memberId()).orElseThrow(() ->new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+
+                        if(!friendshipRepository.existsAcceptedBetween(user.getId(), friend.getId())) throw new BusinessException(ErrorCode.FRIENDSHIP_REQUIRED);
+
+                        ScheduleParticipant sp = ScheduleParticipant.ofMember(null,friend);
+                        schedule.addParticipant(sp);
+                    }
+                    case NAME -> {
+                        String normalized = participant.name().trim();
+                        ScheduleParticipant sp = ScheduleParticipant.ofName(null,normalized);
+                        schedule.addParticipant(sp);
+                    }
+                }
+            }
+        }
+
+        // 6. 장소
+        if (request.places() != null && !request.places().isEmpty()) {
+            int nextPos = (schedule.getPlaces() == null) ? 0 : schedule.getPlaces().size();
+
+            Set<String> nameSet = new HashSet<>();
+            Set<Long> placeIdSet = new HashSet<>();
+
+            for (var p : request.places()) {
+                switch (p.mode()) {
+                    case MANUAL -> {
+                        String normalized = normalize(p.name());
+                        if (normalized == null || normalized.isEmpty()) {
+                            throw new BusinessException(ErrorCode.SCHEDULE_PLACE_NAME_NEED);
+                        }
+
+                        if (!nameSet.add(normalized)) {
+                            throw new BusinessException(ErrorCode.SCHEDULE_PLACE_NAME_DUP);
+                        }
+                        SchedulePlace sp = SchedulePlace.builder()
+                                .name(normalized)
+                                .position(nextPos++)
+                                .build();
+                        schedule.addPlace(sp);
+                    }
+
+                    case EXISTING -> {
+                        if (p.placeId() == null) {
+                            throw new BusinessException(ErrorCode.EXISTING_PLACE_ID_NEED);
+                        }
+                        Place place = placeRepository.findById(p.placeId())
+                                .orElseThrow(() -> new BusinessException(ErrorCode.PLACE_NOT_FOUND));
+
+                        if (!placeIdSet.add(place.getId())) {
+                            throw new BusinessException(ErrorCode.SCHEDULE_PLACE_DUP);
+                        }
+
+                        String n = hasText(p.name()) ? p.name().trim() : p.title();
+                        String normalized = normalize(n);
+
+                        SchedulePlace sp = SchedulePlace.builder()
+                                .place(place)
+                                .name(normalized)
+                                .position(nextPos++)
+                                .build();
+                        schedule.addPlace(sp);
+                    }
+
+                    case PROVIDER -> {
+                        if (!hasText(p.provider()) || !hasText(p.providerPlaceKey())) {
+                            throw new BusinessException(ErrorCode.VALIDATION_ERROR);
+                        }
+                        Place place = placeRepository.findByProviderAndProviderPlaceKey(p.provider(), p.providerPlaceKey())
+                                .orElseGet(() -> {
+                                    // Double -> BigDecimal 변환
+                                    BigDecimal lat = (p.lat() != null) ? BigDecimal.valueOf(p.lat()) : null;
+                                    BigDecimal lng = (p.lng() != null) ? BigDecimal.valueOf(p.lng()) : null;
+
+                                    Place np = Place.builder()
+                                            .provider(p.provider())
+                                            .providerPlaceKey(p.providerPlaceKey())
+                                            .title(p.title())
+                                            .link(p.link())
+                                            .category(p.category())
+                                            .description(p.description())
+                                            .address(p.address())
+                                            .roadAddress(p.roadAddress())
+                                            .lat(lat)
+                                            .lng(lng)
+                                            .build();
+                                    return placeRepository.save(np);
+                                });
+
+                        if (!placeIdSet.add(place.getId())) {
+                            throw new BusinessException(ErrorCode.SCHEDULE_PLACE_DUP);
+                        }
+
+                        String n = hasText(p.name()) ? p.name().trim() : p.title();
+                        String normalized = normalize(n);
+
+                        SchedulePlace sp = SchedulePlace.builder()
+                                .place(place)
+                                .name(normalized)
+                                .position(nextPos++)
+                                .build();
+                        schedule.addPlace(sp);
+                    }
+                }
+            }
+        }
+
+        // 7. 첨부 -> 스케줄 만들고 차례로 upload
+
+        scheduleRepository.save(schedule);
+        scheduleRepository.flush();
+
+        List<Notification> inviteNotis = schedule.getParticipants().stream()
+                .filter(sp -> sp.getMember() != null)
+                .filter(sp -> sp.getStatus() == INVITED)
+                .map(sp -> Notification.builder()
+                        .member(sp.getMember())
+                        .actor(user)
+                        .type(NotificationType.INVITED_TO_SCHEDULE)
+                        .resourceId(sp.getId())
+                        .payloadJson(toJson(Map.of(
+                                "scheduleId", schedule.getId(),
+                                "scheduleTitle", schedule.getTitle(),
+                                "scheduleStartAt", schedule.getStartAt(),
+                                "scheduleEndAt", schedule.getEndAt(),
+                                "actorName", user.getName()
+                        )))
+                        .dedupeKey("scheduleInvite:" + sp.getId())       // 재발행 방지
+                        .build())
+                .toList();
+
+        notificationRepository.saveAll(inviteNotis);
         CalendarHistory history = CalendarHistory.builder()
                 .calendar(calendar)
                 .actor(user)
@@ -130,7 +346,14 @@ public class ScheduleService {
                 schedule.getStartAt(),
                 schedule.getEndAt(),
                 schedule.getCreatedBy().getId(),
-                schedule.getCreatedAt()
+                schedule.getCreatedAt(),
+
+                schedule.getLinks().size(),
+                schedule.getTodos().size(),
+                schedule.getReminders().size(),
+                schedule.getParticipants().size(),
+                schedule.getPlaces().size(),
+                (schedule.getRecurrences()!=null && !schedule.getRecurrences().isEmpty())
         );
     }
 
@@ -219,5 +442,14 @@ public class ScheduleService {
         } catch (JsonProcessingException e) {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "알림 페이로드 직렬화 실패");
         }
+    }
+
+    private static boolean hasText(String s) {
+        return s != null && !s.trim().isEmpty();
+    }
+    private static String normalize(String s) {
+        if (s == null) return null;
+        String t = s.trim();
+        return t.isEmpty() ? null : t;
     }
 }
