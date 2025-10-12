@@ -34,7 +34,7 @@ public class ScheduleLink {
 
     private ScheduleLink(String url, String label) {
         this.url = url;
-        this.label = (label == null || label.isBlank()) ? null : label;
+        this.label = (label == null || label.isBlank()) ? url : label;
     }
 
     public static ScheduleLink of(String url, String label){
