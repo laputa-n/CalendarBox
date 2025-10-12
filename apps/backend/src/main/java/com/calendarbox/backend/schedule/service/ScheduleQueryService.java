@@ -112,41 +112,29 @@ public class ScheduleQueryService {
         ));
     }
 
-    public ScheduleListResponse search(Long userId, List<Long> calendarIds, String query){
-        Member user = memberRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+    public Page<ScheduleListItem> search(Long userId, Long calendarId, String query, Pageable pageable){
+        Member viewer = memberRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
-        List<Long> requestedIds = (calendarIds == null)? List.of() : new ArrayList<>(new HashSet<>(calendarIds));
-        List<Long> effectiveIds;
-        if (requestedIds.isEmpty()) {
-            effectiveIds = calendarMemberRepository.findCalendarIdsByMemberIdAndStatuses(
-                    user.getId(),List.of(CalendarMemberStatus.ACCEPTED)
-            );
+        List<Long> effectiveIds = new ArrayList<>();
+        if(calendarId != null) effectiveIds.add(calendarId);
+
+        if (effectiveIds.isEmpty()) {
+            effectiveIds = calendarMemberRepository.findCalendarIdsByMemberIdAndStatuses(viewer.getId(), List.of(CalendarMemberStatus.ACCEPTED));
             if (effectiveIds.isEmpty()) {
-                return new ScheduleListResponse(0, List.of());
+                return Page.empty(pageable);
             }
-        } else {
-            for (Long cId : requestedIds) {
-                Calendar c = calendarRepository.findById(cId).orElseThrow(() -> new BusinessException(ErrorCode.CALENDAR_NOT_FOUND));
-                if (!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(c.getId(),user.getId(),CalendarMemberStatus.ACCEPTED)) throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
-            }
-            effectiveIds = requestedIds;
         }
+        Page<Schedule> page =  scheduleRepository.searchByKeyword(effectiveIds, query, pageable);
 
-       List<Schedule> schedules =  scheduleRepository.searchByKeyword(effectiveIds, query);
-
-        List<ScheduleListItem> items = schedules.stream()
-                .map(s -> new ScheduleListItem(
-                        s.getCalendar().getId(),
-                        s.getCalendar().getType(),
-                        s.getCalendar().getName(),
-                        s.getId(),
-                        s.getTitle(),
-                        s.getStartAt(),
-                        s.getEndAt()
-                ))
-                .toList();
-
-        return new ScheduleListResponse(items.size(), items);
+        return page.map(s -> new ScheduleListItem(
+                s.getCalendar().getId(),
+                s.getCalendar().getType(),
+                s.getCalendar().getName(),
+                s.getId(),
+                s.getTitle(),
+                s.getStartAt(),
+                s.getEndAt()
+        ));
     }
 
     private Pageable fixSort(Pageable p) {

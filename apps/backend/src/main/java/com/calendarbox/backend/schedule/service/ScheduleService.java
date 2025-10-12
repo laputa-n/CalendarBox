@@ -435,6 +435,8 @@ public class ScheduleService {
         calendarHistoryRepository.save(history);
         scheduleRepository.delete(s);
     }
+
+
     private String toJson(Object value){
         try{
             return objectMapper.writeValueAsString(value);
@@ -442,7 +444,6 @@ public class ScheduleService {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "알림 페이로드 직렬화 실패");
         }
     }
-
     private static boolean hasText(String s) {
         return s != null && !s.trim().isEmpty();
     }

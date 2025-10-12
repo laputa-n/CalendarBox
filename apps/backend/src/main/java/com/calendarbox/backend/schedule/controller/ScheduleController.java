@@ -83,13 +83,14 @@ public class ScheduleController {
     }
 
     @GetMapping("/schedules/search")
-    public ResponseEntity<ApiResponse<ScheduleListResponse>> search(
+    public ResponseEntity<ApiResponse<PageResponse<ScheduleListItem>>> search(
             @AuthenticationPrincipal(expression = "id")Long userId,
-            @RequestParam(required = false) List<Long> calendarId,
-            @RequestParam String query
+            @RequestParam(required = false) Long calendarId,
+            @RequestParam String query,
+            @PageableDefault(size = 30, sort = {"startAt", "id"}) Pageable pageable
     ){
-        var data = scheduleQueryService.search(userId,calendarId,query);
-
+        var pageResult = scheduleQueryService.search(userId,calendarId,query,pageable);
+        var data = PageResponse.of(pageResult);
         return ResponseEntity.ok(ApiResponse.ok("일정 검색 성공", data));
     }
 }
