@@ -357,7 +357,7 @@ public class ScheduleService {
         );
     }
 
-    public ScheduleDto edit(Long userId, Long scheduleId, EditScheduleRequest request){
+    public ScheduleDto edit(Long userId, Long scheduleId, EditScheduleRequest req){
         Member user = memberRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
@@ -367,48 +367,47 @@ public class ScheduleService {
 
         if(!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(c.getId(),user.getId(),CalendarMemberStatus.ACCEPTED) && !c.getOwner().getId().equals(user.getId())) throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
 
-
-        Instant newStart = request.startAt().orElse(s.getStartAt());
-        Instant newEnd   = request.endAt().orElse(s.getEndAt());
-        if (!newStart.isBefore(newEnd)) {
-            throw new BusinessException(ErrorCode.START_AFTER_BEFORE);
-        }
         Map<String,Object> diff = new HashMap<>();
 
-        request.title().ifPresent(title -> {
-            String oldTitle = s.getTitle();
-            s.editTitle(title);
-            diff.put("title", Map.of("old", oldTitle, "new", title));
-        });
-        request.memo().ifPresent(memo -> {
-            String oldMemo = s.getMemo();
-            s.editMemo(memo);
-            diff.put("memo", Map.of("old", oldMemo, "new", memo));
-        });
-        request.theme().ifPresent(theme ->{
-            ScheduleTheme oldTheme = s.getTheme();
-            s.editTheme(theme);
-            diff.put("theme", Map.of("old", oldTheme, "new", theme));
-        });
-        if(request.startAt().isPresent() || request.endAt().isPresent()){
-            Instant oldStartAt = s.getStartAt();
-            Instant oldEndAt   = s.getEndAt();
-            diff.put("time",Map.of("oldStartAt",oldStartAt,"oldEndAt",oldEndAt,
-                                    "newStartAt", newStart, "newEndAt",newEnd));
+        Instant newStart = (req.startAt() != null) ? req.startAt() : s.getStartAt();
+        Instant newEnd   = (req.endAt()   != null) ? req.endAt()   : s.getEndAt();
+        if (req.startAt() != null || req.endAt() != null) {
+            if (!newStart.isBefore(newEnd)) throw new BusinessException(ErrorCode.START_AFTER_BEFORE);
+            if (!newStart.equals(s.getStartAt()) || !newEnd.equals(s.getEndAt())) {
+                diff.put("time", Map.of(
+                        "oldStartAt", s.getStartAt(),
+                        "oldEndAt",   s.getEndAt(),
+                        "newStartAt", newStart,
+                        "newEndAt",   newEnd
+                ));
+                s.reschedule(newStart, newEnd);
+            }
         }
-        s.reschedule(newStart, newEnd);
+        if (req.title() != null && !req.title().equals(s.getTitle())) {
+            diff.put("title", Map.of("old", s.getTitle(), "new", req.title()));
+            s.editTitle(req.title());
+        }
+        if (req.memo() != null && !Objects.equals(req.memo(), s.getMemo())) {
+            diff.put("memo", Map.of("old", s.getMemo(), "new", req.memo()));
+            s.editMemo(req.memo());
+        }
+        if (req.theme() != null && req.theme() != s.getTheme()) {
+            diff.put("theme", Map.of("old", s.getTheme(), "new", req.theme()));
+            s.editTheme(req.theme());
+        }
         s.touchUpdateBy(user);
 
-        if(!s.getStartAt().isBefore(s.getEndAt())) throw new BusinessException(ErrorCode.START_AFTER_BEFORE);
+        if(!diff.isEmpty()){
+            CalendarHistory history = CalendarHistory.builder()
+                    .calendar(c)
+                    .actor(user)
+                    .entityId(s.getId())
+                    .type(CalendarHistoryType.SCHEDULE_UPDATED)
+                    .changedFields(toJson(diff))
+                    .build();
+            calendarHistoryRepository.save(history);
+        }
 
-        CalendarHistory history = CalendarHistory.builder()
-                .calendar(c)
-                .actor(user)
-                .entityId(s.getId())
-                .type(CalendarHistoryType.SCHEDULE_UPDATED)
-                .changedFields(toJson(diff))
-                .build();
-        calendarHistoryRepository.save(history);
         return new ScheduleDto(
                 s.getId(), s.getCalendar().getId(), s.getTitle(), s.getMemo(), s.getTheme()
                 , s.getStartAt(), s.getEndAt(), s.getCreatedBy().getId(), s.getUpdatedBy().getId()
@@ -436,6 +435,8 @@ public class ScheduleService {
         calendarHistoryRepository.save(history);
         scheduleRepository.delete(s);
     }
+
+
     private String toJson(Object value){
         try{
             return objectMapper.writeValueAsString(value);
@@ -443,7 +444,6 @@ public class ScheduleService {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "알림 페이로드 직렬화 실패");
         }
     }
-
     private static boolean hasText(String s) {
         return s != null && !s.trim().isEmpty();
     }

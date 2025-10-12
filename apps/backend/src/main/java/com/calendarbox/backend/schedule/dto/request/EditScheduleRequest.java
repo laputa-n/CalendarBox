@@ -6,10 +6,10 @@ import java.time.Instant;
 import java.util.Optional;
 
 public record EditScheduleRequest(
-        Optional<String> title,
-        Optional<String> memo,
-        Optional<ScheduleTheme> theme,
-        Optional<Instant> startAt,
-        Optional<Instant> endAt
+        String title,
+        String memo,
+        ScheduleTheme theme,
+        Instant startAt,
+        Instant endAt
 ) {
 }

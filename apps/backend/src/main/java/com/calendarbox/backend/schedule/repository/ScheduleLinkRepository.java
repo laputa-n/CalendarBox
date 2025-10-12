@@ -6,6 +6,8 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+
 public interface ScheduleLinkRepository extends JpaRepository<ScheduleLink, Long> {
 
     @Modifying
@@ -21,5 +23,8 @@ public interface ScheduleLinkRepository extends JpaRepository<ScheduleLink, Long
 
     Long countBySchedule_Id(Long scheduleId);
 
+    boolean existsBySchedule_IdAndUrl(Long srcId, String url);
+    boolean existsBySchedule_IdAndLabel(Long srcId, String label);
 
+    List<ScheduleLink> findAllBySchedule_IdOrderByCreatedAtAscIdAsc(Long scheduleId);
 }

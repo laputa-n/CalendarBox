@@ -60,9 +60,11 @@ public enum ErrorCode {
     SCHEDULE_PLACE_NOT_FOUND("SCHEDULE_PLACE_NOT_FOUND",HttpStatus.NOT_FOUND,"일정 장소를 찾을 수 없습니다."),
 
     SCHEDULE_PARTICIPANT_NOT_FOUND("SCHEDULE_PARTICIPANT_NOT_FOUND", HttpStatus.NOT_FOUND,"일정 참가자를 찾을 수 없습니다"),
-    NOTIFICATION_NOT_FOUND("NOTIFICATION_NOT_FOUND", HttpStatus.NOT_FOUND,"해당 알림읗 찾을 수 없습니다");
+    NOTIFICATION_NOT_FOUND("NOTIFICATION_NOT_FOUND", HttpStatus.NOT_FOUND,"해당 알림을 찾을 수 없습니다"),
 
-
+    SCHEDULE_LINK_ALREADY_EXISTS("SCHEDULE_LINK_ALREADY_EXISTS", HttpStatus.CONFLICT,"해당 링크가 이미 존재합니다."),
+    SCHEDULE_LINK_LABEL_DUP("SCHEDULE_LINK_LABEL_DUP", HttpStatus.CONFLICT,"링크 라벨이 중복입니다."),
+    SCHEDULE_LINK_NOT_FOUND("SCHEDULE_LINK_NOT_FOUND", HttpStatus.NOT_FOUND, "링크를 찾을 수 없습니다.");
 
     private final String code;
     private final HttpStatus status;
