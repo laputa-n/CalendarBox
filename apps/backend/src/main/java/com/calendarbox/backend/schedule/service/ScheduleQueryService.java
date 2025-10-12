@@ -49,17 +49,7 @@ public class ScheduleQueryService {
         Schedule s = scheduleRepository.findById(scheduleId).orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
 
         Calendar c = s.getCalendar();
-
         if(!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(c.getId(),user.getId(), CalendarMemberStatus.ACCEPTED) && !c.getOwner().getId().equals(user.getId())) throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
-
-        boolean hasParticipant = scheduleParticipantRepository.existsBySchedule_Id(s.getId());
-        boolean hasRecurrence = scheduleRecurrenceRepository.existsBySchedule_Id(s.getId());
-        boolean hasReminder = scheduleReminderRepository.existsBySchedule_Id(s.getId());
-        boolean hasLink = scheduleLinkRepository.existsBySchedule_Id(s.getId());
-        boolean hasTodo = scheduleTodoRepository.existsBySchedule_Id(s.getId());
-        boolean hasPlace = schedulePlaceRepository.existsBySchedule_Id(s.getId());
-        boolean hasImg = attachmentRepository.existsBySchedule_IdAndIsImg(s.getId(), true);
-        boolean hasFile = attachmentRepository.existsBySchedule_IdAndIsImg(s.getId(), false);
 
         Long cntParticipants = scheduleParticipantRepository.countBySchedule_Id(s.getId());
         Long cntRecurrences = scheduleRecurrenceRepository.countBySchedule_Id(s.getId());
@@ -71,14 +61,14 @@ public class ScheduleQueryService {
         Long cntFiles = attachmentRepository.countBySchedule_IdAndIsImg(s.getId(), false);
 
         return ScheduleDetailDto.of(s, ScheduleDetailSummary.of(
-                hasParticipant, cntParticipants,
-                hasRecurrence, cntRecurrences,
-                hasReminder, cntReminders,
-                hasLink, cntLinks,
-                hasTodo, cntTodos,
-                hasPlace, cntPlaces,
-                hasImg, cntImgs,
-                hasFile, cntFiles
+                cntParticipants > 0, cntParticipants,
+                cntRecurrences > 0, cntRecurrences,
+                cntReminders > 0, cntReminders,
+                cntLinks > 0, cntLinks,
+                cntTodos > 0, cntTodos,
+                cntPlaces > 0, cntPlaces,
+                cntImgs > 0, cntImgs,
+                cntFiles > 0, cntFiles
         ));
     }
 
