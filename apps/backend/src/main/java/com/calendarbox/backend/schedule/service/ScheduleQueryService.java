@@ -16,6 +16,9 @@ import com.calendarbox.backend.schedule.dto.response.ScheduleListItem;
 import com.calendarbox.backend.schedule.dto.response.ScheduleListResponse;
 import com.calendarbox.backend.schedule.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
@@ -79,87 +82,44 @@ public class ScheduleQueryService {
         ));
     }
 
-    public ScheduleListResponse getList(Long userId, List<Long> calendarId, String date, Instant from, Instant to){
-        Member user = memberRepository.findById(userId)
+    public Page<ScheduleListItem> getList(Long userId, Long calendarId, Instant from, Instant to, Pageable pageable){
+        Member viewer = memberRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
-        List<Long> requestedIds = calendarId == null ? List.of() : new ArrayList<>(new HashSet<>(calendarId));
+        List<Long> effectiveIds = new ArrayList<>();
+        if(calendarId != null) effectiveIds.add(calendarId);
 
-        List<Long> effectiveIds;
-        if (requestedIds.isEmpty()) {
-            //  ACCEPTED/INVITED 둘 다 읽기 허용
-            effectiveIds = calendarMemberRepository
-                    .findCalendarIdsByMemberIdAndStatuses(user.getId(),
-                            List.of(CalendarMemberStatus.ACCEPTED, CalendarMemberStatus.INVITED));
+        if (effectiveIds.isEmpty()) {
+            effectiveIds = calendarMemberRepository.findCalendarIdsByMemberIdAndStatuses(viewer.getId(), List.of(CalendarMemberStatus.ACCEPTED));
             if (effectiveIds.isEmpty()) {
-                return new ScheduleListResponse(0, List.of());
+                return Page.empty(pageable);
             }
-        } else {
-            for (Long cId : requestedIds) {
-                Calendar c = calendarRepository.findById(cId)
-                        .orElseThrow(() -> new BusinessException(ErrorCode.CALENDAR_NOT_FOUND));
-
-                boolean readable =
-                        calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(c.getId(), user.getId(), CalendarMemberStatus.ACCEPTED) ||
-                                calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(c.getId(), user.getId(), CalendarMemberStatus.INVITED);
-
-                if (!readable) throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
-            }
-            effectiveIds = requestedIds;
         }
+        Page<Schedule> page;
 
-        final ZoneId KST = ZoneId.of("Asia/Seoul");
-        List<Schedule> schedules;
-
-        boolean hasDate = (date != null && !date.isBlank());
         boolean hasFrom = (from != null);
         boolean hasTo   = (to   != null);
 
-        if (hasDate) {
-            if (hasFrom || hasTo) {
-                throw new BusinessException(ErrorCode.VALIDATION_ERROR);
-            }
-            LocalDate d;
-            try {
-                d = LocalDate.parse(date.trim());
-            } catch (DateTimeParseException e) {
-                throw new BusinessException(ErrorCode.VALIDATION_ERROR);
-            }
-            Instant effFrom = d.atStartOfDay(KST).toInstant();
-            Instant effTo   = d.plusDays(1).atStartOfDay(KST).toInstant();
-
-            schedules = scheduleRepository.findAllOverlapping(effectiveIds, effFrom, effTo);
-
-        } else if (hasFrom && !hasTo) {
-            // from만: 미래 무한대 → endAt > from
-            schedules = scheduleRepository.findAllFrom(effectiveIds, from);
-
+        if (hasFrom && !hasTo) {
+            page = scheduleRepository.findAllFrom(effectiveIds, from,pageable);
         } else if (!hasFrom && hasTo) {
-            schedules = scheduleRepository.findAllUntil(effectiveIds, to);
-
+            page = scheduleRepository.findAllUntil(effectiveIds, to, pageable);
         } else if (hasFrom && hasTo) {
-            if (!from.isBefore(to)) {
-                throw new BusinessException(ErrorCode.START_AFTER_BEFORE);
-            }
-            schedules = scheduleRepository.findAllOverlapping(effectiveIds, from, to);
-
+            if (!from.isBefore(to)) throw new BusinessException(ErrorCode.START_AFTER_BEFORE);
+            page = scheduleRepository.findAllOverlapping(effectiveIds, from, to,pageable);
         } else {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR);
         }
 
-        List<ScheduleListItem> items = schedules.stream()
-                .map(s -> new ScheduleListItem(
-                        s.getCalendar().getId(),
-                        s.getCalendar().getType(),     // CalendarType 필드 가정
-                        s.getCalendar().getName(),     // 캘린더 이름
-                        s.getId(),
-                        s.getTitle(),
-                        s.getStartAt(),
-                        s.getEndAt()
-                ))
-                .toList();
-
-        return new ScheduleListResponse(items.size(), items);
+        return page.map(s -> new ScheduleListItem(
+                s.getCalendar().getId(),
+                s.getCalendar().getType(),
+                s.getCalendar().getName(),
+                s.getId(),
+                s.getTitle(),
+                s.getStartAt(),
+                s.getEndAt()
+        ));
     }
 
     public ScheduleListResponse search(Long userId, List<Long> calendarIds, String query){
@@ -197,5 +157,11 @@ public class ScheduleQueryService {
                 .toList();
 
         return new ScheduleListResponse(items.size(), items);
+    }
+
+    private Pageable fixSort(Pageable p) {
+        int page = (p == null) ? 0 : p.getPageNumber();
+        int size = (p == null) ? 10 : p.getPageSize();
+        return PageRequest.of(page, size);
     }
 }

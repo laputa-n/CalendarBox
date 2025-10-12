@@ -1,6 +1,8 @@
 package com.calendarbox.backend.schedule.repository;
 
 import com.calendarbox.backend.schedule.domain.Schedule;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -10,37 +12,62 @@ import java.util.Collection;
 import java.util.List;
 
 public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
-    @Query("""
-SELECT s
-FROM Schedule s
-WHERE s.calendar.id IN :calendarIds
-  AND s.startAt < :to
-  AND s.endAt   > :from
-ORDER BY s.startAt ASC, s.id ASC
-""")
-    List<Schedule> findAllOverlapping(@Param("calendarIds") Collection<Long> calendarIds,
+    @Query(
+            value = """
+      SELECT s
+      FROM Schedule s
+      WHERE s.calendar.id IN :calendarIds
+        AND s.startAt < :to
+        AND s.endAt   > :from
+      """,
+            countQuery = """
+      SELECT count(s)
+      FROM Schedule s
+      WHERE s.calendar.id IN :calendarIds
+        AND s.startAt < :to
+        AND s.endAt   > :from
+      """
+    )
+    Page<Schedule> findAllOverlapping(@Param("calendarIds") Collection<Long> calendarIds,
                                       @Param("from") Instant from,
-                                      @Param("to") Instant to);
+                                      @Param("to") Instant to,
+                                      Pageable pageable);
 
-    @Query("""
-SELECT s
-FROM Schedule s
-WHERE s.calendar.id IN :calendarIds
-  AND s.endAt > :from
-ORDER BY s.startAt ASC, s.id ASC
-""")
-    List<Schedule> findAllFrom(@Param("calendarIds") Collection<Long> calendarIds,
-                               @Param("from") Instant from);
+    @Query(
+            value = """
+      SELECT s
+      FROM Schedule s
+      WHERE s.calendar.id IN :calendarIds
+        AND s.endAt > :from
+      """,
+            countQuery = """
+      SELECT count(s)
+      FROM Schedule s
+      WHERE s.calendar.id IN :calendarIds
+        AND s.endAt > :from
+      """
+    )
+    Page<Schedule> findAllFrom(@Param("calendarIds") Collection<Long> calendarIds,
+                               @Param("from") Instant from,
+                               Pageable pageable);
 
-    @Query("""
-SELECT s
-FROM Schedule s
-WHERE s.calendar.id IN :calendarIds
-  AND s.startAt < :to
-ORDER BY s.startAt ASC, s.id ASC
-""")
-    List<Schedule> findAllUntil(@Param("calendarIds") Collection<Long> calendarIds,
-                                @Param("to") Instant to);
+    @Query(
+            value = """
+      SELECT s
+      FROM Schedule s
+      WHERE s.calendar.id IN :calendarIds
+        AND s.startAt < :to
+      """,
+            countQuery = """
+      SELECT count(s)
+      FROM Schedule s
+      WHERE s.calendar.id IN :calendarIds
+        AND s.startAt < :to
+      """
+    )
+    Page<Schedule> findAllUntil(@Param("calendarIds") Collection<Long> calendarIds,
+                                @Param("to") Instant to,
+                                Pageable pageable);
 
     @Query("""
     select distinct s

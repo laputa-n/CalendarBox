@@ -50,7 +50,11 @@ public class FriendshipQueryService {
                 pageResult.getNumber(),
                 pageResult.getSize(),
                 pageResult.getTotalElements(),
-                pageResult.getTotalPages()
+                pageResult.getTotalPages(),
+                pageResult.isFirst(),
+                pageResult.isLast(),
+                pageResult.hasNext(),
+                pageResult.hasPrevious()
         );
     }
 
@@ -83,7 +87,11 @@ public class FriendshipQueryService {
                 pageResult.getNumber(),
                 pageResult.getSize(),
                 pageResult.getTotalElements(),
-                pageResult.getTotalPages()
+                pageResult.getTotalPages(),
+                pageResult.isFirst(),
+                pageResult.isLast(),
+                pageResult.hasNext(),
+                pageResult.hasPrevious()
         );
     }
 }
