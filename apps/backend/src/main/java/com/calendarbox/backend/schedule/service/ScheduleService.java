@@ -197,12 +197,10 @@ public class ScheduleService {
         if(request.participants() != null) {
             for (var participant : request.participants()) {
                 switch(participant.mode()) {
-                    case FRIEND -> {
-                        Member friend = memberRepository.findById(participant.memberId()).orElseThrow(() ->new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+                    case SERVICE_USER -> {
+                        Member addressee = memberRepository.findById(participant.memberId()).orElseThrow(() ->new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
-                        if(!friendshipRepository.existsAcceptedBetween(user.getId(), friend.getId())) throw new BusinessException(ErrorCode.FRIENDSHIP_REQUIRED);
-
-                        ScheduleParticipant sp = ScheduleParticipant.ofMember(null,friend);
+                        ScheduleParticipant sp = ScheduleParticipant.ofMember(null,addressee);
                         schedule.addParticipant(sp);
                     }
                     case NAME -> {
