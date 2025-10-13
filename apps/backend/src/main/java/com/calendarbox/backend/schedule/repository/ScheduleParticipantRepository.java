@@ -10,6 +10,7 @@ import java.util.List;
 
 public interface ScheduleParticipantRepository extends JpaRepository<ScheduleParticipant, Long> {
     boolean existsBySchedule_IdAndMember_IdAndStatus(Long scheduleId, Long memberId, ScheduleParticipantStatus status);
+    boolean existsBySchedule_IdAndMember_IdAndStatuses(Long scheduleId, Long memberId, List<ScheduleParticipantStatus> statuses);
     boolean existsBySchedule_IdAndMember_Id(Long scheduleId, Long memberId);
     boolean existsBySchedule_Id(Long scheduleId);
     @Query("""

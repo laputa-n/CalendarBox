@@ -29,18 +29,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import static com.calendarbox.backend.schedule.enums.ScheduleParticipantStatus.ACCEPTED;
 import static com.calendarbox.backend.schedule.enums.ScheduleParticipantStatus.INVITED;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = false)
+@Transactional
 public class ScheduleParticipantService {
     private final ScheduleParticipantRepository scheduleParticipantRepository;
     private final MemberRepository memberRepository;
-    private final FriendshipRepository friendshipRepository;
     private final ScheduleRepository scheduleRepository;
     private final CalendarMemberRepository calendarMemberRepository;
     private final ObjectMapper objectMapper;
@@ -50,7 +51,7 @@ public class ScheduleParticipantService {
     public AddParticipantResponse add(Long userId, Long scheduleId, AddParticipantRequest request) {
 
         return switch(request.mode()){
-            case FRIEND -> addFriend(userId, scheduleId, request.memberId());
+            case SERVICE_USER -> addServiceUser(userId, scheduleId, request.memberId());
             case NAME -> addName(userId,scheduleId,request.name());
         };
     }
@@ -105,17 +106,17 @@ public class ScheduleParticipantService {
         }
         return toResponse(sp);
     }
-    private AddParticipantResponse addFriend(Long userId, Long scheduleId, Long memberId) {
+    private AddParticipantResponse addServiceUser(Long userId, Long scheduleId, Long memberId) {
         Member requester = memberRepository.findById(userId).orElseThrow(()->new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
         Member addressee = memberRepository.findById(memberId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
         Schedule s = scheduleRepository.findById(scheduleId).orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
 
-        if(!friendshipRepository.existsAcceptedBetween(requester.getId(), addressee.getId())) throw new BusinessException(ErrorCode.FRIENDSHIP_REQUIRED);
-        if (scheduleParticipantRepository.existsBySchedule_IdAndMember_Id(scheduleId, memberId)) throw new BusinessException(ErrorCode.REINVITE_NOT_ALLOWED);
+        if (scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatuses(scheduleId, memberId, List.of(INVITED,ACCEPTED))) throw new BusinessException(ErrorCode.REINVITE_NOT_ALLOWED);
 
         ScheduleParticipant sp = ScheduleParticipant.ofMember(s,addressee);
         s.addParticipant(sp);
         scheduleParticipantRepository.save(sp);
+        scheduleParticipantRepository.flush();
 
         Notification notification = Notification.builder()
                 .member(addressee)
@@ -135,18 +136,6 @@ public class ScheduleParticipantService {
                 .build();
 
         notificationRepository.save(notification);
-
-        Map<String, Object> newParticipant = new HashMap<>();
-        newParticipant.put("newParticipantName", sp.getName());
-
-        CalendarHistory history = CalendarHistory.builder()
-                .calendar(s.getCalendar())
-                .actor(requester)
-                .entityId(s.getId())
-                .type(CalendarHistoryType.SCHEDULE_PARTICIPANT_ADDED)
-                .changedFields(toJson(newParticipant))
-                .build();
-        calendarHistoryRepository.save(history);
 
         return toAddParticipantResponse(sp);
     }

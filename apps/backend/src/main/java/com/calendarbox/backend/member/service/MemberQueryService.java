@@ -26,13 +26,15 @@ public class MemberQueryService {
 
         String emailToken = toEmailPrefix(raw);
         String phoneToken = (emailToken == null) ? toPhonePrefix(raw): null;
+        String nameToken = (phoneToken == null) ? toPhonePrefix(raw): null;
 
         if (emailToken != null && emailToken.length() < 3) emailToken = null;
         if (phoneToken != null && phoneToken.length() < 3) phoneToken = null;
+        if (nameToken != null && nameToken.length() < 3) nameToken = null;
 
-        if (emailToken == null && phoneToken == null) return Page.empty(pageable);
+        if (emailToken == null && phoneToken == null && nameToken == null) return Page.empty(pageable);
 
-        return memberRepository.searchByEmailOrPhone(user.getId(),emailToken, phoneToken, pageable);
+        return memberRepository.searchByEmailOrPhoneOrName(user.getId(),emailToken, phoneToken, nameToken, pageable);
     }
 
     private String toEmailPrefix(String s) {

@@ -43,7 +43,7 @@ public class ScheduleParticipantController {
         String message = "";
         switch(request.mode()){
             case NAME -> message = "일정 멤버 추가 성공";
-            case FRIEND -> message = "일정 멤버 초대 성공";
+            case SERVICE_USER -> message = "일정 멤버 초대 성공";
         }
         return ResponseEntity.ok(ApiResponse.ok(message,data));
     }
