@@ -7,7 +7,6 @@ import com.calendarbox.backend.calendar.enums.CalendarHistoryType;
 import com.calendarbox.backend.calendar.enums.CalendarMemberStatus;
 import com.calendarbox.backend.calendar.repository.CalendarHistoryRepository;
 import com.calendarbox.backend.calendar.repository.CalendarMemberRepository;
-import com.calendarbox.backend.friendship.repository.FriendshipRepository;
 import com.calendarbox.backend.global.error.BusinessException;
 import com.calendarbox.backend.global.error.ErrorCode;
 import com.calendarbox.backend.member.domain.Member;
@@ -110,7 +109,7 @@ public class ScheduleParticipantService {
         Member addressee = memberRepository.findById(memberId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
         Schedule s = scheduleRepository.findById(scheduleId).orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
 
-        if (scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatuses(scheduleId, memberId, List.of(INVITED,ACCEPTED))) throw new BusinessException(ErrorCode.REINVITE_NOT_ALLOWED);
+        if (scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatusIn(scheduleId, memberId, List.of(INVITED,ACCEPTED))) throw new BusinessException(ErrorCode.REINVITE_NOT_ALLOWED);
 
         ScheduleParticipant sp = ScheduleParticipant.ofMember(s,addressee);
         s.addParticipant(sp);

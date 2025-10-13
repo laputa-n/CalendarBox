@@ -12,7 +12,7 @@ import java.util.List;
 
 public interface ScheduleParticipantRepository extends JpaRepository<ScheduleParticipant, Long> {
     boolean existsBySchedule_IdAndMember_IdAndStatus(Long scheduleId, Long memberId, ScheduleParticipantStatus status);
-    boolean existsBySchedule_IdAndMember_IdAndStatuses(Long scheduleId, Long memberId, List<ScheduleParticipantStatus> statuses);
+    boolean existsBySchedule_IdAndMember_IdAndStatusIn(Long scheduleId, Long memberId, List<ScheduleParticipantStatus> statuses);
     boolean existsBySchedule_IdAndMember_Id(Long scheduleId, Long memberId);
     boolean existsBySchedule_Id(Long scheduleId);
     @Query(
@@ -24,7 +24,7 @@ public interface ScheduleParticipantRepository extends JpaRepository<SchedulePar
               and (:status is null or sp.status = :status)
             """,
             countQuery = """
-                    select sp
+                    select count(sp)
                     from ScheduleParticipant sp
                     where sp.schedule.id = :scheduleId
                         and (:status is null or sp.status = :status)

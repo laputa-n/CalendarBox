@@ -37,7 +37,7 @@ public class ScheduleParticipantQueryService {
         Schedule schedule = scheduleRepository.findById(scheduleId).orElseThrow(()->new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
         Calendar calendar = schedule.getCalendar();
         if(!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(calendar.getId(), viewer.getId(), CalendarMemberStatus.ACCEPTED) &&
-                !scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatuses(schedule.getId(), viewer.getId(), List.of(ScheduleParticipantStatus.ACCEPTED, ScheduleParticipantStatus.INVITED)))
+                !scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatusIn(schedule.getId(), viewer.getId(), List.of(ScheduleParticipantStatus.ACCEPTED, ScheduleParticipantStatus.INVITED)))
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
 
         Page<ScheduleParticipant> splist = scheduleParticipantRepository.findAllByScheduleAndStatus(scheduleId,status, pageable);

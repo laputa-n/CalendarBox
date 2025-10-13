@@ -11,6 +11,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Locale;
+
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
@@ -24,26 +26,40 @@ public class MemberQueryService {
         String raw = query.trim();
         if(raw.isEmpty()) return Page.empty(pageable);
 
-        String emailToken = toEmailPrefix(raw);
-        String phoneToken = (emailToken == null) ? toPhonePrefix(raw): null;
-        String nameToken = (phoneToken == null) ? toPhonePrefix(raw): null;
+        String emailToken = toEmailPrefixOrNull(raw);
+        String phoneToken = toPhonePrefixOrNull(raw);
+        String nameToken = toNamePrefixOrNull(raw);
+
+        if (emailToken != null) emailToken = emailToken.toLowerCase(Locale.ROOT);
+        if (nameToken  != null) nameToken  = nameToken.toLowerCase(Locale.ROOT);
 
         if (emailToken != null && emailToken.length() < 3) emailToken = null;
         if (phoneToken != null && phoneToken.length() < 3) phoneToken = null;
-        if (nameToken != null && nameToken.length() < 3) nameToken = null;
+        if (nameToken  != null && nameToken.length()  < 3) nameToken  = null;
 
-        if (emailToken == null && phoneToken == null && nameToken == null) return Page.empty(pageable);
+        if (emailToken == null && phoneToken == null && nameToken == null) {
+            return Page.empty(pageable);
+        }
 
-        return memberRepository.searchByEmailOrPhoneOrName(user.getId(),emailToken, phoneToken, nameToken, pageable);
+        return memberRepository.searchByEmailOrPhoneOrName(
+                user.getId(), emailToken, phoneToken, nameToken, pageable
+        );
     }
 
-    private String toEmailPrefix(String s) {
-        String t = s.toLowerCase();
-        return t.contains("@") || t.matches("^[a-z0-9._%+-]+$") ? t.replaceAll("\\s+", "") : null;
+    private String toEmailPrefixOrNull(String raw) {
+        String s = raw.trim();
+        if (!s.contains("@")) return null;
+        return s;
     }
 
-    private String toPhonePrefix(String s) {
-        String digits = s.replaceAll("\\D", "");
+    private String toPhonePrefixOrNull(String raw) {
+        String digits = raw.replaceAll("\\D+", "");
         return digits.isEmpty() ? null : digits;
+    }
+
+    private String toNamePrefixOrNull(String raw) {
+        String s = raw.trim().replaceAll("\\s+", " ");
+        if (s.isEmpty() || s.matches("\\d+")) return null;
+        return s;
     }
 }
