@@ -22,7 +22,7 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
 
     @Query("""
 select new com.calendarbox.backend.member.dto.response.MemberSearchItem(
-  m.id, m.name
+  m.id, m.name, m.email, m.phoneNumber
 )
 from Member m
 where m.deletedAt is null
@@ -30,11 +30,13 @@ where m.deletedAt is null
   and (
        (:emailToken is not null and lower(m.email) like concat(:emailToken, '%'))
     or (:phoneToken is not null and concat('', function('regexp_replace', coalesce(m.phoneNumber, ''), '[^0-9]', '', 'g')) like concat(:phoneToken, '%'))
+    or (:nameToken is not null and lower(m.name) like concat(:nameToken, '%'))
   )
 """)
-    Page<MemberSearchItem> searchByEmailOrPhone(
+    Page<MemberSearchItem> searchByEmailOrPhoneOrName(
             @Param("viewerId") Long viewerId,
             @Param("emailToken") String emailToken,
             @Param("phoneToken") String phoneToken,
+            @Param("nameToken") String nameToken,
             Pageable pageable);
 }

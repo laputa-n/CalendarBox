@@ -3,7 +3,7 @@ package com.calendarbox.backend.schedule.dto.response;
 import java.util.List;
 
 public record ScheduleLinkListResponse(
-        int size,
+        int count,
         List<ScheduleLinkDto> scheduleLinkDtos
 ) {
 }

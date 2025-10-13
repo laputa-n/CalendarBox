@@ -7,6 +7,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
@@ -40,6 +41,7 @@ public class ScheduleParticipant {
     @Column(name = "invited_at", nullable = false, updatable = false)
     private Instant invitedAt;
 
+    @LastModifiedDate
     @Column(name = "responded_at")
     private Instant respondedAt;
 
@@ -63,12 +65,10 @@ public class ScheduleParticipant {
 
     public void accept() {
         this.status = ScheduleParticipantStatus.ACCEPTED;
-        this.respondedAt = Instant.now();
     }
 
     public void decline() {
         this.status = ScheduleParticipantStatus.REJECTED;
-        this.respondedAt = Instant.now();
     }
 
     void setSchedule(Schedule schedule){

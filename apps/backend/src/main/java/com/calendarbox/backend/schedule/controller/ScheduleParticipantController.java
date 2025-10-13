@@ -1,6 +1,7 @@
 package com.calendarbox.backend.schedule.controller;
 
 import com.calendarbox.backend.global.dto.ApiResponse;
+import com.calendarbox.backend.global.dto.PageResponse;
 import com.calendarbox.backend.schedule.dto.request.AddParticipantRequest;
 import com.calendarbox.backend.schedule.dto.request.ParticipantRespondRequest;
 import com.calendarbox.backend.schedule.dto.response.AddParticipantResponse;
@@ -10,6 +11,8 @@ import com.calendarbox.backend.schedule.enums.ScheduleParticipantStatus;
 import com.calendarbox.backend.schedule.service.ScheduleParticipantQueryService;
 import com.calendarbox.backend.schedule.service.ScheduleParticipantService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -24,13 +27,14 @@ public class ScheduleParticipantController {
     private final ScheduleParticipantQueryService scheduleParticipantQueryService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<ScheduleParticipantResponse>>> getList(
+    public ResponseEntity<ApiResponse<PageResponse<ScheduleParticipantResponse>>> getList(
         @AuthenticationPrincipal(expression="id") Long userId,
         @RequestParam(required = false) ScheduleParticipantStatus status,
-        @PathVariable Long scheduleId
+        @PathVariable Long scheduleId,
+        @PageableDefault(size = 20, sort = {"invitedAt"}) Pageable pageable
     ){
-        var data = scheduleParticipantQueryService.list(userId,status,scheduleId);
-
+        var page = scheduleParticipantQueryService.list(userId,status,scheduleId, pageable);
+        var data = PageResponse.of(page);
         return ResponseEntity.ok(ApiResponse.ok("일정 멤버 목록 조회 성공", data));
     }
     @PostMapping
@@ -43,7 +47,7 @@ public class ScheduleParticipantController {
         String message = "";
         switch(request.mode()){
             case NAME -> message = "일정 멤버 추가 성공";
-            case FRIEND -> message = "일정 멤버 초대 성공";
+            case SERVICE_USER -> message = "일정 멤버 초대 성공";
         }
         return ResponseEntity.ok(ApiResponse.ok(message,data));
     }

@@ -2,13 +2,16 @@ package com.calendarbox.backend.calendar.service;
 
 
 import com.calendarbox.backend.calendar.domain.Calendar;
+import com.calendarbox.backend.calendar.domain.CalendarHistory;
 import com.calendarbox.backend.calendar.domain.CalendarMember;
 import com.calendarbox.backend.calendar.dto.request.CalendarInvitedRespondRequest;
 import com.calendarbox.backend.calendar.dto.request.InviteMembersRequest;
 import com.calendarbox.backend.calendar.dto.response.CalendarInviteRespondResponse;
 import com.calendarbox.backend.calendar.dto.response.InviteMembersResponse;
+import com.calendarbox.backend.calendar.enums.CalendarHistoryType;
 import com.calendarbox.backend.calendar.enums.CalendarMemberStatus;
 import com.calendarbox.backend.calendar.enums.CalendarType;
+import com.calendarbox.backend.calendar.repository.CalendarHistoryRepository;
 import com.calendarbox.backend.calendar.repository.CalendarMemberRepository;
 import com.calendarbox.backend.calendar.repository.CalendarRepository;
 import com.calendarbox.backend.global.error.BusinessException;
@@ -36,6 +39,8 @@ public class CalendarMemberService {
     private final MemberRepository memberRepository;
     private final NotificationRepository notificationRepository;
     private final ObjectMapper objectMapper;
+    private final CalendarHistoryRepository calendarHistoryRepository;
+
     public InviteMembersResponse inviteMembers(Long inviterId, Long calendarId, InviteMembersRequest request){
         Member inviter = memberRepository.findById(inviterId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
@@ -177,7 +182,18 @@ public class CalendarMemberService {
         }
 
         switch(request.action()){
-            case ACCEPT -> calendarMember.accept();
+            case ACCEPT -> {
+                calendarMember.accept();
+                calendarHistoryRepository.save(
+                        CalendarHistory.builder()
+                        .calendar(calendarMember.getCalendar())
+                        .actor(calendarMember.getMember())
+                        .entityId(calendarMember.getCalendar().getId())
+                        .type(CalendarHistoryType.CALENDAR_MEMBER_ADDED)
+                        .changedFields(toJson(Map.of("newCalendarMemberName: ", calendarMember.getMember().getName())))
+                        .build()
+                );
+            }
             case REJECT -> calendarMember.reject();
         }
 
@@ -208,6 +224,16 @@ public class CalendarMemberService {
                 throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
             calendarMemberRepository.delete(calendarMember);
         }
+
+        calendarHistoryRepository.save(
+                CalendarHistory.builder()
+                        .calendar(calendarMember.getCalendar())
+                        .actor(user)
+                        .entityId(calendarMember.getCalendar().getId())
+                        .type(CalendarHistoryType.CALENDAR_MEMBER_REMOVED)
+                        .changedFields(toJson(Map.of("removedCalendarMemberName: ", calendarMember.getMember().getName())))
+                        .build()
+        );
 
         String msg = isWithdraw?
                 calendarMember.getCalendar().getName() + " 캘린더에서 탈퇴했습니다.":
