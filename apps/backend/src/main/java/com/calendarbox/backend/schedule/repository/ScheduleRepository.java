@@ -105,4 +105,33 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
                                          @Param("q") String q,
                                          Pageable pageable);
 
+    // (A) 단발 일정(기간 겹침)
+    @Query("""
+        select s
+        from Schedule s
+        where s.recurrence is null
+          and s.calendar.id in :calIds
+          and s.startAt < :toUtc
+          and s.endAt   > :fromUtc
+    """)
+    List<Schedule> findNoRecurByCalendarIds(
+            @Param("calIds") List<Long> calIds,
+            @Param("fromUtc") Instant fromUtc,
+            @Param("toUtc")   Instant toUtc
+    );
+
+    @Query("""
+        select distinct s
+        from Schedule s
+        join fetch s.recurrence r
+        left join fetch r.exceptions e
+        where s.calendar.id in :calIds
+          and s.recurrence is not null
+          and (r.until is null or r.until >= :fromUtc)
+    """)
+    List<Schedule> findRecurringWithExceptionsByCalendarIds(
+            @Param("calIds") List<Long> calIds,
+            @Param("fromUtc") Instant fromUtc
+    );
+
 }

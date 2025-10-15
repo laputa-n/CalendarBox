@@ -87,9 +87,8 @@ public class Schedule {
     @OrderBy("position Asc, id ASC")
     private List<Attachment> attachments = new ArrayList<>();
 
-    @OneToMany(mappedBy = "schedule", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("createdAt Asc, id Asc")
-    private List<ScheduleRecurrence> recurrences = new ArrayList<>();
+    @OneToOne(mappedBy = "schedule", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private ScheduleRecurrence recurrence;
 
     @OneToMany(mappedBy = "schedule", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("minutesBefore Asc, id Asc")
@@ -164,15 +163,11 @@ public class Schedule {
         reminder.setSchedule(null);
     }
 
-    public void addRecurrence(ScheduleRecurrence recurrence) {
-        recurrences.add(recurrence);
-        recurrence.setSchedule(this);
+    public void makeRecurrence(ScheduleRecurrence sr){
+        recurrence = sr;
+        sr.setSchedule(this);
     }
 
-    public void removeRecurrence(ScheduleRecurrence recurrence) {
-        recurrences.remove(recurrence);
-        recurrence.setSchedule(null);
-    }
 
     public static Schedule cloneHeader(
             Schedule src,

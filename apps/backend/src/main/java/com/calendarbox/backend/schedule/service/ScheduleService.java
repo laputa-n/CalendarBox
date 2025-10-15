@@ -190,7 +190,7 @@ public class ScheduleService {
                 }
             }
 
-            schedule.addRecurrence(sr);
+            schedule.makeRecurrence(sr);
         }
 
         // 5. 참가자
@@ -351,7 +351,7 @@ public class ScheduleService {
                 schedule.getReminders().size(),
                 schedule.getParticipants().size(),
                 schedule.getPlaces().size(),
-                (schedule.getRecurrences()!=null && !schedule.getRecurrences().isEmpty())
+                (schedule.getRecurrence()!=null)
         );
     }
 
