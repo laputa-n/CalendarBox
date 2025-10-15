@@ -73,8 +73,9 @@ public class ScheduleRecurrenceService {
                 recur.addException(ScheduleRecurrenceException.of(exDate));
             }
         }
-        schedule.addRecurrence(recur);
+        schedule.makeRecurrence(recur);
         scheduleRepository.save(schedule);
+        scheduleRepository.flush();
         return toResponse(recur);
     }
 

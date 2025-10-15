@@ -237,6 +237,7 @@ CREATE TABLE schedule_recurrence (
                                      until TIMESTAMPTZ NOT NULL,
                                      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
                                      CONSTRAINT fk_schedule_recurrence FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id) ON DELETE CASCADE,
+                                     CONSTRAINT uq_recur_schedule UNIQUE (schedule_id),
                                      CONSTRAINT chk_interval_pos CHECK (interval_count >= 1)
 );
 

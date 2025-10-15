@@ -26,8 +26,8 @@ public class ScheduleRecurrence {
     private Long id;
 
     @Setter(AccessLevel.PROTECTED)
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "schedule_id", nullable = false)
+    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "schedule_id", nullable = false, unique = true)
     private Schedule schedule;
 
     @Enumerated(EnumType.STRING)
@@ -48,7 +48,7 @@ public class ScheduleRecurrence {
     @JdbcTypeCode(SqlTypes.ARRAY)
     private Integer[] byMonth;
 
-    @Column(nullable = false)
+    @Column
     private Instant until;
 
     @CreatedDate

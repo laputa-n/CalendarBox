@@ -13,6 +13,8 @@ import com.calendarbox.backend.calendar.service.CalendarQueryService;
 import com.calendarbox.backend.calendar.service.CalendarService;
 import com.calendarbox.backend.global.dto.PageResponse;
 import com.calendarbox.backend.global.dto.ApiResponse;
+import com.calendarbox.backend.global.error.BusinessException;
+import com.calendarbox.backend.global.error.ErrorCode;
 import com.calendarbox.backend.schedule.dto.request.CloneScheduleRequest;
 import com.calendarbox.backend.schedule.dto.response.CloneScheduleResponse;
 import com.calendarbox.backend.schedule.service.ScheduleService;
@@ -21,11 +23,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 
 @RestController
 @RequiredArgsConstructor
