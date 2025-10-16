@@ -23,6 +23,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -73,7 +75,7 @@ public class CalendarService {
         if (request.name() == null && request.visibility() == null && request.type() == null) {
             throw new BusinessException(ErrorCode.REQUEST_NO_CHANGES);
         }
-        Map<String,Object> diff = new LinkedHashMap<>();
+        Map<String,Object> diff = new HashMap<>();
 
         if(request.name() != null){
             String oldName = c.getName();
