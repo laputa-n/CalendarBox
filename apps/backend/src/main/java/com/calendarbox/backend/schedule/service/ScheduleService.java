@@ -36,8 +36,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.*;
 
 import static com.calendarbox.backend.schedule.enums.ScheduleParticipantStatus.INVITED;
@@ -70,36 +72,35 @@ public class ScheduleService {
         Member creator = memberRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
         Calendar targetCalendar = calendarRepository.findById(calendarId).orElseThrow(() -> new BusinessException(ErrorCode.CALENDAR_NOT_FOUND));
 
-        if(calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(targetCalendar.getId(), creator.getId(), CalendarMemberStatus.ACCEPTED)) throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+        if(!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(targetCalendar.getId(), creator.getId(), CalendarMemberStatus.ACCEPTED)) throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
 
         Schedule src = scheduleRepository.findById(request.sourceScheduleId()).orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
 
         if(!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(src.getCalendar().getId(), creator.getId(), CalendarMemberStatus.ACCEPTED) || !scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatus(src.getId(), creator.getId(), ScheduleParticipantStatus.ACCEPTED)) throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
 
-        Instant reqStart = request.startAt();
-        Instant reqEnd = request.endAt();
+        ZoneId zone = ZoneId.of("Asia/Seoul");
 
-        final Instant effStart;
-        final Instant effEnd;
+        ZonedDateTime srcStartKst = src.getStartAt().atZone(zone);
+        ZonedDateTime srcEndKst   = src.getEndAt().atZone(zone);
 
-        if (reqStart == null && reqEnd == null) {
-            effStart = src.getStartAt();
-            effEnd   = src.getEndAt();
-        } else if (reqStart != null && reqEnd != null) {
-            effStart = reqStart;
-            effEnd   = reqEnd;
-        } else if (reqEnd != null){
-            effStart = src.getStartAt();
-            effEnd = reqEnd;
-        } else {
-            effStart = reqStart;
-            effEnd = src.getEndAt();
+        if (!srcStartKst.isBefore(srcEndKst)) {
+            throw new BusinessException(ErrorCode.START_AFTER_BEFORE);
         }
 
-        if(!effStart.isBefore(effEnd)) throw new BusinessException(ErrorCode.START_AFTER_BEFORE);
+        Duration dur = Duration.between(srcStartKst, srcEndKst);
+
+        ZonedDateTime startZ = request.targetDate().atTime(srcStartKst.toLocalTime()).atZone(zone);
+
+        ZonedDateTime endZ = startZ.plus(dur);
+
+        Instant effStart = startZ.toInstant();
+        Instant effEnd = endZ.toInstant();
+
+        if (!effStart.isBefore(effEnd)) {
+            throw new BusinessException(ErrorCode.START_AFTER_BEFORE);
+        }
 
         Schedule dst = Schedule.cloneHeader(src,targetCalendar,creator,effStart,effEnd);
-
         scheduleRepository.save(dst);
 
         Long srcId = src.getId();
