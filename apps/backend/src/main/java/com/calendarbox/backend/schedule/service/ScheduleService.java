@@ -402,7 +402,7 @@ public class ScheduleService {
                     .actor(user)
                     .entityId(s.getId())
                     .type(CalendarHistoryType.SCHEDULE_UPDATED)
-                    .changedFields(toJson(diff))
+                    .changedFields(diff)
                     .build();
             calendarHistoryRepository.save(history);
         }

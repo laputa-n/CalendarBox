@@ -145,11 +145,11 @@ public class CalendarMemberService {
                     .type(NotificationType.INVITED_TO_CALENDAR)
                     .resourceId(cm.getId())
                     .payloadJson(
-                            toJson(Map.of(
+                            Map.of(
                                     "calendarId", calendar.getId(),
                                     "calendarName", calendar.getName(),
                                     "actorName", inviter.getName()
-                            ))
+                            )
                     )
                     .dedupeKey("calendarInvite:" + cm.getId())
                     .build();
@@ -190,7 +190,7 @@ public class CalendarMemberService {
                         .actor(calendarMember.getMember())
                         .entityId(calendarMember.getCalendar().getId())
                         .type(CalendarHistoryType.CALENDAR_MEMBER_ADDED)
-                        .changedFields(toJson(Map.of("newCalendarMemberName: ", calendarMember.getMember().getName())))
+                        .changedFields(Map.of("newCalendarMemberName: ", calendarMember.getMember().getName()))
                         .build()
                 );
             }
@@ -231,7 +231,7 @@ public class CalendarMemberService {
                         .actor(user)
                         .entityId(calendarMember.getCalendar().getId())
                         .type(CalendarHistoryType.CALENDAR_MEMBER_REMOVED)
-                        .changedFields(toJson(Map.of("removedCalendarMemberName: ", calendarMember.getMember().getName())))
+                        .changedFields(Map.of("removedCalendarMemberName: ", calendarMember.getMember().getName()))
                         .build()
         );
 
@@ -239,13 +239,5 @@ public class CalendarMemberService {
                 calendarMember.getCalendar().getName() + " 캘린더에서 탈퇴했습니다.":
                 calendarMember.getCalendar().getName() + " 캘린더에서 " + calendarMember.getMember().getName() + "님을 추방시켰습니다.";
         return msg;
-    }
-
-    private String toJson(Object value) {
-        try {
-            return objectMapper.writeValueAsString(value);
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "알림 페이로드 직렬화 실패");
-        }
     }
 }

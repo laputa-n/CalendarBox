@@ -55,10 +55,10 @@ public class ScheduleLinkService {
                 .actor(user)
                 .entityId(scheduleId)
                 .type(CalendarHistoryType.SCHEDULE_LINK_ADDED)
-                .changedFields(toJson(Map.of(
+                .changedFields(Map.of(
                         "url", link.getUrl(),
                         "label", link.getLabel()
-                )))
+                ))
                 .build()
         );
 
@@ -84,18 +84,11 @@ public class ScheduleLinkService {
                 .actor(user)
                 .entityId(scheduleId)
                 .type(CalendarHistoryType.SCHEDULE_LINK_REMOVED)
-                .changedFields(toJson(Map.of(
+                .changedFields(Map.of(
                         "url", link.getUrl(),
                         "label", link.getLabel()
-                )))
+                ))
                 .build()
         );
-    }
-    private String toJson(Object value){
-        try{
-            return objectMapper.writeValueAsString(value);
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "알림 페이로드 직렬화 실패");
-        }
     }
 }

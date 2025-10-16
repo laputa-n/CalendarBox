@@ -58,10 +58,10 @@ public class FriendshipService {
                 .type(NotificationType.RECEIVED_FRIEND_REQUEST)
                 .resourceId(friendship.getId())
                 .payloadJson(
-                        toJson(Map.of(
+                        Map.of(
                                 "friendshipId", friendship.getId(),
                                 "actorName", requester.getName()
-                        ))
+                        )
                 )
                 .dedupeKey("friendRequest:" + friendship.getId())
                 .build();
@@ -112,12 +112,4 @@ public class FriendshipService {
         return friendshipRepository.findByAddresseeIdAndStatus(userId, FriendshipStatus.PENDING,pageable);
     }
 
-
-    private String toJson(Object value) {
-        try {
-            return objectMapper.writeValueAsString(value);
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "알림 페이로드 직렬화 실패");
-        }
-    }
 }

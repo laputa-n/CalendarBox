@@ -102,7 +102,7 @@ public class CalendarService {
                 .actor(user)
                 .entityId(c.getId())
                 .type(CalendarHistoryType.CALENDAR_UPDATED)
-                .changedFields(toJson(diff))
+                .changedFields(diff)
                 .build();
         calendarHistoryRepository.save(history);
 
@@ -130,12 +130,5 @@ public class CalendarService {
 
         calendarMemberRepository.unsetDefaultForMember(memberId);
         calendarMemberRepository.setDefault(memberId, calendarId);
-    }
-    private String toJson(Object value){
-        try{
-            return objectMapper.writeValueAsString(value);
-        } catch (JsonProcessingException e) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "알림 페이로드 직렬화 실패");
-        }
     }
 }

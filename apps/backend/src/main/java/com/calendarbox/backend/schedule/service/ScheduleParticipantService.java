@@ -74,7 +74,7 @@ public class ScheduleParticipantService {
                 .actor(user)
                 .entityId(s.getId())
                 .type(CalendarHistoryType.SCHEDULE_PARTICIPANT_REMOVED)
-                .changedFields(toJson(removedParticipant))
+                .changedFields(removedParticipant)
                 .build();
         calendarHistoryRepository.save(history);
     }
@@ -95,7 +95,7 @@ public class ScheduleParticipantService {
                         .actor(sp.getMember())
                         .entityId(s.getId())
                         .type(CalendarHistoryType.SCHEDULE_PARTICIPANT_ADDED)
-                        .changedFields(toJson(newParticipant))
+                        .changedFields(newParticipant)
                         .build();
                 calendarHistoryRepository.save(history);
                 sp.accept();
@@ -122,13 +122,13 @@ public class ScheduleParticipantService {
                 .type(NotificationType.INVITED_TO_SCHEDULE)
                 .resourceId(sp.getId())
                 .payloadJson(
-                        toJson(Map.of(
+                        Map.of(
                                 "scheduleId", s.getId(),
                                 "scheduleTitle", s.getTitle(),
                                 "scheduleStartAt", s.getStartAt(),
                                 "scheduleEndAt", s.getEndAt(),
                                 "actorName", requester.getName()
-                        ))
+                        )
                 )
                 .dedupeKey("scheduleInvite:" + sp.getId())
                 .build();
@@ -155,7 +155,7 @@ public class ScheduleParticipantService {
                 .actor(user)
                 .entityId(s.getId())
                 .type(CalendarHistoryType.SCHEDULE_PARTICIPANT_ADDED)
-                .changedFields(toJson(newParticipant))
+                .changedFields(newParticipant)
                 .build();
         calendarHistoryRepository.save(history);
 
@@ -186,11 +186,4 @@ public class ScheduleParticipantService {
         );
     }
 
-    private String toJson(Object value) {
-        try {
-            return objectMapper.writeValueAsString(value);
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "알림 페이로드 직렬화 실패");
-        }
-    }
 }

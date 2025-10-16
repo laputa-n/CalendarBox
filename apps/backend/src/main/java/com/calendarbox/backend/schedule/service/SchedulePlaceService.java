@@ -63,7 +63,7 @@ public class SchedulePlaceService {
                 .actor(user)
                 .entityId(s.getId())
                 .type(CalendarHistoryType.SCHEDULE_LOCATION_REMOVED)
-                .changedFields("placeName: " + sp.getName())
+                .changedFields(Map.of("placeName", sp.getName()))
                 .build();
         calendarHistoryRepository.save(history);
     }
@@ -87,7 +87,7 @@ public class SchedulePlaceService {
                 .actor(user)
                 .entityId(s.getId())
                 .type(CalendarHistoryType.SCHEDULE_LOCATION_UPDATED)
-                .changedFields(toJson(diff))
+                .changedFields(diff)
                 .build();
         calendarHistoryRepository.save(history);
         return toDto(sp,sp.getPlace());
@@ -162,7 +162,7 @@ public class SchedulePlaceService {
                 .actor(user)
                 .entityId(s.getId())
                 .type(CalendarHistoryType.SCHEDULE_LOCATION_ADDED)
-                .changedFields("placeName: " + n)
+                .changedFields(Map.of("placeName", n))
                 .build();
         calendarHistoryRepository.save(history);
         return toDto(sp,p);
@@ -193,7 +193,7 @@ public class SchedulePlaceService {
                 .actor(user)
                 .entityId(s.getId())
                 .type(CalendarHistoryType.SCHEDULE_LOCATION_ADDED)
-                .changedFields("placeName: " + n)
+                .changedFields(Map.of("placeName", n))
                 .build();
         calendarHistoryRepository.save(history);
 
@@ -223,7 +223,7 @@ public class SchedulePlaceService {
                 .actor(user)
                 .entityId(s.getId())
                 .type(CalendarHistoryType.SCHEDULE_LOCATION_ADDED)
-                .changedFields("placeName: " + normalized)
+                .changedFields(Map.of("placeName", normalized))
                 .build();
         calendarHistoryRepository.save(history);
 
@@ -262,14 +262,5 @@ public class SchedulePlaceService {
                 null,
                 null
         );
-    }
-
-    private String toJson(Object value){
-        try{
-            return objectMapper.writeValueAsString(value);
-        } catch (JsonProcessingException e){
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR,"알림 페이로드 직렬화 실패");
-
-        }
     }
 }

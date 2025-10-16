@@ -10,6 +10,7 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
+import java.util.Map;
 
 @Entity
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -39,7 +40,7 @@ public class Notification {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "payload_json", nullable = false, columnDefinition = "jsonb")
-    private String payloadJson = "{}";
+    private Map<String,Object> payloadJson = Map.of();
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)

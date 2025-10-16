@@ -16,6 +16,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -50,7 +52,7 @@ public class AttachmentService {
                 .actor(user)
                 .entityId(s.getId())
                 .type(CalendarHistoryType.SCHEDULE_ATTACHMENT_REMOVED)
-                .changedFields("attachmentName: " + attachmentName)
+                .changedFields(Map.of("attachmentName",attachmentName))
                 .build();
         calendarHistoryRepository.save(history);
     }

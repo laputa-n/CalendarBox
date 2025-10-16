@@ -7,10 +7,13 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
+import java.util.Map;
 
 @Entity
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -36,8 +39,9 @@ public class CalendarHistory {
     @Enumerated(EnumType.STRING)
     private CalendarHistoryType type;
 
-    @Column(name = "changed_fields", nullable=false, columnDefinition = "jsonb")
-    private String changedFields = "{}";
+    @Column(name = "changed_fields", nullable = false)
+    @JdbcTypeCode(SqlTypes.JSON)
+    private Map<String, Object> changedFields = Map.of();
 
     @CreatedDate
     @Column(name = "created_at")
@@ -48,11 +52,11 @@ public class CalendarHistory {
                             Member actor,
                             Long entityId,
                             CalendarHistoryType type,
-                            String changedFields) {
+                            Map<String,Object> changedFields) {
         this.calendar = calendar;
         this.actor = actor;
         this.entityId = entityId;
         this.type = type;
-        this.changedFields = (changedFields == null ? "{}" : changedFields);
+        this.changedFields = (changedFields == null ? Map.of() : changedFields);
     }
 }

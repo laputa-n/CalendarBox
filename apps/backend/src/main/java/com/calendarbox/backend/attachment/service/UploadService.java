@@ -19,6 +19,7 @@ import org.apache.commons.io.FilenameUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -76,7 +77,7 @@ public class UploadService {
                 .actor(member)
                 .entityId(schedule.getId())
                 .type(CalendarHistoryType.SCHEDULE_ATTACHMENT_ADDED)
-                .changedFields("attachmentName: " + saved.getOriginalName())
+                .changedFields(Map.of("attachmentName",saved.getOriginalName()))
                 .build();
         calendarHistoryRepository.save(history);
 
