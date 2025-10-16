@@ -316,13 +316,13 @@ public class ScheduleService {
                         .actor(user)
                         .type(NotificationType.INVITED_TO_SCHEDULE)
                         .resourceId(sp.getId())
-                        .payloadJson(toJson(Map.of(
+                        .payloadJson(Map.of(
                                 "scheduleId", schedule.getId(),
                                 "scheduleTitle", schedule.getTitle(),
                                 "scheduleStartAt", schedule.getStartAt(),
                                 "scheduleEndAt", schedule.getEndAt(),
                                 "actorName", user.getName()
-                        )))
+                        ))
                         .dedupeKey("scheduleInvite:" + sp.getId())       // 재발행 방지
                         .build())
                 .toList();
