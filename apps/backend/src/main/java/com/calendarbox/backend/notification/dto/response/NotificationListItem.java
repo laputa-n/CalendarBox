@@ -18,7 +18,7 @@ public record NotificationListItem(
         return new NotificationListItem(
                 n.getId(),
                 n.getType(),
-                n.getPayloadJson(),
+                n.getPayloadJson().toString(),
                 n.getCreatedAt(),
                 n.getReadAt(),
                 n.getActor() != null ? ActorSummary.from(n.getActor()) : null
