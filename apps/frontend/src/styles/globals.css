@@ -1,0 +1,66 @@
+/*
+/* 스크린 리더 전용 텍스트 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* 포커스 표시 개선 */
+*:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* 고대비 모드 지원 */
+@media (prefers-contrast: high) {
+  * {
+    border-color: ButtonText !important;
+  }
+  
+  button, input, select, textarea {
+    border: 2px solid ButtonText !important;
+  }
+}
+
+/* 애니메이션 줄이기 설정 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* 다크 모드 지원 */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #1f2937;
+    --bg-secondary: #374151;
+    --text-primary: #f9fafb;
+    --text-secondary: #d1d5db;
+    --border-color: #4b5563;
+  }
+}
+
+/* 프린트 스타일 */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  * {
+    background: white !important;
+    color: black !important;
+  }
+  
+  a[href]:after {
+    content: " (" attr(href) ")";
+  }
+}
