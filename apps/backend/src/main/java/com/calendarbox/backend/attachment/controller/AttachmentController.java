@@ -80,11 +80,7 @@ public class AttachmentController {
             @PathVariable Long attachmentId,
             @RequestParam(defaultValue = "false") boolean inline
     ) {
-        Attachment a = attachmentRepository.findById(attachmentId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ATTACHMENT_NOT_FOUND));
-        // TODO: 권한검사 authz.checkCanReadSchedule(userId, a.getSchedule().getId());
-
-        String url = storage.presignGet(a.getObjectKey(), a.getOriginalName(), inline);
+        String url = attachmentService.getDownloadUrl(userId, attachmentId, inline);
 
         return ResponseEntity.ok()
                 .contentType(MediaType.TEXT_PLAIN)
