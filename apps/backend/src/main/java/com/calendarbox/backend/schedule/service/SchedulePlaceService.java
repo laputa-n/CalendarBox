@@ -1,8 +1,11 @@
 package com.calendarbox.backend.schedule.service;
 
+import com.calendarbox.backend.calendar.domain.Calendar;
 import com.calendarbox.backend.calendar.domain.CalendarHistory;
 import com.calendarbox.backend.calendar.enums.CalendarHistoryType;
+import com.calendarbox.backend.calendar.enums.CalendarMemberStatus;
 import com.calendarbox.backend.calendar.repository.CalendarHistoryRepository;
+import com.calendarbox.backend.calendar.repository.CalendarMemberRepository;
 import com.calendarbox.backend.global.error.BusinessException;
 import com.calendarbox.backend.global.error.ErrorCode;
 import com.calendarbox.backend.member.domain.Member;
@@ -15,10 +18,10 @@ import com.calendarbox.backend.schedule.dto.request.AddSchedulePlaceRequest;
 import com.calendarbox.backend.schedule.dto.request.PlaceReorderRequest;
 import com.calendarbox.backend.schedule.dto.request.SchedulePlaceEditRequest;
 import com.calendarbox.backend.schedule.dto.response.SchedulePlaceDto;
+import com.calendarbox.backend.schedule.enums.ScheduleParticipantStatus;
+import com.calendarbox.backend.schedule.repository.ScheduleParticipantRepository;
 import com.calendarbox.backend.schedule.repository.SchedulePlaceRepository;
 import com.calendarbox.backend.schedule.repository.ScheduleRepository;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,20 +33,24 @@ import java.util.List;
 import java.util.Map;
 
 @Service
-@Transactional(readOnly = false)
+@Transactional
 @RequiredArgsConstructor
 public class SchedulePlaceService {
     private final SchedulePlaceRepository schedulePlaceRepository;
     private final PlaceRepository placeRepository;
     private final ScheduleRepository scheduleRepository;
-    private final ObjectMapper objectMapper;
+    private final CalendarMemberRepository calendarMemberRepository;
     private final MemberRepository memberRepository;
     private final CalendarHistoryRepository calendarHistoryRepository;
+    private final ScheduleParticipantRepository scheduleParticipantRepository;
 
     public SchedulePlaceDto addPlace(Long userId, Long scheduleId, AddSchedulePlaceRequest req){
-        //user 검증 필요
-        int nextPos = schedulePlaceRepository.findMaxPositionByScheduleId(scheduleId)+1;
+        Schedule schedule = scheduleRepository.findById(scheduleId).orElseThrow(()->new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
+        Calendar calendar = schedule.getCalendar();
+        if(!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(calendar.getId(), userId, CalendarMemberStatus.ACCEPTED) && !scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatus(scheduleId,userId, ScheduleParticipantStatus.ACCEPTED))
+            throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
 
+        int nextPos = schedulePlaceRepository.findMaxPositionByScheduleId(scheduleId)+1;
         return switch(req.mode()){
             case MANUAL -> handleManual(userId,scheduleId,req,nextPos);
             case EXISTING -> handleExisting(userId,scheduleId,req,nextPos);
@@ -55,9 +62,12 @@ public class SchedulePlaceService {
         Member user = memberRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
         SchedulePlace sp = schedulePlaceRepository.findById(schedulePlaceId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_PLACE_NOT_FOUND));
-        schedulePlaceRepository.delete(sp);
         Schedule s = sp.getSchedule();
+        Calendar c = s.getCalendar();
+        if(!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(c.getId(), userId, CalendarMemberStatus.ACCEPTED) && !scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatus(scheduleId,userId,ScheduleParticipantStatus.ACCEPTED))
+            throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
 
+        s.removePlace(sp);
         CalendarHistory history = CalendarHistory.builder()
                 .calendar(s.getCalendar())
                 .actor(user)
@@ -74,9 +84,13 @@ public class SchedulePlaceService {
         if(schedulePlaceRepository.existsByScheduleIdAndName(scheduleId, newName)) throw new BusinessException(ErrorCode.SCHEDULE_PLACE_NAME_DUP);
 
         SchedulePlace sp = schedulePlaceRepository.findById(schedulePlaceId).orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_PLACE_NOT_FOUND));
+        Schedule s = sp.getSchedule();
+        Calendar c = s.getCalendar();
+        if(!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(c.getId(),userId, CalendarMemberStatus.ACCEPTED)
+                && !scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatus(scheduleId,userId, ScheduleParticipantStatus.ACCEPTED))
+            throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
         String oldName = sp.getName();
         sp.changeName(newName);
-        Schedule s = sp.getSchedule();
 
         Map<String,Object> diff = new HashMap<>();
         diff.put("oldName", oldName);
@@ -94,12 +108,14 @@ public class SchedulePlaceService {
     }
 
     public List<SchedulePlaceDto> reorder(Long userId, Long scheduleId, PlaceReorderRequest req){
+        Schedule schedule = scheduleRepository.findById(scheduleId).orElseThrow(()->new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
+        Calendar calendar = schedule.getCalendar();
+        if(!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(calendar.getId(), userId, CalendarMemberStatus.ACCEPTED) && !scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatus(scheduleId,userId, ScheduleParticipantStatus.ACCEPTED))
+            throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+
         if(req.positions() == null || req.positions().isEmpty()) {
             throw new BusinessException(ErrorCode.INVALID_JSON);
         }
-
-        Schedule s = scheduleRepository.findById(scheduleId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
 
         Map<Long,Integer> desired = new HashMap<>();
         for(var it: req.positions()){
@@ -155,7 +171,9 @@ public class SchedulePlaceService {
                 .name(n)
                 .position(nextPos)
                 .build();
-        schedulePlaceRepository.save(sp);
+        s.addPlace(sp);
+        scheduleRepository.save(s);
+        scheduleRepository.flush();
 
         CalendarHistory history = CalendarHistory.builder()
                 .calendar(s.getCalendar())
@@ -186,7 +204,10 @@ public class SchedulePlaceService {
                 .name(n)
                 .position(nextPos)
                 .build();
-        schedulePlaceRepository.save(sp);
+
+        s.addPlace(sp);
+        scheduleRepository.save(s);
+        scheduleRepository.flush();
 
         CalendarHistory history = CalendarHistory.builder()
                 .calendar(s.getCalendar())
@@ -216,7 +237,10 @@ public class SchedulePlaceService {
                 .name(normalized)
                 .position(nextPos)
                 .build();
-        schedulePlaceRepository.save(sp);
+
+        s.addPlace(sp);
+        scheduleRepository.save(s);
+        scheduleRepository.flush();
 
         CalendarHistory history = CalendarHistory.builder()
                 .calendar(s.getCalendar())
@@ -232,7 +256,6 @@ public class SchedulePlaceService {
 
     private static String normalize(String s) {return s == null ? null : s.trim();}
     private static boolean hasText(String s){ return s != null && !s.trim().isEmpty(); }
-
     private SchedulePlaceDto toDto(SchedulePlace sp, Place p) {
         Long placeId = (sp.getPlace() != null) ? sp.getPlace().getId() : null;
         SchedulePlaceDto.PlaceSnapShot snapshot = (p == null) ? null :
