@@ -20,15 +20,17 @@ public class UploadController {
     public UploadController(UploadService svc){ this.svc = svc; }
 
     @PostMapping("/presign")
-    public ResponseEntity<ApiResponse<PresignResponse>> presign(@AuthenticationPrincipal(expression="id") Long userId,
-                                                 @RequestBody PresignRequest req) {
+    public ResponseEntity<ApiResponse<PresignResponse>> presign(
+            @AuthenticationPrincipal(expression="id") Long userId,
+            @RequestBody PresignRequest req) {
         var data = svc.presign(userId, req);
         return ResponseEntity.ok(ApiResponse.ok("presign 성공",data));
     }
 
     @PostMapping("/complete")
-    public ResponseEntity<ApiResponse<AttachmentDto>> complete(@AuthenticationPrincipal(expression="id") Long userId,
-                                  @RequestBody CompleteRequest req) {
+    public ResponseEntity<ApiResponse<AttachmentDto>> complete(
+            @AuthenticationPrincipal(expression="id") Long userId,
+            @RequestBody CompleteRequest req) {
         var data = svc.complete(userId, req);
         return ResponseEntity.ok(ApiResponse.ok("업로드 성공",data));
     }
