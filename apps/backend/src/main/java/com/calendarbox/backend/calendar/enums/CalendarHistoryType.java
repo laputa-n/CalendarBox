@@ -1,0 +1,25 @@
+package com.calendarbox.backend.calendar.enums;
+
+public enum CalendarHistoryType {
+    CALENDAR_UPDATED, //v
+
+    CALENDAR_MEMBER_ADDED, //v
+    CALENDAR_MEMBER_REMOVED, //v
+
+    SCHEDULE_CREATED, //v
+    SCHEDULE_UPDATED, //v
+    SCHEDULE_DELETED, //v
+
+    SCHEDULE_PARTICIPANT_ADDED, //v
+    SCHEDULE_PARTICIPANT_REMOVED, //v
+
+    SCHEDULE_LINK_ADDED, // api 자체가 없음 -> 구현해야함 명세부터
+    SCHEDULE_LINK_REMOVED,
+
+    SCHEDULE_LOCATION_ADDED, //v
+    SCHEDULE_LOCATION_UPDATED, //v
+    SCHEDULE_LOCATION_REMOVED, //v
+
+    SCHEDULE_ATTACHMENT_ADDED, //v
+    SCHEDULE_ATTACHMENT_REMOVED //v
+}

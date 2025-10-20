@@ -16,6 +16,8 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+        jdbc:
+          time_zone: UTC
     show-sql: true
 
   data:
@@ -42,7 +44,13 @@ logging:
 
 kakao:
   client_id: 72fecab83ee9fd949f17b58c0bdc474d
-  redirect_uri: http://localhost:8080/auth/kakao/callback
+  redirect_uri: http://localhost:8080/api/auth/kakao/callback
+
+naver:
+  search:
+    client-id: 3ZWem3_2PxmTfa8HPT7K
+    client-secret: vSGs1rH3R4
+
 
 auth:
   jwt:
@@ -60,3 +68,14 @@ auth:
 security:
   cors:
     allowed-origins: "http://localhost:3000,https://your-frontend.com"
+
+app:
+  s3:
+    bucket: calendarbox
+    endpoint: http://localhost:9000  # 운영 전환 시 삭제 및 수정 예정
+    region: us-east-1
+    accessKey: minio # 운영 전환 시 삭제 및 수정 예정
+    secretKey: minio123 # 운영 전환 시 삭제 및 수정 예정
+    usePathStyle: true # 운영 전환 시 삭제 및 수정 예정
+    presignMinutes: 5
+    thumbPrefix: "thumb/256"

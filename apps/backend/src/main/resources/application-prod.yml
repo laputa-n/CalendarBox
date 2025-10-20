@@ -27,6 +27,9 @@ spring:
     enabled: true
     baseline-on-migrate: true
 
+server:
+  forward-headers-strategy: framework
+
 management:
   endpoints:
     web:
@@ -45,6 +48,11 @@ logging:
 kakao:
   client_id: ${KAKAO_CLIENT_ID}
   redirect_uri: ${KAKAO_REDIRECT_URI}  # 예: https://your-domain.com/auth/kakao/callback
+
+naver:
+  search:
+    client-id: ${NAVER_CLIENT_ID}
+    client-secret: ${NAVER_CLIENT_SECRET}
 
 auth:
   jwt:
