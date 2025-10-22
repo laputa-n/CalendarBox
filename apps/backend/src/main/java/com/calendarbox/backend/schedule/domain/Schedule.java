@@ -168,6 +168,11 @@ public class Schedule {
         sr.setSchedule(this);
     }
 
+    public void removeRecurrence(ScheduleRecurrence sr){
+        recurrence = null;
+        sr.setSchedule(null);
+    }
+
 
     public static Schedule cloneHeader(
             Schedule src,

@@ -14,7 +14,9 @@ import com.calendarbox.backend.schedule.domain.Schedule;
 import com.calendarbox.backend.schedule.domain.ScheduleLink;
 import com.calendarbox.backend.schedule.dto.request.CreateScheduleLinkRequest;
 import com.calendarbox.backend.schedule.dto.response.ScheduleLinkDto;
+import com.calendarbox.backend.schedule.enums.ScheduleParticipantStatus;
 import com.calendarbox.backend.schedule.repository.ScheduleLinkRepository;
+import com.calendarbox.backend.schedule.repository.ScheduleParticipantRepository;
 import com.calendarbox.backend.schedule.repository.ScheduleRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -33,11 +35,14 @@ public class ScheduleLinkService {
     private final ScheduleLinkRepository scheduleLinkRepository;
     private final ScheduleRepository scheduleRepository;
     private final CalendarHistoryRepository calendarHistoryRepository;
-    private final ObjectMapper objectMapper;
+    private final ScheduleParticipantRepository scheduleParticipantRepository;
+
     public ScheduleLinkDto add(Long userId, Long scheduleId, CreateScheduleLinkRequest request) {
         Member user = memberRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
         Schedule schedule = scheduleRepository.findById(scheduleId).orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
-        if(!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(schedule.getCalendar().getId(),user.getId(), CalendarMemberStatus.ACCEPTED)) throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+        if(!schedule.getCreatedBy().getId().equals(userId)
+        && !scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatus(scheduleId,userId, ScheduleParticipantStatus.ACCEPTED))
+            throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
 
         if(scheduleLinkRepository.existsBySchedule_IdAndUrl(schedule.getId(),request.url())) throw new BusinessException(ErrorCode.SCHEDULE_LINK_ALREADY_EXISTS);
         String label = request.label() == null? request.url() : request.label();
@@ -46,9 +51,7 @@ public class ScheduleLinkService {
         ScheduleLink link = ScheduleLink.of(request.url(),label);
         schedule.addLink(link);
 
-        scheduleLinkRepository.save(link);
-        scheduleLinkRepository.flush();
-
+        scheduleRepository.flush();
 
         calendarHistoryRepository.save(CalendarHistory.builder()
                 .calendar(schedule.getCalendar())
@@ -72,11 +75,13 @@ public class ScheduleLinkService {
     }
     public void delete(Long userId, Long scheduleId, Long linkId){
         Member user = memberRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
-        Schedule schedule = scheduleRepository.findById(scheduleId).orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
         ScheduleLink link = scheduleLinkRepository.findById(linkId).orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_LINK_NOT_FOUND));
+        Schedule schedule = link.getSchedule();
 
-        Calendar calendar = schedule.getCalendar();
-        if(!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(calendar.getId(),user.getId(),CalendarMemberStatus.ACCEPTED)) throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+        if(!schedule.getCreatedBy().getId().equals(userId)
+                && !scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatus(scheduleId,userId, ScheduleParticipantStatus.ACCEPTED))
+            throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+
         schedule.removeLink(link);
 
         calendarHistoryRepository.save(CalendarHistory.builder()
