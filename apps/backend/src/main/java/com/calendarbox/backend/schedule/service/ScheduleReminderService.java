@@ -6,6 +6,8 @@ import com.calendarbox.backend.schedule.domain.Schedule;
 import com.calendarbox.backend.schedule.domain.ScheduleReminder;
 import com.calendarbox.backend.schedule.dto.request.ReminderRequest;
 import com.calendarbox.backend.schedule.dto.response.ReminderResponse;
+import com.calendarbox.backend.schedule.enums.ScheduleParticipantStatus;
+import com.calendarbox.backend.schedule.repository.ScheduleParticipantRepository;
 import com.calendarbox.backend.schedule.repository.ScheduleReminderRepository;
 import com.calendarbox.backend.schedule.repository.ScheduleRepository;
 import lombok.RequiredArgsConstructor;
@@ -18,16 +20,21 @@ import org.springframework.transaction.annotation.Transactional;
 public class ScheduleReminderService {
     private final ScheduleRepository scheduleRepository;
     private final ScheduleReminderRepository scheduleReminderRepository;
+    private final ScheduleParticipantRepository scheduleParticipantRepository;
     public ReminderResponse create(Long userId, Long scheduleId, ReminderRequest req) {
-        //userId 검증 필요
         Schedule s = scheduleRepository.findById(scheduleId).orElseThrow
                 (() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
         if(scheduleReminderRepository.findAllMinutesBeforeBySchedule_Id(scheduleId).contains(req.minutesBefore())){
             throw new BusinessException(ErrorCode.REMINDER_MINUTES_DUP);
         }
-        ScheduleReminder r = ScheduleReminder.create(s, req.minutesBefore());
+        if(!s.getCreatedBy().getId().equals(userId)
+            && !scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatus(scheduleId,userId, ScheduleParticipantStatus.ACCEPTED))
+            throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
 
-        scheduleReminderRepository.save(r);
+        ScheduleReminder r = ScheduleReminder.of(req.minutesBefore());
+        s.addReminder(r);
+        scheduleRepository.save(s);
+        scheduleRepository.flush();
 
         return new ReminderResponse(r.getId(), r.getMinutesBefore());
     }
@@ -35,6 +42,10 @@ public class ScheduleReminderService {
     public void delete(Long userId, Long scheduleId, Long reminderId) {
         var r = scheduleReminderRepository.findById(reminderId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RECURRENCE_NOT_FOUND));
-        scheduleReminderRepository.delete(r);
+        Schedule s = r.getSchedule();
+        if(!s.getCreatedBy().getId().equals(userId) && !scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatus(scheduleId,userId, ScheduleParticipantStatus.ACCEPTED))
+            throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+
+        s.removeReminder(r);
     }
 }
