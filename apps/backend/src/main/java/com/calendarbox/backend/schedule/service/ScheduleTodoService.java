@@ -36,33 +36,37 @@ public class ScheduleTodoService {
 
         Schedule s = scheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
-        if(!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(s.getCalendar().getId(),userId,ACCEPTED)
-                && !scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatus(s.getId(),userId, ScheduleParticipantStatus.ACCEPTED)){
+
+        if(!s.getCreatedBy().getId().equals(userId)
+                && !calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(s.getCalendar().getId(),userId,ACCEPTED)
+                && !scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatus(s.getId(),userId, ScheduleParticipantStatus.ACCEPTED))
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
-        }
 
         if (req.content() == null || req.content().isBlank())
             throw new BusinessException(ErrorCode.VALIDATION_ERROR);
 
-        var scheduleRef = scheduleRepository.getReferenceById(scheduleId);
         int next = scheduleTodoRepository.findMaxOrderNo(scheduleId) + 1;
 
-        var todo = ScheduleTodo.create(scheduleRef, req.content().trim(), next);
-        var saved = scheduleTodoRepository.save(todo);
+        var todo = ScheduleTodo.of(req.content().trim(),false, next);
+        s.addTodo(todo);
+        ScheduleTodo saved = scheduleTodoRepository.save(todo);
         return TodoResponse.from(saved);
     }
 
     public TodoResponse updateContent(Long userId, Long scheduleId, Long todoId, TodoUpdateRequest req) {
         Schedule s = scheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
-        if(!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(s.getCalendar().getId(),userId,ACCEPTED)
+        if(!s.getCreatedBy().getId().equals(userId)
+                && !calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(s.getCalendar().getId(),userId,ACCEPTED)
                 && !scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatus(s.getId(),userId, ScheduleParticipantStatus.ACCEPTED)){
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
         }
 
-        var t = getAndCheck(userId, scheduleId, todoId);
+        var t = getAndCheck(scheduleId, todoId);
+
         if (req.content() == null || req.content().isBlank())
             throw new BusinessException(ErrorCode.REQUEST_NO_CHANGES);
+
         t.editContent(req.content().trim());
         return TodoResponse.from(t);
     }
@@ -71,11 +75,12 @@ public class ScheduleTodoService {
 
         Schedule s = scheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
-        if(!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(s.getCalendar().getId(),userId,ACCEPTED)
+        if(!s.getCreatedBy().getId().equals(userId)
+                && !calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(s.getCalendar().getId(),userId,ACCEPTED)
                 && !scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatus(s.getId(),userId, ScheduleParticipantStatus.ACCEPTED)){
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
         }
-        var t = getAndCheck(userId, scheduleId, todoId);
+        var t = getAndCheck(scheduleId, todoId);
         if(t.isDone()) t.makeNotDone();
         else t.makeDone();
         return TodoResponse.from(t);
@@ -86,7 +91,9 @@ public class ScheduleTodoService {
 
         Schedule s = scheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
-        if(!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(s.getCalendar().getId(),userId,ACCEPTED)
+
+        if(!s.getCreatedBy().getId().equals(userId)
+                && !calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(s.getCalendar().getId(),userId,ACCEPTED)
                 && !scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatus(s.getId(),userId, ScheduleParticipantStatus.ACCEPTED)){
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
         }
@@ -104,22 +111,21 @@ public class ScheduleTodoService {
             Integer newPos = desired.get(t.getId());
             if (newPos != null && t.getOrderNo() != newPos) t.setOrderNo(newPos);
         }
-        // flush는 트랜잭션 커밋 시점
     }
 
     public void delete(Long userId, Long scheduleId, Long todoId) {
         Schedule s = scheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
-        if(!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(s.getCalendar().getId(),userId,ACCEPTED)
-                && !scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatus(s.getId(),userId, ScheduleParticipantStatus.ACCEPTED)){
+        if(!s.getCreatedBy().getId().equals(userId)
+                && !scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatus(s.getId(),userId, ScheduleParticipantStatus.ACCEPTED))
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
-        }
 
-        var t = getAndCheck(userId, scheduleId, todoId);
-        scheduleTodoRepository.delete(t);
+
+        var t = getAndCheck(scheduleId, todoId);
+        s.removeTodo(t);
     }
 
-    private ScheduleTodo getAndCheck(Long userId, Long scheduleId, Long todoId) {
+    private ScheduleTodo getAndCheck(Long scheduleId, Long todoId) {
         var t = scheduleTodoRepository.findById(todoId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.TODO_NOT_FOUND));
         if (!t.getSchedule().getId().equals(scheduleId))
