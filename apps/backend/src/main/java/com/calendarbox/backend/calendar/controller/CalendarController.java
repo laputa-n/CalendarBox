@@ -7,10 +7,7 @@ import com.calendarbox.backend.calendar.enums.CalendarMemberSort;
 import com.calendarbox.backend.calendar.enums.CalendarMemberStatus;
 import com.calendarbox.backend.calendar.enums.CalendarType;
 import com.calendarbox.backend.calendar.enums.Visibility;
-import com.calendarbox.backend.calendar.service.CalendarMemberQueryService;
-import com.calendarbox.backend.calendar.service.CalendarMemberService;
-import com.calendarbox.backend.calendar.service.CalendarQueryService;
-import com.calendarbox.backend.calendar.service.CalendarService;
+import com.calendarbox.backend.calendar.service.*;
 import com.calendarbox.backend.global.dto.PageResponse;
 import com.calendarbox.backend.global.dto.ApiResponse;
 import com.calendarbox.backend.global.error.BusinessException;
@@ -29,6 +26,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
@@ -41,6 +39,7 @@ public class CalendarController {
     private final CalendarMemberService calendarMemberService;
     private final CalendarMemberQueryService calendarMemberQueryService;
     private final ScheduleService scheduleService;
+    private final CalendarHistoryQueryService calendarHistoryQueryService;
 
     @PostMapping("/calendars")
     public ResponseEntity<ApiResponse<CreateCalendarResponse>> createCalendar(
@@ -156,5 +155,20 @@ public class CalendarController {
         var data = scheduleService.clone(userId, calendarId, request);
 
         return ResponseEntity.ok(ApiResponse.ok("일정 복제 성공", data));
+    }
+
+    @GetMapping("/calendars/{calendarId}/histories")
+    public ResponseEntity<ApiResponse<PageResponse<CalendarHistoryDto>>> getHistories(
+            @AuthenticationPrincipal(expression="id") Long userId,
+            @PathVariable Long calendarId,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)Instant to
+    ){
+        var pageResult = calendarHistoryQueryService.getHistories(userId,calendarId,from,to);
+        var data = PageResponse.of(pageResult);
+
+        return ResponseEntity.ok(ApiResponse.ok("캘린더 히스토리 조회 성공",data));
     }
 }
