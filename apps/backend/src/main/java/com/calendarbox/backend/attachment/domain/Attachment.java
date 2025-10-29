@@ -1,15 +1,19 @@
 package com.calendarbox.backend.attachment.domain;
 
+import com.calendarbox.backend.expense.domain.ExpenseAttachment;
 import com.calendarbox.backend.member.domain.Member;
 import com.calendarbox.backend.schedule.domain.Schedule;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
@@ -21,6 +25,7 @@ public class Attachment {
     @Column(name = "attachment_id")
     private Long id;
 
+    @Setter
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "schedule_id", nullable = false)
     private Schedule schedule;
@@ -51,6 +56,9 @@ public class Attachment {
     @Column(name = "is_img", nullable = false)
     private Boolean isImg;
 
+    @OneToMany(mappedBy = "attachment", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ExpenseAttachment> expenses = new ArrayList<>();
+
 
     public static Attachment of(Schedule schedule, Member createdBy,
                                 String originalName, String objectKey,
@@ -74,5 +82,14 @@ public class Attachment {
         if (this.mimeType != null) this.mimeType = this.mimeType.toLowerCase();
         this.isImg = this.mimeType != null && this.mimeType.startsWith("image/");
     }
-    public void setSchedule(Schedule schedule){ this.schedule = schedule; }
+
+    public void addExpense(ExpenseAttachment expense) {
+        expenses.add(expense);
+        expense.setAttachment(this);
+    }
+
+    public void removeExpense(ExpenseAttachment expense){
+        expenses.remove(expense);
+        expense.setAttachment(null);
+    }
 }

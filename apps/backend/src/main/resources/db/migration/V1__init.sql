@@ -326,11 +326,10 @@ CREATE INDEX ix_hist_calendar_type   ON calendar_history (calendar_id, type, cre
 -- EXPENSE
 CREATE TABLE expense (
     expense_id BIGSERIAL PRIMARY KEY ,
-    schedule_id BIGINT REFERENCES schedule(schedule_id) ON DELETE SET NULL,
+    schedule_id BIGINT NOT NULL REFERENCES schedule(schedule_id) ON DELETE CASCADE ,
     name VARCHAR(50) NOT NULL,
     amount BIGINT NOT NULL,
     paid_at TIMESTAMPTZ DEFAULT now(),
-    memo TEXT,
     occurrence_date DATE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -343,12 +342,12 @@ CREATE INDEX ix_expense_schedule_paidat ON EXPENSE (schedule_id,paid_at DESC);
 
 -- EXPENSE_ATTACHMENT
 CREATE TABLE expense_attachment (
+    expense_attachment_id BIGSERIAL PRIMARY KEY,
     expense_id BIGINT NOT NULL REFERENCES expense(expense_id) ON DELETE CASCADE,
     attachment_id BIGINT NOT NULL REFERENCES attachment(attachment_id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (expense_id, attachment_id)
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
+CREATE UNIQUE INDEX uq_expense_attachment ON expense_attachment(expense_id,attachment_id);
 -- EXPENSE_LINE
 CREATE TABLE expense_line (
     expense_line_id BIGSERIAL PRIMARY KEY ,
