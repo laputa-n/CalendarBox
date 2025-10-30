@@ -381,3 +381,4 @@ CREATE UNIQUE INDEX uq_ocr_request_hash ON expense_ocr_task (request_hash);
 CREATE INDEX ix_expense_ocr_task_attachment ON expense_ocr_task(attachment_id);
 CREATE INDEX ix_expense_ocr_task_status     ON expense_ocr_task(status);
 CREATE INDEX ix_expense_ocr_task_expense    ON expense_ocr_task(expense_id);
+CREATE INDEX ix_expense_ocr_task_status_createdAt ON expense_ocr_task(status,created_at);

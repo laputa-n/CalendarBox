@@ -64,7 +64,7 @@ public class Expense {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "parsed_payload", columnDefinition = "jsonb")
-    private Map<String,Object> parsedPayload = Map.of();
+    private Map parsedPayload = Map.of();
 
     @OneToMany(mappedBy = "expense", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ExpenseLine> lines = new ArrayList<>();
@@ -90,5 +90,17 @@ public class Expense {
     public void removeAttachment(ExpenseAttachment attachment){
         attachments.remove(attachment);
         attachment.setExpense(null);
+    }
+
+    public static Expense fromReceipt(Schedule schedule, String name, Long amount, Instant paidAt, Map parsedPayload) {
+        Expense expense = new Expense();
+        expense.schedule = schedule;
+        expense.name = name;
+        expense.amount = amount;
+        expense.paidAt = paidAt;
+        expense.source = ExpenseSource.RECEIPT;
+        expense.receiptParseStatus = ReceiptParseStatus.SUCCESS;
+        expense.parsedPayload = parsedPayload;
+        return expense;
     }
 }

@@ -50,6 +50,9 @@ naver:
   search:
     client-id: 3ZWem3_2PxmTfa8HPT7K
     client-secret: vSGs1rH3R4
+  ocr:
+    invoke-url: https://h3viu0bk3j.apigw.ntruss.com/custom/v1/47296/a2428e41d80824e2918a5b78aaa6279b416eeaa31fa59aa031978cbd07ed0362/document/receipt
+    secret-key: SGRNS0FSakFDYWVKbm5TeWlNdUxISE9sQmNER3pqaFo=
 
 
 auth:

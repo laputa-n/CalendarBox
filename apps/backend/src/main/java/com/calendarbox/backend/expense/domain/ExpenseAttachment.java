@@ -34,4 +34,11 @@ public class ExpenseAttachment {
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    public static ExpenseAttachment of(Expense expense, Attachment attachment) {
+        ExpenseAttachment expenseAttachment = new ExpenseAttachment();
+        expenseAttachment.expense = expense;
+        expenseAttachment.attachment = attachment;
+        return expenseAttachment;
+    }
 }

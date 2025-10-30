@@ -46,4 +46,14 @@ public class ExpenseLine {
     @LastModifiedDate
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    public static ExpenseLine of(Expense expense, String label, Integer quantity, Long unitAmount, Long lineAmount) {
+        ExpenseLine expenseLine = new ExpenseLine();
+        expenseLine.expense = expense;
+        expenseLine.label = label;
+        expenseLine.quantity = quantity;
+        expenseLine.unitAmount = unitAmount;
+        expenseLine.lineAmount = lineAmount;
+        return expenseLine;
+    }
 }

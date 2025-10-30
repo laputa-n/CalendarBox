@@ -74,4 +74,11 @@ public class ExpenseOcrTask {
 
         return task;
     }
+
+    public void markRunning() { this.status = OcrTaskStatus.RUNNING; }
+    public void markSuccess() { this.status = OcrTaskStatus.SUCCESS; }
+    public void markFailed(String msg) { this.status = OcrTaskStatus.FAILED; this.errorMessage = msg; }
+    public void linkExpense(Expense e) { this.expense = e; }
+    public void updateRawResponse(Map<String,Object> raw) { this.rawResponse = raw; }
+    public void updateNormalized(Map<String,Object> norm) { this.normalized = norm; }
 }
