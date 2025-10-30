@@ -64,4 +64,14 @@ public class ExpenseOcrTask {
     @LastModifiedDate
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    public static ExpenseOcrTask of(Attachment attachment, Schedule schedule, String requestHash) {
+        ExpenseOcrTask task = new ExpenseOcrTask();
+        task.attachment = attachment;
+        task.schedule = schedule;
+        task.status = OcrTaskStatus.QUEUED;
+        task.requestHash = requestHash;
+
+        return task;
+    }
 }

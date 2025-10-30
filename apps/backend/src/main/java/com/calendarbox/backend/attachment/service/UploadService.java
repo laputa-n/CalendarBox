@@ -1,5 +1,6 @@
 package com.calendarbox.backend.attachment.service;
 
+import com.calendarbox.backend.expense.domain.ExpenseOcrTask;
 import com.calendarbox.backend.attachment.support.UploadCache;
 import com.calendarbox.backend.attachment.domain.Attachment;
 import com.calendarbox.backend.attachment.dto.request.CompleteRequest;
@@ -14,9 +15,12 @@ import com.calendarbox.backend.calendar.enums.CalendarMemberStatus;
 import com.calendarbox.backend.calendar.repository.CalendarHistoryRepository;
 import com.calendarbox.backend.calendar.repository.CalendarMemberRepository;
 import com.calendarbox.backend.calendar.repository.CalendarRepository;
+import com.calendarbox.backend.expense.enums.OcrTaskStatus;
+import com.calendarbox.backend.expense.repository.ExpenseOcrTaskRepository;
 import com.calendarbox.backend.global.error.BusinessException;
 import com.calendarbox.backend.global.error.ErrorCode;
 import com.calendarbox.backend.global.infra.storage.StorageClient;
+import com.calendarbox.backend.global.utils.HashUtil;
 import com.calendarbox.backend.member.domain.Member;
 import com.calendarbox.backend.member.repository.MemberRepository;
 import com.calendarbox.backend.schedule.domain.Schedule;
@@ -49,7 +53,7 @@ public class UploadService {
     private final MemberRepository memberRepository;   // 기존 것
     private final CalendarRepository calendarRepository;
     private final CalendarHistoryRepository calendarHistoryRepository;
-
+    private final ExpenseOcrTaskRepository expenseOcrTaskRepository;
     @Transactional(readOnly = true)
     public PresignResponse presign(Long userId, PresignRequest req) {
         Member user = memberRepository.findById(userId).orElseThrow(()->new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
@@ -64,10 +68,11 @@ public class UploadService {
 
         String ext = Optional.ofNullable(FilenameUtils.getExtension(req.filename()))
                 .map(String::toLowerCase).orElse("");
-        String key = "schedules/%d/%s.%s".formatted(req.scheduleId(), UUID.randomUUID(), ext);
+        String folder = req.isReceipt()?"receipts":"attachments";
+        String key = "schedules/%d/%s/%s.%s".formatted(req.scheduleId(),folder, UUID.randomUUID(), ext);
 
         String url = storage.presignPut(key, ct, req.size());
-        String uploadId = cache.put(new PresignRequest(req.scheduleId(), req.filename(), ct, req.size()));
+        String uploadId = cache.put(new PresignRequest(req.scheduleId(), req.filename(), ct, req.size(),req.isReceipt()));
         return new PresignResponse(uploadId, key, url);
     }
 
@@ -86,7 +91,11 @@ public class UploadService {
                 schedule, member, ctx.filename(), req.objectKey(), ctx.contentType(), ctx.size(), pos
         ));
         cache.remove(req.uploadId());
-
+        if(ctx.isReceipt() || saved.getObjectKey().contains("/receipts/")){
+            expenseOcrTaskRepository.save(
+                    ExpenseOcrTask.of(saved, schedule, HashUtil.sha256(saved.getObjectKey()))
+            );
+        }
         CalendarHistory history = CalendarHistory.builder()
                 .calendar(calendar)
                 .actor(member)
