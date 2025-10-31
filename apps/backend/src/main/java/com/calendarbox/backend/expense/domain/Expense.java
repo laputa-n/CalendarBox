@@ -103,4 +103,15 @@ public class Expense {
         expense.parsedPayload = parsedPayload;
         return expense;
     }
+
+    public static Expense fromManual(Schedule schedule, String name, Long amount, Instant paidAt, LocalDate occurrenceDate){
+        Expense expense = new Expense();
+        expense.schedule = schedule;
+        expense.name = name;
+        expense.amount = amount;
+        expense.paidAt = paidAt;
+        expense.source = ExpenseSource.MANUAL;
+        expense.occurrenceDate = occurrenceDate;
+        return expense;
+    }
 }
