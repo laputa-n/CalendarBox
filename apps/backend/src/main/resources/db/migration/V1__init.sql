@@ -300,46 +300,6 @@ CREATE TABLE attachment (
 );
 CREATE INDEX idx_attachment_schedule ON attachment(schedule_id);
 
--- EXPENSE
-CREATE TABLE expense (
-                         expense_id BIGSERIAL PRIMARY KEY,
-                         schedule_id BIGINT NOT NULL,
-                         calendar_id BIGINT NOT NULL,
-                         payer_id BIGINT NOT NULL,
-                         payer_name TEXT NOT NULL,
-                         amount DECIMAL(12,2) NOT NULL,
-                         source VARCHAR(100),
-                         paid_at TIMESTAMPTZ NOT NULL,
-                         created_at TIMESTAMPTZ NOT NULL,
-                         CONSTRAINT fk_expense_schedule FOREIGN KEY (schedule_id) REFERENCES schedule(schedule_id),
-                         CONSTRAINT fk_expense_calendar FOREIGN KEY (calendar_id) REFERENCES calendar(calendar_id),
-                         CONSTRAINT fk_expense_member FOREIGN KEY (payer_id) REFERENCES member(member_id)
-);
-
--- EXPENSE_SHARE
-CREATE TABLE expense_share (
-                               expense_share_id BIGSERIAL PRIMARY KEY,
-                               expense_id BIGINT NOT NULL,
-                               member_id BIGINT NOT NULL,
-                               share_amount DECIMAL(12,2) NOT NULL,
-                               CONSTRAINT fk_expense_share_expense FOREIGN KEY (expense_id) REFERENCES expense(expense_id),
-                               CONSTRAINT fk_expense_share_member FOREIGN KEY (member_id) REFERENCES member(member_id)
-);
-
--- RECEIPT
-CREATE TABLE receipt (
-                         receipt_id BIGSERIAL PRIMARY KEY,
-                         expense_id BIGINT NOT NULL,
-                         attachment_id BIGINT NOT NULL,
-                         vendor_name TEXT NOT NULL,
-                         vat DECIMAL(12,2) NOT NULL,
-                         items_json JSONB NOT NULL,
-                         created_at TIMESTAMPTZ NOT NULL,
-                         paid_at TIMESTAMPTZ NOT NULL,
-                         CONSTRAINT fk_receipt_expense FOREIGN KEY (expense_id) REFERENCES expense(expense_id),
-                         CONSTRAINT fk_receipt_attachment FOREIGN KEY (attachment_id) REFERENCES attachment(attachment_id)
-);
-
 -- CALENDAR_HISTORY
 CREATE TABLE calendar_history (
                          calendar_history_id BIGSERIAL PRIMARY KEY,
@@ -362,3 +322,63 @@ CREATE TABLE calendar_history (
 );
 CREATE INDEX ix_hist_calendar_time   ON calendar_history (calendar_id, created_at DESC);
 CREATE INDEX ix_hist_calendar_type   ON calendar_history (calendar_id, type, created_at DESC);
+
+-- EXPENSE
+CREATE TABLE expense (
+    expense_id BIGSERIAL PRIMARY KEY ,
+    schedule_id BIGINT NOT NULL REFERENCES schedule(schedule_id) ON DELETE CASCADE ,
+    name VARCHAR(50) NOT NULL,
+    amount BIGINT NOT NULL,
+    paid_at TIMESTAMPTZ DEFAULT now(),
+    occurrence_date DATE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    source VARCHAR(20) NOT NULL DEFAULT 'MANUAL' CHECK (source in ('MANUAL', 'RECEIPT')),
+    receipt_parse_status VARCHAR(15),
+    parsed_payload JSONB
+);
+
+CREATE INDEX ix_expense_schedule_paidat ON EXPENSE (schedule_id,paid_at DESC);
+
+-- EXPENSE_ATTACHMENT
+CREATE TABLE expense_attachment (
+    expense_attachment_id BIGSERIAL PRIMARY KEY,
+    expense_id BIGINT NOT NULL REFERENCES expense(expense_id) ON DELETE CASCADE,
+    attachment_id BIGINT NOT NULL REFERENCES attachment(attachment_id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX uq_expense_attachment ON expense_attachment(expense_id,attachment_id);
+-- EXPENSE_LINE
+CREATE TABLE expense_line (
+    expense_line_id BIGSERIAL PRIMARY KEY ,
+    expense_id BIGINT NOT NULL REFERENCES expense(expense_id) ON DELETE CASCADE,
+    label TEXT NOT NULL,
+    quantity INT NOT NULL DEFAULT 1,
+    unit_amount BIGINT NOT NULL DEFAULT 0,
+    line_amount BIGINT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX ix_expenseline_expense ON expense_line(expense_id);
+
+-- EXPENSE_OCR_TASK
+CREATE TABLE expense_ocr_task (
+    ocr_task_id BIGSERIAL PRIMARY KEY ,
+    attachment_id BIGINT NOT NULL REFERENCES attachment(attachment_id) ON DELETE CASCADE,
+    schedule_id BIGINT NOT NULL REFERENCES schedule(schedule_id) ON DELETE CASCADE,
+    expense_id BIGINT REFERENCES expense(expense_id) ON DELETE SET NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'QUEUED' CHECK ( status IN ('QUEUED', 'RUNNING', 'SUCCESS', 'FAILED')),
+    error_message TEXT,
+    raw_response JSONB,
+    normalized JSONB,
+    request_hash VARCHAR(64),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX uq_ocr_request_hash ON expense_ocr_task (request_hash);
+CREATE INDEX ix_expense_ocr_task_attachment ON expense_ocr_task(attachment_id);
+CREATE INDEX ix_expense_ocr_task_status     ON expense_ocr_task(status);
+CREATE INDEX ix_expense_ocr_task_expense    ON expense_ocr_task(expense_id);
+CREATE INDEX ix_expense_ocr_task_status_createdAt ON expense_ocr_task(status,created_at);
