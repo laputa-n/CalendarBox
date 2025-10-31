@@ -357,7 +357,7 @@ CREATE TABLE expense_line (
     unit_amount BIGINT NOT NULL DEFAULT 0,
     line_amount BIGINT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX ix_expenseline_expense ON expense_line(expense_id);
