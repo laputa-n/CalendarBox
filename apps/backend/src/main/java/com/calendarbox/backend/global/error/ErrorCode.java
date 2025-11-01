@@ -70,7 +70,9 @@ public enum ErrorCode {
     SCHEDULE_LINK_LABEL_DUP("SCHEDULE_LINK_LABEL_DUP", HttpStatus.CONFLICT,"링크 라벨이 중복입니다."),
     SCHEDULE_LINK_NOT_FOUND("SCHEDULE_LINK_NOT_FOUND", HttpStatus.NOT_FOUND, "링크를 찾을 수 없습니다."),
 
-    EXPENSE_NOT_FOUND("EXPENSE_NOT_FOUND", HttpStatus.NOT_FOUND, "지출이 존재하지 않습니다");
+    EXPENSE_NOT_FOUND("EXPENSE_NOT_FOUND", HttpStatus.NOT_FOUND, "지출이 존재하지 않습니다"),
+    EXPENSE_LINE_NOT_FOUND("EXPENSE_LINE_NOT_FOUND", HttpStatus.NOT_FOUND,"지출 항목이 존재하지 않습니다"),
+    LINE_AMOUNT_NOT_MATCH("LINE_AMOUNT_NOT_MATCH", HttpStatus.CONFLICT, "항목 총액이 맞지 않습니다");
 
     private final String code;
     private final HttpStatus status;
