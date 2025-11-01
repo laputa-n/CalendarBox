@@ -1,6 +1,7 @@
 package com.calendarbox.backend.expense.controller;
 
 import com.calendarbox.backend.expense.dto.request.AddExpenseRequest;
+import com.calendarbox.backend.expense.dto.request.EditExpenseRequest;
 import com.calendarbox.backend.expense.dto.response.AddExpenseResponse;
 import com.calendarbox.backend.expense.dto.response.ExpenseDetailResponse;
 import com.calendarbox.backend.expense.dto.response.ExpenseListResponse;
@@ -39,7 +40,7 @@ public class ExpenseController {
         return ResponseEntity.ok(ApiResponse.ok("지출 목록 조회 성공", ExpenseListResponse.of(items)));
     }
 
-    @GetMapping("{expenseId}")
+    @GetMapping("/{expenseId}")
     public ResponseEntity<ApiResponse<ExpenseDetailResponse>> getExpenseDetail(
             @AuthenticationPrincipal(expression = "id") Long userId,
             @PathVariable Long scheduleId,
@@ -49,5 +50,25 @@ public class ExpenseController {
         return ResponseEntity.ok(ApiResponse.ok("지출 상세 조회 성공",data));
     }
 
+    @PatchMapping("/{expenseId}")
+    public ResponseEntity<ApiResponse<ExpenseDetailResponse>> editExpense(
+            @AuthenticationPrincipal(expression = "id") Long userId,
+            @PathVariable Long scheduleId,
+            @PathVariable Long expenseId,
+            @RequestBody EditExpenseRequest req
+    ){
+        var data = expenseService.editExpense(userId,scheduleId,expenseId,req);
+        return ResponseEntity.ok(ApiResponse.ok("지출 내용 수정 성공", data));
+    }
 
+    @DeleteMapping("/{expenseId}")
+    public ResponseEntity<ApiResponse<Void>> deleteExpense(
+            @AuthenticationPrincipal(expression = "id") Long userId,
+            @PathVariable Long scheduleId,
+            @PathVariable Long expenseId
+    ){
+        expenseService.deleteExpense(userId,scheduleId,expenseId);
+
+        return ResponseEntity.ok(ApiResponse.ok("지출 삭제 성공", null));
+    }
 }

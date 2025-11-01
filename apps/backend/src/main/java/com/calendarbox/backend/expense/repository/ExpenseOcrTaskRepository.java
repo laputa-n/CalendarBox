@@ -1,5 +1,6 @@
 package com.calendarbox.backend.expense.repository;
 
+import com.calendarbox.backend.attachment.domain.Attachment;
 import com.calendarbox.backend.expense.domain.ExpenseOcrTask;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -22,4 +23,6 @@ public interface ExpenseOcrTaskRepository extends JpaRepository<ExpenseOcrTask, 
             nativeQuery = true
     )
     List<ExpenseOcrTask> lockQueuedForProcess(@Param("batch") int batch);
+
+    List<ExpenseOcrTask> findByAttachment(Attachment attachment);
 }
