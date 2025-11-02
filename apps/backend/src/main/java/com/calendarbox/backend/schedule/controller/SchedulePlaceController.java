@@ -22,6 +22,16 @@ public class SchedulePlaceController {
     private final SchedulePlaceService schedulePlaceService;
     private final SchedulePlaceQueryService schedulePlaceQueryService;
 
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<SchedulePlaceDto>>> getSchedulePlaces(
+            @AuthenticationPrincipal(expression = "id") Long userId,
+            @PathVariable Long scheduleId
+    ){
+        var data = schedulePlaceQueryService.getSchedulePlaces(userId,scheduleId);
+
+        return ResponseEntity.ok(ApiResponse.ok("스케줄 장소 목록 조회 성공", data));
+    }
+
     @PostMapping
     public ResponseEntity<ApiResponse<SchedulePlaceDto>> create(
             @AuthenticationPrincipal(expression = "id")Long userId,
@@ -41,7 +51,7 @@ public class SchedulePlaceController {
     ){
         schedulePlaceService.delete(userId,scheduleId,schedulePlaceId);
 
-        return ResponseEntity.ok(ApiResponse.ok("일정 장소가 삭제 성공",null));
+        return ResponseEntity.ok(ApiResponse.ok("일정 장소 삭제 성공",null));
     }
 
     @GetMapping("/{schedulePlaceId}")

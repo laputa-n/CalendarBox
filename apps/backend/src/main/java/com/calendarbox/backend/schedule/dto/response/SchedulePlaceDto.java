@@ -1,5 +1,7 @@
 package com.calendarbox.backend.schedule.dto.response;
 
+import com.calendarbox.backend.place.domain.Place;
+import com.calendarbox.backend.schedule.domain.SchedulePlace;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.math.BigDecimal;
@@ -31,4 +33,34 @@ public record SchedulePlaceDto(
             String providerPlaceKey
 
     ){}
+
+    public static SchedulePlaceDto of(SchedulePlace sp) {
+        Place p = sp.getPlace();
+        Long placeId = (p != null) ? p.getId() : null;
+
+        PlaceSnapShot snapshot = (p == null) ? null :
+                new PlaceSnapShot(
+                        p.getId(),
+                        p.getTitle(),
+                        p.getCategory(),
+                        p.getDescription(),
+                        p.getAddress(),
+                        p.getRoadAddress(),
+                        p.getLink(),
+                        p.getLat(),
+                        p.getLng(),
+                        p.getProvider(),
+                        p.getProviderPlaceKey()
+                );
+
+        return new SchedulePlaceDto(
+                sp.getId(),
+                sp.getSchedule().getId(),
+                placeId,
+                sp.getName(),
+                sp.getPosition(),
+                sp.getCreatedAt(),
+                snapshot
+        );
+    }
 }
