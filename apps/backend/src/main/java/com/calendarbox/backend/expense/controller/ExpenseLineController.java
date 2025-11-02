@@ -51,7 +51,7 @@ public class ExpenseLineController {
     ) {
         expenseLineService.deleteExpenseLine(userId,expenseId,expenseLineId);
 
-        return ResponseEntity.ok(ApiResponse.ok("지출 상세 항목 삭제 성공",null));
+        return ResponseEntity.ok(ApiResponse.ok("지출 항목 삭제 성공",null));
     }
 
     @GetMapping

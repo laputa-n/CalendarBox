@@ -28,7 +28,7 @@ public class ExpenseController {
             @RequestBody @Valid AddExpenseRequest req
             ) {
         var data = expenseService.addExpense(userId,scheduleId,req);
-        return ResponseEntity.ok(ApiResponse.ok("지출 추가 성공",data));
+        return ResponseEntity.ok(ApiResponse.ok("지출 등록 성공",data));
     }
 
     @GetMapping
