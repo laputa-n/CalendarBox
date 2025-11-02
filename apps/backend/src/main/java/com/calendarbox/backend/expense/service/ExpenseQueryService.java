@@ -53,7 +53,5 @@ public class ExpenseQueryService {
         Expense expense = expenseRepository.findById(expenseId).orElseThrow(() -> new BusinessException(ErrorCode.EXPENSE_NOT_FOUND));
 
         return ExpenseDetailResponse.from(expense);
-
-
     }
 }

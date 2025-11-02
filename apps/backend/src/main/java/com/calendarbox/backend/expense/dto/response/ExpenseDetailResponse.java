@@ -6,6 +6,7 @@ import com.calendarbox.backend.expense.enums.ReceiptParseStatus;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
 public record ExpenseDetailResponse(
@@ -19,7 +20,8 @@ public record ExpenseDetailResponse(
         Instant updatedAt,
         ExpenseSource source,
         ReceiptParseStatus receiptParseStatus,
-        Map<String,Object> parsedPayload
+        Map<String,Object> parsedPayload,
+        List<ExpenseLineDto> lines
 ) {
     public static ExpenseDetailResponse from(Expense expense) {
         return new ExpenseDetailResponse(
@@ -33,7 +35,10 @@ public record ExpenseDetailResponse(
                 expense.getUpdatedAt(),
                 expense.getSource(),
                 expense.getReceiptParseStatus(),
-                expense.getParsedPayload()
+                expense.getParsedPayload(),
+                expense.getLines().stream()
+                        .map(ExpenseLineDto::of)
+                        .toList()
         );
     }
 }
