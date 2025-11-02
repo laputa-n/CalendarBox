@@ -51,9 +51,22 @@ public class ExpenseLine {
         ExpenseLine expenseLine = new ExpenseLine();
         expenseLine.expense = expense;
         expenseLine.label = label;
-        expenseLine.quantity = quantity;
-        expenseLine.unitAmount = unitAmount;
+        expenseLine.quantity = (quantity == null || quantity <= 0) ? 1 : quantity;
+        expenseLine.unitAmount = (unitAmount != null) ? unitAmount : lineAmount / expenseLine.quantity;
         expenseLine.lineAmount = lineAmount;
         return expenseLine;
+    }
+
+    public void changeLabel(String label) {
+        this.label = label;
+    }
+    public void changeQuantity(Integer quantity) {
+        this.quantity = (quantity == null || quantity <= 0) ? 1 : quantity;
+    }
+    public void changeUnitAmount(Long unitAmount) {
+        this.unitAmount = (unitAmount == null) ? 0L : unitAmount;
+    }
+    public void changeLineAmount(Long lineAmount) {
+        this.lineAmount = (lineAmount == null) ? 0L : lineAmount;
     }
 }

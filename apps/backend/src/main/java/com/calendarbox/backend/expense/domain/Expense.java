@@ -3,12 +3,11 @@ package com.calendarbox.backend.expense.domain;
 import com.calendarbox.backend.expense.enums.ExpenseSource;
 import com.calendarbox.backend.expense.enums.ReceiptParseStatus;
 import com.calendarbox.backend.schedule.domain.Schedule;
-import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.JdbcType;
+import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import org.springframework.data.annotation.CreatedDate;
@@ -30,6 +29,7 @@ public class Expense {
     @Column(name = "expense_id")
     private Long id;
 
+    @Setter
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "schedule_id", nullable = false)
     private Schedule schedule;
@@ -102,5 +102,28 @@ public class Expense {
         expense.receiptParseStatus = ReceiptParseStatus.SUCCESS;
         expense.parsedPayload = parsedPayload;
         return expense;
+    }
+
+    public static Expense fromManual(Schedule schedule, String name, Long amount, Instant paidAt, LocalDate occurrenceDate){
+        Expense expense = new Expense();
+        expense.schedule = schedule;
+        expense.name = name;
+        expense.amount = amount;
+        expense.paidAt = paidAt;
+        expense.source = ExpenseSource.MANUAL;
+        expense.occurrenceDate = occurrenceDate;
+        return expense;
+    }
+
+    public void changeName(String name){
+        this.name = name;
+    }
+
+    public void chageAmount(Long amount){
+        this.amount = amount;
+    }
+
+    public void chagePaidAt(Instant paidAt){
+        this.paidAt = paidAt;
     }
 }
