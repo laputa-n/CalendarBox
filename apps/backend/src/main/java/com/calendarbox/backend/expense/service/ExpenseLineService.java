@@ -28,10 +28,8 @@ import java.util.Optional;
 @Transactional
 public class ExpenseLineService {
     private final MemberRepository memberRepository;
-    private final ScheduleRepository scheduleRepository;
     private final ExpenseRepository expenseRepository;
     private final ScheduleParticipantRepository scheduleParticipantRepository;
-    private final ScheduleReminderQueryService scheduleReminderQueryService;
     private final ExpenseLineRepository expenseLineRepository;
 
     public ExpenseLineDto addExpenseLine(Long userId, Long expenseId, AddExpenseLineRequest request){
@@ -77,5 +75,18 @@ public class ExpenseLineService {
             throw new BusinessException(ErrorCode.LINE_AMOUNT_NOT_MATCH);
 
         return ExpenseLineDto.of(expenseLine);
+    }
+
+    public void deleteExpenseLine(Long userId, Long expenseId, Long expenseLineId){
+        Member user = memberRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        Expense expense = expenseRepository.findById(expenseId).orElseThrow(() -> new BusinessException(ErrorCode.EXPENSE_NOT_FOUND));
+        Schedule schedule = expense.getSchedule();
+
+        if(!schedule.getCreatedBy().getId().equals(userId) && !scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatus(schedule.getId(),userId, ScheduleParticipantStatus.ACCEPTED))
+            throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+
+        ExpenseLine expenseLine = expenseLineRepository.findById(expenseLineId).orElseThrow(() -> new BusinessException(ErrorCode.EXPENSE_LINE_NOT_FOUND));
+
+        expense.removeLine(expenseLine);
     }
 }
