@@ -134,7 +134,7 @@ public class SchedulePlaceService {
         }
 
         List<SchedulePlaceDto> list = new ArrayList<>();
-        for(var sp:schedulePlaceRepository.findAllByScheduleId(scheduleId)){
+        for(var sp:schedulePlaceRepository.findAllByScheduleIdOrderByPositionAsc(scheduleId)){
             SchedulePlaceDto dto =toSimpleDto(sp);
             list.add(dto);
         }
