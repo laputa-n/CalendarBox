@@ -1,0 +1,20 @@
+# Python virtual environment
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Environment
+.env
+
+# Data artifacts
+export/
+processed/
+
+# Model files (optional, if large)
+model/*.pkl
+!model/*.py
+!model/README.md
+
+# Jupyter / notebooks (optional)
+*.ipynb_checkpoints/
