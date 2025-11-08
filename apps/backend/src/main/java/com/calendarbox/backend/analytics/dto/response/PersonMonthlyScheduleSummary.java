@@ -6,7 +6,7 @@ public record PersonMonthlyScheduleSummary(
         LocalDateTime month,
         Long personId,
         String personName,
-        Long meetCount,
-        Double totalDurationMin
+        Integer meetCount,
+        Long totalDurationMin
 ) {
 }

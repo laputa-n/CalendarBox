@@ -2,11 +2,12 @@ package com.calendarbox.backend.analytics.dto.response;
 
 import java.time.LocalDateTime;
 
-public record PlaceMonthlySummary(
+public record PlaceMonthlyExpenseSummary(
         LocalDateTime month,
         Long placeId,
         String placeName,
-        Long visitCount,
-        Double totalDurationTime
-) {
-}
+        Integer visitCount,
+        Long totalStayMin,
+        Long totalAmount,
+        Double avgAmount
+) {}

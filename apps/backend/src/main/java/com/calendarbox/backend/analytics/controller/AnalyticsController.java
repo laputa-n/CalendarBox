@@ -1,8 +1,6 @@
 package com.calendarbox.backend.analytics.controller;
 
-import com.calendarbox.backend.analytics.dto.response.InsightResponse;
-import com.calendarbox.backend.analytics.dto.response.PeopleStatItem;
-import com.calendarbox.backend.analytics.dto.response.PeopleStatSummary;
+import com.calendarbox.backend.analytics.dto.response.*;
 import com.calendarbox.backend.analytics.service.AnalyticsService;
 import com.calendarbox.backend.global.dto.ApiResponse;
 import com.calendarbox.backend.global.dto.PageResponse;
@@ -17,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
 import java.time.YearMonth;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/analytics")
@@ -37,7 +36,7 @@ public class AnalyticsController {
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM") YearMonth yearMonth
             ){
         var data = analyticsService.getPeopleSummary(userId,yearMonth);
-        return ResponseEntity.ok(ApiResponse.ok("사람 통계 요약 조회 성공", data));
+        return ResponseEntity.ok(ApiResponse.ok("사람 통계 요약 성공", data));
     }
 
     @GetMapping("/people")
@@ -51,5 +50,46 @@ public class AnalyticsController {
         var data = PageResponse.of(pageResult);
 
         return ResponseEntity.ok(ApiResponse.ok("사람 통계 목록 조회 성공", data));
+    }
+
+    @GetMapping("/place/summary")
+    public ResponseEntity<ApiResponse<PlaceStatSummary>> getPlaceSummary(
+            @AuthenticationPrincipal(expression = "id") Long userId,
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM") YearMonth yearMonth
+    ){
+        var data = analyticsService.getPlaceSummary(userId,yearMonth);
+
+        return ResponseEntity.ok(ApiResponse.ok("장소 통계 요약 성공", data));
+    }
+
+    @GetMapping("/place")
+    public ResponseEntity<ApiResponse<PageResponse<PlaceStatItem>>> getPlaceStatList(
+            @AuthenticationPrincipal(expression="id") Long userId,
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM") YearMonth yearMonth,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ){
+        var pageResult = analyticsService.getPlaceStatList(userId,yearMonth,page,size);
+        var data = PageResponse.of(pageResult);
+
+        return ResponseEntity.ok(ApiResponse.ok("장소 통계 목록 조회 성공", data));
+    }
+
+    @GetMapping("/schedule/day-hour")
+    public ResponseEntity<ApiResponse<List<DayHourScheduleDistribution>>> getDayHourScheduleDistribution(
+            @AuthenticationPrincipal(expression = "id") Long userId
+    ){
+        var data = analyticsService.getDayHourScheduleDistribution(userId);
+
+        return ResponseEntity.ok(ApiResponse.ok("요일-시간대 별 스케줄 분포 조회 성공", data));
+    }
+
+    @GetMapping("/schedule/trend")
+    public ResponseEntity<ApiResponse<List<MonthlyScheduleTrend>>> getMonthlyScheduleTrend(
+            @AuthenticationPrincipal(expression = "id") Long userId
+    ){
+        var data = analyticsService.getMonthlyScheduleTrend(userId);
+
+        return ResponseEntity.ok(ApiResponse.ok("월별 스케줄 추이 조회 성공", data));
     }
 }

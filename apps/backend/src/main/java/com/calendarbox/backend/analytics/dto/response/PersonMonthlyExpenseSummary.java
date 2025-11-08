@@ -6,7 +6,7 @@ public record PersonMonthlyExpenseSummary(
         LocalDateTime month,
         Long personId,
         String personName,
-        Double totalAmount,
+        Long totalAmount,
         Double avgAmount,
         Integer sharedScheduleCount
 ) {
