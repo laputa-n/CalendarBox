@@ -53,6 +53,9 @@ naver:
   search:
     client-id: ${NAVER_CLIENT_ID}
     client-secret: ${NAVER_CLIENT_SECRET}
+  ocr:
+    invoke-url: ${OCR_INVOKE_URL}
+    secret-key: ${OCR_SECRET_KEY}
 
 auth:
   jwt:

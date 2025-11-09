@@ -2,6 +2,7 @@ package com.calendarbox.backend.schedule.domain;
 
 import com.calendarbox.backend.attachment.domain.Attachment;
 import com.calendarbox.backend.calendar.domain.Calendar;
+import com.calendarbox.backend.expense.domain.Expense;
 import com.calendarbox.backend.member.domain.Member;
 import com.calendarbox.backend.schedule.enums.ScheduleTheme;
 import jakarta.persistence.*;
@@ -94,6 +95,10 @@ public class Schedule {
     @OrderBy("minutesBefore Asc, id Asc")
     private List<ScheduleReminder> reminders = new ArrayList<>();
 
+    @OneToMany(mappedBy = "schedule", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("paidAt Asc, id Asc")
+    private List<Expense> expenses = new ArrayList<>();
+
     public Schedule(Calendar c, String title, String memo, ScheduleTheme theme, Instant startAt, Instant endAt, Member createdBy) {
         this.calendar = c;
         this.title = title;
@@ -166,6 +171,21 @@ public class Schedule {
     public void makeRecurrence(ScheduleRecurrence sr){
         recurrence = sr;
         sr.setSchedule(this);
+    }
+
+    public void removeRecurrence(ScheduleRecurrence sr){
+        recurrence = null;
+        sr.setSchedule(null);
+    }
+
+    public void addExpense(Expense expense) {
+        expenses.add(expense);
+        expense.setSchedule(this);
+    }
+
+    public void removeExpense(Expense expense) {
+        expense.setSchedule(null);
+        this.expenses.remove(expense);
     }
 
 

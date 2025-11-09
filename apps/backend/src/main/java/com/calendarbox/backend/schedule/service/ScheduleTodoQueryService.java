@@ -30,10 +30,11 @@ public class ScheduleTodoQueryService {
     public List<TodoResponse> list(Long userId, Long scheduleId) {
         Schedule s = scheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
-        if(!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(s.getCalendar().getId(),userId,ACCEPTED)
-        && !scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatus(s.getId(),userId, ScheduleParticipantStatus.ACCEPTED)){
+        if(!s.getCreatedBy().getId().equals(userId)
+                && !calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(s.getCalendar().getId(),userId,ACCEPTED)
+                && !scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatus(s.getId(),userId, ScheduleParticipantStatus.ACCEPTED))
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
-        }
+
         return todoRepo.findByScheduleIdOrderByOrder(scheduleId).stream()
                 .map(TodoResponse::from)
                 .toList();

@@ -31,9 +31,9 @@ public class SchedulePlaceQueryService {
     private final CalendarMemberRepository calendarMemberRepository;
     private final ScheduleParticipantRepository scheduleParticipantRepository;
     private final MemberRepository memberRepository;
+    private final ScheduleRepository scheduleRepository;
 
     public SchedulePlaceDto getDetail(Long userId, Long scheduleId, Long schedulePlaceId) {
-        Member user = memberRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
         SchedulePlace sp =  schedulePlaceRepository.findById(schedulePlaceId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_PLACE_NOT_FOUND));
         Schedule schedule = sp.getSchedule();
@@ -42,25 +42,20 @@ public class SchedulePlaceQueryService {
                 && !scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatusIn(scheduleId,userId, List.of(ScheduleParticipantStatus.ACCEPTED,ScheduleParticipantStatus.INVITED)))
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
 
-        Place p = sp.getPlace();
-        return toDto(sp,p);
+        return SchedulePlaceDto.of(sp);
     }
-    private SchedulePlaceDto toDto(SchedulePlace sp, Place p) {
-        Long placeId = (sp.getPlace() != null) ? sp.getPlace().getId() : null;
-        SchedulePlaceDto.PlaceSnapShot snapshot = (p == null) ? null :
-                new SchedulePlaceDto.PlaceSnapShot(
-                        p.getId(), p.getTitle(), p.getCategory(), p.getDescription(), p.getAddress(), p.getRoadAddress(),
-                        p.getLink(), p.getLat(), p.getLng(), p.getProvider(), p.getProviderPlaceKey()
-                );
 
-        return new SchedulePlaceDto(
-                sp.getId(),
-                sp.getSchedule().getId(),
-                placeId,
-                sp.getName(),
-                sp.getPosition(),
-                sp.getCreatedAt(),
-                snapshot
-        );
+    public List<SchedulePlaceDto> getSchedulePlaces(Long userId,Long scheduleId){
+        Schedule schedule = scheduleRepository.findById(scheduleId).orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
+
+        Calendar calendar = schedule.getCalendar();
+        if(!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(calendar.getId(),userId, CalendarMemberStatus.ACCEPTED)
+                && !scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatus(scheduleId,userId, ScheduleParticipantStatus.ACCEPTED)
+                && !schedule.getCreatedBy().getId().equals(userId))
+            throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+
+        return schedulePlaceRepository.findAllByScheduleIdOrderByPositionAsc(scheduleId).stream()
+                .map(SchedulePlaceDto::of)
+                .toList();
     }
 }
