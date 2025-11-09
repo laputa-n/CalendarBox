@@ -6,6 +6,7 @@ import com.calendarbox.backend.attachment.dto.request.PresignRequest;
 import com.calendarbox.backend.attachment.dto.response.AttachmentDto;
 import com.calendarbox.backend.attachment.dto.response.PresignResponse;
 import com.calendarbox.backend.global.dto.ApiResponse;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,9 +16,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/attachments/uploads")
+@RequiredArgsConstructor
 public class UploadController {
     private final UploadService svc;
-    public UploadController(UploadService svc){ this.svc = svc; }
 
     @PostMapping("/presign")
     public ResponseEntity<ApiResponse<PresignResponse>> presign(

@@ -30,12 +30,25 @@ public class S3Config {
     }
     @Bean
     S3Presigner s3Presigner(AppS3Props p) {
-        var b = S3Presigner.builder().region(Region.of(p.region()));
-        if (p.endpoint()!=null && !p.endpoint().isBlank()) {
-            b = b.endpointOverride(URI.create(p.endpoint()))
-                    .credentialsProvider(StaticCredentialsProvider.create(
-                            AwsBasicCredentials.create(p.accessKey(), p.secretKey())));
+        var b = S3Presigner.builder()
+                .region(Region.of(p.region()));
+
+        if (p.endpoint() != null && !p.endpoint().isBlank()) {
+            b = b
+                    .endpointOverride(URI.create(p.endpoint()))
+                    .credentialsProvider(
+                            StaticCredentialsProvider.create(
+                                    AwsBasicCredentials.create(p.accessKey(), p.secretKey())
+                            )
+                    )
+                    .serviceConfiguration(
+                            S3Configuration.builder()
+                                    .pathStyleAccessEnabled(p.usePathStyle()) // ⬅ 이거 추가
+                                    .build()
+                    );
         }
+
         return b.build();
     }
+
 }
