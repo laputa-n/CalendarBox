@@ -5,6 +5,7 @@ import com.calendarbox.backend.calendar.repository.CalendarMemberRepository;
 import com.calendarbox.backend.expense.domain.Expense;
 import com.calendarbox.backend.expense.dto.response.ExpenseDetailResponse;
 import com.calendarbox.backend.expense.dto.response.ExpenseListItem;
+import com.calendarbox.backend.expense.dto.response.ExpenseListResponse;
 import com.calendarbox.backend.expense.repository.ExpenseRepository;
 import com.calendarbox.backend.global.error.BusinessException;
 import com.calendarbox.backend.global.error.ErrorCode;
@@ -29,7 +30,7 @@ public class ExpenseQueryService {
     private final ExpenseRepository expenseRepository;
     private final ScheduleParticipantRepository scheduleParticipantRepository;
     private final CalendarMemberRepository calendarMemberRepository;
-    public List<ExpenseListItem> getExpenses(Long userId, Long scheduleId){
+    public ExpenseListResponse getExpenses(Long userId, Long scheduleId){
         Schedule schedule = scheduleRepository.findById(scheduleId).orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
 
         if(!schedule.getCreatedBy().getId().equals(userId)
@@ -37,9 +38,22 @@ public class ExpenseQueryService {
         && !calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(schedule.getCalendar().getId(),userId, CalendarMemberStatus.ACCEPTED))
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
 
-        return expenseRepository.findBySchedule_Id(scheduleId).stream().map(
-                e -> new ExpenseListItem(e.getId(), e.getName(), e.getAmount(), e.getPaidAt(), e.getOccurrenceDate(), e.getSource())
-        ).toList();
+        List<Expense> expenses =  expenseRepository.findBySchedule_Id(scheduleId);
+        int cnt = expenses.size();
+        long totalAmount = expenses.stream().mapToLong(Expense::getAmount).sum();
+        List<ExpenseListItem> items = expenses.stream().map(
+                e -> new ExpenseListItem(
+                            e.getId(),
+                            e.getName(),
+                            e.getAmount(),
+                            e.getPaidAt(),
+                            e.getOccurrenceDate(),
+                            e.getSource()
+                    )).toList();
+
+        return new ExpenseListResponse(
+                cnt,totalAmount,items
+        );
     }
 
     public ExpenseDetailResponse getDetail(Long userId, Long scheduleId, Long expenseId){

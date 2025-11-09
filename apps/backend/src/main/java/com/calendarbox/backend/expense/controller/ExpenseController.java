@@ -36,8 +36,8 @@ public class ExpenseController {
             @AuthenticationPrincipal(expression = "id")Long userId,
             @PathVariable Long scheduleId
     ){
-        var items = expenseQueryService.getExpenses(userId,scheduleId);
-        return ResponseEntity.ok(ApiResponse.ok("지출 목록 조회 성공", ExpenseListResponse.of(items)));
+        var data = expenseQueryService.getExpenses(userId,scheduleId);
+        return ResponseEntity.ok(ApiResponse.ok("지출 목록 조회 성공", data));
     }
 
     @GetMapping("/{expenseId}")
