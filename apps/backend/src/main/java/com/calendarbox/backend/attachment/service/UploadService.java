@@ -42,7 +42,17 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class UploadService {
     private static final Set<String> ALLOW = Set.of(
-            "image/jpeg","image/png","image/webp","image/heic","image/avif","application/pdf"
+            // 이미지
+            "image/jpeg","image/png","image/webp","image/heic","image/avif","image/gif",
+            // 문서
+            "application/pdf",
+            "text/plain",
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.ms-excel",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            // 한글
+            "application/x-hwp"
     );
     private final CalendarMemberRepository calendarMemberRepository;
     private final ScheduleParticipantRepository scheduleParticipantRepository;
