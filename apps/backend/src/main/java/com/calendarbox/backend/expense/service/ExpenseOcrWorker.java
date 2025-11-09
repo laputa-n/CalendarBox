@@ -25,6 +25,7 @@ public class ExpenseOcrWorker {
     private final NaverOcrClient naverOcrClient;
     private final StorageClient storageClient;
 
+    @Transactional
     public int processBatch(int batchSize){
         var tasks = expenseOcrTaskRepository.lockQueuedForProcess(batchSize);
         for(var t: tasks){
@@ -39,7 +40,6 @@ public class ExpenseOcrWorker {
         return tasks.size();
     }
 
-    @Transactional
     protected void processOne(ExpenseOcrTask task){
         var s3url = storageClient.presignGet(task.getAttachment().getObjectKey(), task.getAttachment().getOriginalName(), true);
         var raw = naverOcrClient.request(s3url);
