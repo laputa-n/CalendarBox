@@ -13,60 +13,60 @@ import java.util.List;
 @Repository
 public interface AnalyticsRepository extends JpaRepository<Schedule, Long> {
 
-    @Query(value = """
-        SELECT 
-            s.schedule_id AS scheduleId,
-            s.title AS title,
-            p.title AS placeName,
-            EXTRACT(HOUR FROM s.start_at) AS hour,
-            EXTRACT(EPOCH FROM (s.end_at - s.start_at))/60 AS durationMin,
-            COALESCE(e.amount, 0) AS amount
-        FROM schedule s
-        LEFT JOIN schedule_place sp ON s.schedule_id = sp.schedule_id
-        LEFT JOIN place p ON sp.place_id = p.place_id
-        LEFT JOIN expense e ON e.schedule_id = s.schedule_id
-        WHERE s.created_by = :memberId
-        """,
-            nativeQuery = true)
-    List<Object[]> findScheduleSummaries(Long memberId);
-
-    @Query(value = """
-        SELECT 
-            p.title AS placeName, COUNT(*) AS visitCount
-        FROM schedule_place sp
-        JOIN place p ON sp.place_id = p.place_id
-        JOIN schedule s ON s.schedule_id = sp.schedule_id
-        WHERE s.created_by = :memberId
-        GROUP BY p.title
-        """,
-            nativeQuery = true)
-    List<Object[]> findPlaceStats(Long memberId);
-
-    @Query(value = """
-        SELECT 
-            date_trunc('month', s.start_at) AS month, COUNT(*) AS count
-        FROM schedule s
-        WHERE s.created_by = :memberId
-        GROUP BY date_trunc('month', s.start_at)
-        ORDER BY date_trunc('month', s.start_at)
-        """,
-            nativeQuery = true)
-    List<Object[]> findMonthlyTrend(Long memberId);
-
-    @Query("""
-    SELECT new com.calendarbox.backend.analytics.dto.request.PlaceSummary(
-        p.title,
-        date_trunc('month', s.startAt),
-        COUNT(*)
-    )
-    FROM SchedulePlace sp
-    JOIN Place p ON sp.place.id = p.id
-    JOIN Schedule s ON s.id = sp.schedule.id
-    WHERE s.createdBy.id = :memberId
-    GROUP BY p.title, date_trunc('month', s.startAt)
-    ORDER BY date_trunc('month', s.startAt)
-""")
-    List<PlaceSummary> findMonthlyPlaceStats(Long memberId);
+//    @Query(value = """
+//        SELECT
+//            s.schedule_id AS scheduleId,
+//            s.title AS title,
+//            p.title AS placeName,
+//            EXTRACT(HOUR FROM s.start_at) AS hour,
+//            EXTRACT(EPOCH FROM (s.end_at - s.start_at))/60 AS durationMin,
+//            COALESCE(e.amount, 0) AS amount
+//        FROM schedule s
+//        LEFT JOIN schedule_place sp ON s.schedule_id = sp.schedule_id
+//        LEFT JOIN place p ON sp.place_id = p.place_id
+//        LEFT JOIN expense e ON e.schedule_id = s.schedule_id
+//        WHERE s.created_by = :memberId
+//        """,
+//            nativeQuery = true)
+//    List<Object[]> findScheduleSummaries(Long memberId);
+//
+//    @Query(value = """
+//        SELECT
+//            p.title AS placeName, COUNT(*) AS visitCount
+//        FROM schedule_place sp
+//        JOIN place p ON sp.place_id = p.place_id
+//        JOIN schedule s ON s.schedule_id = sp.schedule_id
+//        WHERE s.created_by = :memberId
+//        GROUP BY p.title
+//        """,
+//            nativeQuery = true)
+//    List<Object[]> findPlaceStats(Long memberId);
+//
+//    @Query(value = """
+//        SELECT
+//            date_trunc('month', s.start_at) AS month, COUNT(*) AS count
+//        FROM schedule s
+//        WHERE s.created_by = :memberId
+//        GROUP BY date_trunc('month', s.start_at)
+//        ORDER BY date_trunc('month', s.start_at)
+//        """,
+//            nativeQuery = true)
+//    List<Object[]> findMonthlyTrend(Long memberId);
+//
+//    @Query("""
+//    SELECT new com.calendarbox.backend.analytics.dto.request.PlaceSummary(
+//        p.title,
+//        date_trunc('month', s.startAt),
+//        COUNT(*)
+//    )
+//    FROM SchedulePlace sp
+//    JOIN Place p ON sp.place.id = p.id
+//    JOIN Schedule s ON s.id = sp.schedule.id
+//    WHERE s.createdBy.id = :memberId
+//    GROUP BY p.title, date_trunc('month', s.startAt)
+//    ORDER BY date_trunc('month', s.startAt)
+//""")
+//    List<PlaceSummary> findMonthlyPlaceStats(Long memberId);
 
     //================================================================================
 

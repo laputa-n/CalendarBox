@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 public class AnalyticsService {
 
     private final AnalyticsRepository analyticsRepository;
-    private final AiPredictService aiPredictService;
+//    private final AiPredictService aiPredictService;
 
     @Transactional(readOnly = true)
     public List<MonthlyScheduleTrend> getMonthlyScheduleTrend(Long userId) {
@@ -315,43 +315,43 @@ public class AnalyticsService {
         );
     }
 
-    public InsightResponse buildInsight(Long memberId) {
-
-        // 1️⃣ DB 조회 (nativeQuery 결과는 Object[] 배열)
-        List<Object[]> scheduleRows = analyticsRepository.findScheduleSummaries(memberId);
-        List<Object[]> placeRows = analyticsRepository.findPlaceStats(memberId);
-        List<Object[]> trendRows = analyticsRepository.findMonthlyTrend(memberId);
-
-        // 2️⃣ Object[] → record DTO 변환
-        List<ScheduleSummary> schedules = scheduleRows.stream()
-                .map(r -> new ScheduleSummary(
-                        ((Number) r[0]).longValue(),       // scheduleId
-                        (String) r[1],                     // title
-                        (String) r[2],                     // placeName
-                        ((Number) r[3]).doubleValue(),     // hour
-                        ((Number) r[4]).doubleValue(),     // durationMin
-                        ((Number) r[5]).doubleValue()      // amount
-                ))
-                .toList();
-
-        List<PlaceSummary> places = placeRows.stream()
-                .map(r -> new PlaceSummary(
-                        (String) r[0],
-                        ((Number) r[1]).longValue()
-                ))
-                .toList();
-
-        List<MonthlyTrend> monthlyTrends = trendRows.stream()
-                .map(r -> new MonthlyTrend(
-                        ((java.sql.Timestamp) r[0]).toLocalDateTime(),
-                        ((Number) r[1]).longValue()
-                ))
-                .toList();
-
-        // 3️⃣ AI 예측
-        Map<Long, String> categoryMap = aiPredictService.predictCategories(schedules);
-
-        // 4️⃣ 통합 인사이트 응답 생성
-        return InsightResponse.from(schedules, places, monthlyTrends, categoryMap);
-    }
+//    public InsightResponse buildInsight(Long memberId) {
+//
+//        // 1️⃣ DB 조회 (nativeQuery 결과는 Object[] 배열)
+//        List<Object[]> scheduleRows = analyticsRepository.findScheduleSummaries(memberId);
+//        List<Object[]> placeRows = analyticsRepository.findPlaceStats(memberId);
+//        List<Object[]> trendRows = analyticsRepository.findMonthlyTrend(memberId);
+//
+//        // 2️⃣ Object[] → record DTO 변환
+//        List<ScheduleSummary> schedules = scheduleRows.stream()
+//                .map(r -> new ScheduleSummary(
+//                        ((Number) r[0]).longValue(),       // scheduleId
+//                        (String) r[1],                     // title
+//                        (String) r[2],                     // placeName
+//                        ((Number) r[3]).doubleValue(),     // hour
+//                        ((Number) r[4]).doubleValue(),     // durationMin
+//                        ((Number) r[5]).doubleValue()      // amount
+//                ))
+//                .toList();
+//
+//        List<PlaceSummary> places = placeRows.stream()
+//                .map(r -> new PlaceSummary(
+//                        (String) r[0],
+//                        ((Number) r[1]).longValue()
+//                ))
+//                .toList();
+//
+//        List<MonthlyTrend> monthlyTrends = trendRows.stream()
+//                .map(r -> new MonthlyTrend(
+//                        ((java.sql.Timestamp) r[0]).toLocalDateTime(),
+//                        ((Number) r[1]).longValue()
+//                ))
+//                .toList();
+//
+//        // 3️⃣ AI 예측
+//        Map<Long, String> categoryMap = aiPredictService.predictCategories(schedules);
+//
+//        // 4️⃣ 통합 인사이트 응답 생성
+//        return InsightResponse.from(schedules, places, monthlyTrends, categoryMap);
+//    }
 }

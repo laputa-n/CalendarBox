@@ -24,11 +24,11 @@ public class AnalyticsController {
 
     private final AnalyticsService analyticsService;
 
-    @GetMapping("/insight")
-    public ResponseEntity<InsightResponse> getInsight(@RequestParam Long memberId) {
-        InsightResponse response = analyticsService.buildInsight(memberId);
-        return ResponseEntity.ok(response);
-    }
+//    @GetMapping("/insight")
+//    public ResponseEntity<InsightResponse> getInsight(@RequestParam Long memberId) {
+//        InsightResponse response = analyticsService.buildInsight(memberId);
+//        return ResponseEntity.ok(response);
+//    }
 
     @GetMapping("/people/summary")
     public ResponseEntity<ApiResponse<PeopleStatSummary>> getPeopleSummary(
