@@ -6,8 +6,4 @@ public record ExpenseListResponse(
         int count,
         long totalAmount,
         List<ExpenseListItem> expenses
-) {
-    public static ExpenseListResponse of(List<ExpenseListItem> items) {
-        return new ExpenseListResponse(items.size(), items);
-    }
-}
+) { }
