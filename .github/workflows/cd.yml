@@ -1,87 +1,49 @@
 name: CD
+
 on:
   push:
-    branches: [ main ]
+    branches: [ main ]   # main에 푸시될 때마다 실행
 
 jobs:
   deploy:
     runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
 
-      - name: Validate inputs
-        shell: bash
+    steps:
+      - name: Checkout repository (옵션)
+        uses: actions/checkout@v4
+
+      - name: Validate required secrets
         run: |
           set -euo pipefail
-          [ -n "${{ secrets.EC2_HOST }}" ] || { echo "EC2_HOST secret missing"; exit 1; }
-          [ -n "${{ secrets.EC2_USER }}" ] || { echo "EC2_USER secret missing"; exit 1; }
-          [ -n "${{ secrets.EC2_SSH_KEY }}" ] || { echo "EC2_SSH_KEY secret missing"; exit 1; }
-          echo "inputs ok"
+          [ -n "${{ secrets.EC2_HOST }}" ] || { echo "❌ EC2_HOST secret missing"; exit 1; }
+          [ -n "${{ secrets.EC2_USER }}" ] || { echo "❌ EC2_USER secret missing"; exit 1; }
+          [ -n "${{ secrets.EC2_SSH_KEY }}" ] || { echo "❌ EC2_SSH_KEY secret missing"; exit 1; }
+          echo "✅ all required secrets exist"
 
       - name: Setup SSH key
-        shell: bash
         run: |
           set -euo pipefail
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          # CRLF 제거 후 저장
+          # GitHub Secret에 넣어둔 개인키를 파일로 저장
           printf "%s" "${{ secrets.EC2_SSH_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-      # 22가 닫혀 있으면 2222로 자동 폴백
-      - name: Detect SSH port (22 -> 2222 fallback)
-        shell: bash
-        env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-        run: |
-          set -euo pipefail
-          echo "Probing SSH port on $EC2_HOST ..."
-          if timeout 8 bash -lc 'cat < /dev/null > /dev/tcp/$EC2_HOST/22' 2>/dev/null; then
-            echo "EC2_SSH_PORT=22" >> "$GITHUB_ENV"
-            echo "Using port 22"
-          elif timeout 8 bash -lc 'cat < /dev/null > /dev/tcp/$EC2_HOST/2222' 2>/dev/null; then
-            echo "EC2_SSH_PORT=2222" >> "$GITHUB_ENV"
-            echo "Using port 2222"
-          else
-            echo "Neither 22 nor 2222 is reachable"; exit 1
-          fi
-
-      # ssh-keyscan 없이, 최초 접속만 accept-new 로 host key 등록
-      - name: Remote deploy (build JAR & restart service)
-        shell: bash
+      - name: Run deploy.sh on EC2
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
         run: |
           set -euo pipefail
-          : "${EC2_SSH_PORT:?EC2_SSH_PORT not set}"
 
           ssh \
-            -p "$EC2_SSH_PORT" \
             -i ~/.ssh/id_rsa \
-            -o ConnectTimeout=60 \
-            -o ServerAliveInterval=15 \
-            -o ServerAliveCountMax=20 \
-            -o IPQoS=none \
-            -o UserKnownHostsFile=~/.ssh/known_hosts \
             -o StrictHostKeyChecking=accept-new \
-            -o RequestTTY=no \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -o ConnectTimeout=30 \
             "$EC2_USER@$EC2_HOST" \
-            "bash -lc '
+            'bash -lc "
               set -euo pipefail
-              export DEBIAN_FRONTEND=noninteractive
-              alias sudo=\"sudo -n\"
-
-              # coreutils(stdbuf) 없으면 설치
-              if ! command -v stdbuf >/dev/null 2>&1; then
-                sudo apt-get update -y
-                sudo apt-get install -y coreutils
-              fi
-
-              # 배포 스크립트 실행(출력 버퍼링 해제)
-              stdbuf -oL -eL /srv/calendarbox/deploy.sh
-
-              # 헬스체크
-              curl -sf http://localhost:8080/actuator/health >/dev/null
-              echo Health OK
-            '"
+              # 여기서 실제 배포 스크립트 실행
+              /srv/calendarbox/deploy.sh
+            "'
