@@ -60,7 +60,8 @@ public class UploadService {
         Schedule schedule = scheduleRepository.findById(req.scheduleId()).orElseThrow(()->new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
         Calendar calendar = schedule.getCalendar();
         if(!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(calendar.getId(),user.getId(), CalendarMemberStatus.ACCEPTED)
-        &&!scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatus(schedule.getId(),userId, ScheduleParticipantStatus.ACCEPTED))
+        &&!scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatus(schedule.getId(),userId, ScheduleParticipantStatus.ACCEPTED)
+        &&!schedule.getCreatedBy().getId().equals(user.getId()))
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
         var ct = req.contentType().toLowerCase();
         if (!ALLOW.contains(ct)) throw new BusinessException(ErrorCode.ATTACHMENT_TYPE_NOT_SUPPORTED);
