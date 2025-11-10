@@ -1,9 +1,9 @@
 // src/services/apiService.js
 
 const API_CONFIG = {
-  development: 'http://localhost:8080/api',
-  staging: 'https://api-staging.calbox.com/api',
-  production: 'https://api.calbox.com/api',
+  development: 'http://localhost:8080/api', // 로컬에서만 localhost 사용
+  production: '/api',                       // 서버에서는 같은 호스트 + /api 로만
+  staging: '/api',                          // 있으면 같이 맞춰도 됨
 };
 
 const API_BASE_URL = API_CONFIG[process.env.NODE_ENV] || API_CONFIG.development;
