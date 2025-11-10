@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.util.UriComponentsBuilder;
 
 @Controller
-@RequestMapping("api/auth/kakao")
+@RequestMapping("/api/auth/kakao")
 public class KakaoLoginPageController {
 
     @Value("${kakao.client_id}")
