@@ -57,7 +57,7 @@ public class KakaoLoginController {
                     .httpOnly(true).secure(false).sameSite("Lax").path("/api/auth").maxAge(14 * 24 * 60 * 60).build().toString());
 
             return ResponseEntity.status(302)
-                    .header("Location", "http://localhost:3000/login/success")
+                    .header("Location", "/login/success")
                     .build();
         }
 
@@ -71,7 +71,7 @@ public class KakaoLoginController {
                 .httpOnly(true).secure(false).sameSite("Lax").path("/").maxAge(300).build().toString());
 
         return ResponseEntity.status(302)
-                .header("Location", "http://localhost:3000/signup/complete")
+                .header("Location", "/signup/complete")
                 .build();
     }
 
