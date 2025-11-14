@@ -16,6 +16,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.sql.SQLType;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Objects;
 
 @Entity
 @Getter
@@ -43,7 +44,7 @@ public class ExpenseOcrTask {
     @Column(nullable = false, length = 20)
     private OcrTaskStatus status = OcrTaskStatus.QUEUED;
 
-    @Column(name = "error_message")
+    @Column(name = "error_message", columnDefinition = "text")
     private String errorMessage;
 
     @JdbcTypeCode(SqlTypes.JSON)
@@ -77,7 +78,20 @@ public class ExpenseOcrTask {
 
     public void markRunning() { this.status = OcrTaskStatus.RUNNING; }
     public void markSuccess() { this.status = OcrTaskStatus.SUCCESS; }
-    public void markFailed(String msg) { this.status = OcrTaskStatus.FAILED; this.errorMessage = msg; }
+    // ExpenseOcrTask.java
+    public void markFailed(Throwable t) {
+        this.status = OcrTaskStatus.FAILED;
+        if (t == null) { this.errorMessage = null; return; }
+        StringBuilder sb = new StringBuilder();
+        sb.append(t.getClass().getSimpleName()).append(": ")
+                .append(Objects.toString(t.getMessage(), ""));
+        for (StackTraceElement el : t.getStackTrace()) {
+            sb.append("\n  at ").append(el);
+            if (sb.length() > 2000) break; // 과도한 길이 방지
+        }
+        this.errorMessage = sb.toString();
+    }
+
     public void linkExpense(Expense e) { this.expense = e; }
     public void updateRawResponse(Map<String,Object> raw) { this.rawResponse = raw; }
     public void updateNormalized(Map<String,Object> norm) { this.normalized = norm; }

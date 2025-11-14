@@ -374,6 +374,8 @@ const {
         method: 'PUT',
         headers: { 'Content-Type': expenseReceiptFile.type },
         body: expenseReceiptFile,
+        mode: 'cors',
+        credentials: 'omit',
       });
        console.log('[RECEIPT STEP 3] S3 업로드 완료:', { uploadId, objectKey });
        const completeRes = await ApiService.completeUpload(uploadId, objectKey);

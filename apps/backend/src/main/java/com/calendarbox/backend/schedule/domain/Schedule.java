@@ -175,8 +175,8 @@ public class Schedule {
 
     public void removeRecurrence(ScheduleRecurrence sr){
         if (this.recurrence != null) {
-         this.recurrence = null;
-    }
+            this.recurrence = null;
+        }
     }
 
     public void addExpense(Expense expense) {
