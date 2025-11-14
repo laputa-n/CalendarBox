@@ -13,4 +13,5 @@ public interface StorageClient {
         if (keys == null) return;
         for (String k : keys) if (k != null && !k.isBlank()) deleteQuietly(k);
     }
+    byte[] getObjectBytes(String key);
 }

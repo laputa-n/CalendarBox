@@ -13,8 +13,15 @@ import com.calendarbox.backend.expense.support.OcrNormalize;
 import com.calendarbox.backend.global.infra.storage.StorageClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.Base64;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -32,20 +39,48 @@ public class ExpenseOcrWorker {
         for(var t: tasks){
             try{
                 t.markRunning();
+                expenseOcrTaskRepository.save(t);
                 processOne(t);
                 t.markSuccess();
             } catch (Exception e) {
                 t.markFailed(e.getMessage());
             }
+            expenseOcrTaskRepository.save(t);
         }
         return tasks.size();
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     protected void processOne(ExpenseOcrTask task){
-        var s3url = storageClient.presignGet(task.getAttachment().getObjectKey(), task.getAttachment().getOriginalName(), true);
-        log.info("OCR task {} presignGet url = {}", task.getOcrTaskId(), s3url);
-        var raw = naverOcrClient.request(s3url);
-        log.info("OCR task {} Naver OCR raw keys = {}", task.getOcrTaskId(), raw.keySet());
+        var att = task.getAttachment();
+
+        // 1) S3에서 바이트 읽기 -> base64
+        byte[] bytes = storageClient.getObjectBytes(att.getObjectKey());
+        String b64 = Base64.getEncoder().encodeToString(bytes);
+
+        // 2) 확장자/포맷 일치
+        String ext = Optional.ofNullable(att.getOriginalName())
+                .map(n -> n.substring(n.lastIndexOf('.')+1).toLowerCase())
+                .orElse("jpg");
+        if (ext.equals("jpeg")) ext = "jpg";
+        if (!List.of("jpg","png","pdf").contains(ext)) {
+            throw new IllegalArgumentException("Unsupported image format: " + ext);
+        }
+
+        // 3) 네이버 OCR 바디 (base64 data 사용)
+        Map<String, Object> body = Map.of(
+                "version", "V2",
+                "requestId", "req-" + System.currentTimeMillis(),
+                "timestamp", System.currentTimeMillis(),
+                "images", List.of(Map.of(
+                        "format", ext,
+                        "name", "receipt",
+                        "data", b64
+                ))
+        );
+
+        // 4) 요청 + 에러 바디까지 기록
+        Map<String,Object> raw = naverOcrClient.request(body);
         task.updateRawResponse(raw);
 
         var norm = OcrNormalize.normalize(raw);
@@ -60,12 +95,11 @@ public class ExpenseOcrWorker {
         ));
 
         var lines = norm.items().stream()
-                .map(i -> ExpenseLine.of(expense,i.label(),i.qty(),i.unitAmount(), i.lineAmount()))
+                .map(i -> ExpenseLine.of(expense, i.label(), i.qty(), i.unitAmount(), i.lineAmount()))
                 .toList();
         expenseLineRepository.saveAll(lines);
 
-        expenseAttachmentRepository.save(ExpenseAttachment.of(expense, task.getAttachment()));
-
+        expenseAttachmentRepository.save(ExpenseAttachment.of(expense, att));
         task.linkExpense(expense);
     }
 }

@@ -66,5 +66,11 @@ public class S3StorageClient implements StorageClient {
             throw e;
         }
     }
+
+    @Override
+    public byte[] getObjectBytes(String key) {
+        var resp = s3.getObjectAsBytes(b -> b.bucket(p.bucket()).key(key));
+        return resp.asByteArray();
+    }
 }
 
