@@ -26,44 +26,58 @@ public class OcrNormalize {
 
             long total = toLong(nested(img0, "totalPrice", "price", "formatted", "value"));
 
+            // 1) 상호명 추출 보강
+            String merchant = toStr(nested(img0, "storeInfo", "name", "formatted", "value"), null);
+            if (isBlank(merchant)) merchant = toStr(nested(img0, "storeInfo", "name", "text"), "영수증");
+
+            // 3) 날짜/시간 일부만 있을 때도 커버
             Map<String, Object> dateFmt = asMapOrNull(nested(img0, "paymentInfo", "date", "formatted"));
             Map<String, Object> timeFmt = asMapOrNull(nested(img0, "paymentInfo", "time", "formatted"));
             Instant paidAt = null;
-            if (dateFmt != null && timeFmt != null) {
-                int y = toInt(dateFmt.get("year"), 1970);
-                int m = toInt(dateFmt.get("month"), 1);
-                int d = toInt(dateFmt.get("day"), 1);
-                int hh = toInt(timeFmt.get("hour"), 0);
-                int mm = toInt(timeFmt.get("minute"), 0);
-                int ss = toInt(timeFmt.get("second"), 0);
+            if (dateFmt != null) {
+                int y  = toInt(dateFmt.get("year"), 1970);
+                int m  = toInt(dateFmt.get("month"), 1);
+                int d  = toInt(dateFmt.get("day"), 1);
+                int hh = (timeFmt != null) ? toInt(timeFmt.get("hour"), 0)   : 0;
+                int mm = (timeFmt != null) ? toInt(timeFmt.get("minute"), 0) : 0;
+                int ss = (timeFmt != null) ? toInt(timeFmt.get("second"), 0) : 0;
                 paidAt = ZonedDateTime.of(y, m, d, hh, mm, ss, 0, ZoneId.of("Asia/Seoul")).toInstant();
             }
 
-            // 상호명은 V2 공통 경로가 보장되진 않음 → 기본값 사용
-            String merchant = "영수증";
-
+            // 2) subResults 전체 flatten
             List<NormalizedReceipt.Item> items = new ArrayList<>();
-            Map<String, Object> sr0 = firstMapFromList(img0.get("subResults"));
-            if (sr0 != null) {
-                List<?> its = asListOrEmpty(sr0.get("items"));
-                for (Object it : its) {
-                    Map<String, Object> m = asMapOrNull(it);
+            List<?> subResults = asListOrEmpty(img0.get("subResults"));
+            for (Object srObj : subResults) {
+                Map<String, Object> sr = asMapOrNull(srObj);
+                if (sr == null) continue;
+                for (Object itObj : asListOrEmpty(sr.get("items"))) {
+                    Map<String, Object> m = asMapOrNull(itObj);
                     if (m == null) continue;
+
                     String label = toStr(nested(m, "name", "text"), "항목");
-                    int qty = toInt(nested(m, "count", "formatted", "value"), 1);
-                    long unit = toLong(nested(m, "price", "unitPrice", "formatted", "value"));
-                    long line = toLong(nested(m, "price", "price", "formatted", "value"));
+                    int qty      = toInt(nested(m, "count", "formatted", "value"), 1);
+                    long unit    = toLong(nested(m, "price", "unitPrice", "formatted", "value"));
+                    long line    = toLong(nested(m, "price", "price", "formatted", "value"));
+
                     if (unit == 0 && qty > 0) unit = line / Math.max(qty, 1);
                     if (isBlank(label) && qty <= 0 && line <= 0) continue;
+
                     items.add(new NormalizedReceipt.Item(isBlank(label) ? "항목" : label, qty, unit, line));
                 }
             }
 
-            return new NormalizedReceipt(merchant, paidAt, total, items, raw);
+            return new NormalizedReceipt(
+                    isBlank(merchant) ? "영수증" : merchant,
+                    paidAt,
+                    total,
+                    items,
+                    raw
+            );
         } catch (Exception e) {
-            return null; // 폴백으로 넘김
+            return null; // legacy로 폴백
         }
     }
+
 
     /* =============== Legacy(V1) parser =============== */
     private static NormalizedReceipt parseLegacy(Map<String, Object> raw) {
