@@ -43,7 +43,7 @@ export default function ScheduleModal({ isOpen, onClose, selectedDate }) {
   const [expenseName, setExpenseName] = useState('');
   const [expenseAmount, setExpenseAmount] = useState('');
   const [expenseReceiptFile, setExpenseReceiptFile] = useState(null);
-
+  const [exceptionDates, setExceptionDates] = useState([]);
 
  
   // ====== 영수증 ======
@@ -63,68 +63,40 @@ const handleAddLink = () => {
     }));
   }
 };
-  
-const [recurrence, setRecurrence] = useState({
-  freq: 'WEEKLY',            // 반복 주기
-  intervalCount: 1,          // 반복 간격
-  byDay: [], // 반복 요일
-  until: '',                 // 반복 종료일
-});
 
 const handleRecurrenceChange = (e) => {
   const { name, value, checked } = e.target;
 
-  if (name === 'freq') {
-    setFormData(prevState => ({
-      ...prevState,
-      recurrence: {
-        ...prevState.recurrence,
-        freq: value || 'DAILY', // 기본값은 'DAILY'
-      }
-    }));
-  }
+  setFormData(prev => {
+    const next = { ...prev.recurrence };
 
-  // 'intervalCount' 필드 처리 (빈 값일 경우 기본값 설정)
-  if (name === 'intervalCount') {
-    setFormData(prevState => ({
-      ...prevState,
-      recurrence: {
-        ...prevState.recurrence,
-        intervalCount: value === '' ? 1 : Number(value), // 빈 값일 경우 기본값 1 설정
-      }
-    }));
-  }
+    if (name === 'freq') {
+      next.freq = value || null; // ""이면 null
+    }
+    else if (name === 'intervalCount') {
+      next.intervalCount = Number(value) || 1;
+    }
+    else if (name === 'byDay') {
+      if (checked) next.byDay = [...next.byDay, value];
+      else next.byDay = next.byDay.filter(d => d !== value);
+    }
+    else if (name === 'until') {
+      next.until = value;
+    }
 
-  // 'byDay' 필드 처리
-  if (name === 'byDay') {
-    setFormData(prevState => {
-      const updatedByDay = checked
-        ? [...prevState.recurrence.byDay, value]  // 체크된 요일은 추가
-        : prevState.recurrence.byDay.filter(day => day !== value);  // 체크 해제된 요일은 제거
-
-      return {
-        ...prevState,
-        recurrence: {
-          ...prevState.recurrence,
-          byDay: updatedByDay,
-        }
-      };
-    });
-  } else {
-    setFormData(prevState => ({
-      ...prevState,
-      recurrence: {
-        ...prevState.recurrence,
-        [name]: Number(value),  // intervalCount에 빈 값일 경우 기본값 1 설정
-      }
-    }));
-  }
+    return {
+      ...prev,
+      recurrence: next,
+    };
+  });
 };
 const handleSubmit = async (e) => {
   e.preventDefault();
 
   const recurrenceData = formData.recurrence; // formData.recurrence 그대로 사용
-
+  const untilISO = formData.recurrence.until
+    ? localInputToISO(formData.recurrence.until)
+    : null;
   console.log("recurrenceData before submit:", recurrenceData); // 추가된 로그
 
   try {
@@ -146,7 +118,12 @@ const handleSubmit = async (e) => {
               : null
           ).filter(Boolean)
         : [],
-      recurrence: recurrenceData, // recurrence를 그대로 전달
+     recurrence: {
+    freq: formData.recurrence.freq || null,  
+    intervalCount: formData.recurrence.intervalCount || 1,
+    byDay: Array.from(new Set(formData.recurrence.byDay)),
+    until: untilISO, 
+  },
       color: formData.color || '#3b82f6',
       places: [], // 예시에서는 비워둠
       links: formData.links,
@@ -166,6 +143,35 @@ const handleSubmit = async (e) => {
       const res = await createSchedule(payload);
       const newId = extractScheduleId(res);
       if (!newId) throw new Error('일정 생성 응답에 id가 없습니다.');
+
+      console.log("📌 일정 생성 완료, scheduleId =", newId);
+
+// 2️⃣ recurrenceId 조회
+let recurrenceId = null;
+try {
+  const recRes = await ApiService.getRecurrences(newId); 
+  console.log("📌 반복 조회 결과:", recRes);
+
+  recurrenceId = recRes?.data?.[0]?.recurrenceId ?? null;
+  console.log("📌 recurrenceId =", recurrenceId);
+} catch (e) {
+  console.warn("⚠ 반복 없음 또는 조회 실패:", e);
+}
+
+// 3️⃣ 예외 생성
+if (recurrenceId && exceptionDates.length > 0) {
+  console.log("📌 예외 날짜 생성 시작:", exceptionDates);
+
+  for (const d of exceptionDates) {
+    try {
+      await ApiService.createRecurrenceException(newId, recurrenceId, d);
+
+      console.log(`✔ 예외 날짜 생성 완료: ${d}`);
+    } catch (err) {
+      console.error(`❌ 예외 생성 실패: ${d}`, err);
+    }
+  }
+}
  
       // 2️⃣ 첨부파일 업로드 (이미지/일반파일)
       await uploadFiles(newId);
@@ -540,8 +546,8 @@ if (expenseName && expenseAmount) {
   <label style={labelStyle}>🔁 반복 주기</label>
   <select
     name="freq"
-    value={recurrence.freq}
-    onChange={handleRecurrenceChange}
+  value={formData.recurrence.freq}
+  onChange={handleRecurrenceChange}
     style={inputStyle}
   >
     <option value="">없음</option>
@@ -555,7 +561,7 @@ if (expenseName && expenseAmount) {
   <input
     type="number"
     name="intervalCount"
-    value={recurrence.intervalCount}
+    value={formData.recurrence.intervalCount}
     onChange={handleRecurrenceChange}
     style={inputStyle}
   />
@@ -569,7 +575,7 @@ if (expenseName && expenseAmount) {
         type="checkbox"
         name="byDay"
         value={day}
-        checked={recurrence.byDay.includes(day)}
+        checked={formData.recurrence.byDay.includes(day)}
         onChange={handleRecurrenceChange} // 클릭 시 handleRecurrenceChange 호출
         style={{ marginRight: '0.5rem' }}
       />
@@ -582,10 +588,63 @@ if (expenseName && expenseAmount) {
 <input
   type="datetime-local"
   name="until"
-  value={recurrence.until || ''}
+  value={formData.recurrence.until || ''}
   onChange={handleRecurrenceChange}
   style={inputStyle}
 />
+{/* 반복 예외 날짜 선택 */}
+{formData.recurrence.until && (
+  <div style={sectionStyle}>
+    <label style={labelStyle}>❌ 반복 예외 날짜 선택</label>
+    <p style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '0.5rem' }}>
+      반복 기간 중 제외할 날짜를 선택하세요.
+    </p>
+
+    <input
+      type="date"
+      onChange={(e) => {
+        const d = e.target.value;
+        if (!d) return;
+
+        setExceptionDates(prev =>
+          prev.includes(d) ? prev : [...prev, d]
+        );
+      }}
+      style={inputStyle}
+    />
+
+    {/* 선택된 예외 날짜 리스트 */}
+    {exceptionDates.length > 0 && (
+      <ul style={{ marginTop: '0.5rem' }}>
+        {exceptionDates.map((d, i) => (
+          <li
+            key={i}
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              background: '#f9fafb',
+              padding: '4px 8px',
+              borderRadius: 6,
+              marginBottom: 4
+            }}
+          >
+            <span>{d}</span>
+            <button
+              type="button"
+              onClick={() =>
+                setExceptionDates(prev => prev.filter(x => x !== d))
+              }
+              style={{ ...iconButton, color: '#ef4444' }}
+            >
+              삭제
+            </button>
+          </li>
+        ))}
+      </ul>
+    )}
+  </div>
+)}
 </div>
 
           {/* 리마인더 */}

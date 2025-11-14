@@ -1,9 +1,13 @@
 // src/services/apiService.js
 
 const API_CONFIG = {
-  development: 'http://localhost:8080/api',
-  staging: '/api',
-  production: '/api',
+  development: 'http://localhost:8080/api', // 로컬에서만 localhost 사용
+  production: '/api',                       // 서버에서는 같은 호스트 + /api 로만
+  staging: '/api',                          // 있으면 같이 맞춰도 됨
+
+  //development: 'http://localhost:8080/api',
+  //staging: 'https://api-staging.calbox.com/api',
+  //production: 'https://api.calbox.com/api',
 };
 
 const API_BASE_URL = API_CONFIG[process.env.NODE_ENV] || API_CONFIG.development;
@@ -579,15 +583,72 @@ static async getRecurrences(scheduleId) {
 }
 
 static async updateRecurrence(scheduleId, recurrenceId, recurrenceData) {
-  const response = await this.request(`/schedules/${scheduleId}/recurrences/${recurrenceId}`, {
-    method: 'PUT',
-    body: JSON.stringify(recurrenceData),
-  });
+  console.log("📡 [API 요청 - updateRecurrence]");
+  console.log("   URL:", `/schedules/${scheduleId}/recurrences/${recurrenceId}`);
+  console.log("   payload:", recurrenceData);
+
+  const response = await this.request(
+    `/schedules/${scheduleId}/recurrences/${recurrenceId}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(recurrenceData),
+    }
+  );
+
+  console.log("📡 [API 응답 - updateRecurrence]:", response);
   return response;
 }
 
 static async deleteRecurrence(scheduleId, recurrenceId) {
-  return this.request(`/schedules/${scheduleId}/recurrences/${recurrenceId}`, { method: 'DELETE' });
+  console.log("🗑️ [API] deleteRecurrence 요청:", { scheduleId, recurrenceId });
+
+  const response = await this.request(
+    `/schedules/${scheduleId}/recurrences/${recurrenceId}`,
+    { method: 'DELETE' }
+  );
+
+  console.log("🗑️ [API] deleteRecurrence 응답:", response);
+  return response;
+}
+
+// 🔍 1) 반복 예외 목록 조회
+static async getRecurrenceExceptions(scheduleId, recurrenceId) {
+  console.log("📂 [API] getRecurrenceExceptions:", { scheduleId, recurrenceId });
+  return this.request(
+    `/schedules/${scheduleId}/recurrences/${recurrenceId}/exceptions`,
+    { method: 'GET' }
+  );
+}
+
+// ➕ 2) 반복 예외 생성
+static async createRecurrenceException(scheduleId, recurrenceId, dateString) {
+  const payload = { exceptionDate: dateString };
+
+  console.log("📤 최종 전송 payload:", payload);
+
+  return this.request(
+    `/schedules/${scheduleId}/recurrences/${recurrenceId}/exceptions`,
+    {
+      method: 'POST',
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+
+// 🗑 3) 반복 예외 삭제
+static async deleteRecurrenceException(scheduleId, recurrenceId, exceptionId) {
+  console.log("🗑 [API] deleteRecurrenceException:", {
+    scheduleId,
+    recurrenceId,
+    exceptionId
+  });
+
+  return this.request(
+    `/schedules/${scheduleId}/recurrences/${recurrenceId}/exceptions/${exceptionId}`,
+    { method: 'DELETE' }
+  );
 }
 
 

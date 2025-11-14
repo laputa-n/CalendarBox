@@ -7,7 +7,6 @@ import { toLocalInputValue, localInputToISO } from '../../utils/datetime';
 import { useAttachments } from '../../hooks/useAttachments';
 import ExpenseModal from '../ExpenseModal';
 
-
 /* ====== 스타일 ====== */
 const overlayStyle = {
   position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
@@ -51,7 +50,6 @@ export default function EditScheduleModal({ isOpen, onClose, eventData }) {
   const { updateSchedule } = useSchedules();
  const scheduleId = Number(eventData?.id || eventData?.scheduleId);
 
-
   // ========== 상태 ==========
   const [formData, setFormData] = useState({
     title: '',
@@ -73,23 +71,10 @@ export default function EditScheduleModal({ isOpen, onClose, eventData }) {
   const [expensePaidAt, setExpensePaidAt] = useState('');
   const [expenseReceiptFile, setExpenseReceiptFile] = useState(null);
   const [links, setLinks] = useState([]);
-  const [recurrence, setRecurrence] = useState({
-  freq: 'WEEKLY',
-  intervalCount: 1,
-  byDay: ['MO', 'WE', 'FR'],
-  until: '', // 종료 날짜
-});
-
-const handleRecurrenceChange = (e) => {
-  const { name, value } = e.target;
-  setRecurrence(prev => ({
-    ...prev,
-    [name]: value
-  }));
-};
-
-
-
+  const [recurrenceList, setRecurrenceList] = useState([]);
+  const [editingRecurrence, setEditingRecurrence] = useState(null);
+  const [isRecurrenceEditing, setIsRecurrenceEditing] = useState(false);
+  const [exceptionList, setExceptionList] = useState([]);
 
   const loadLinks = useCallback(async (scheduleId) => {
   try {
@@ -108,6 +93,7 @@ const handleRecurrenceChange = (e) => {
         loadPlaces(scheduleId),
         loadAttachments(scheduleId),
         loadReminders(scheduleId),
+        loadRecurrences(scheduleId),
         loadLinks(scheduleId)
       ]);
     } catch (error) {
@@ -130,6 +116,44 @@ const handleRecurrenceChange = (e) => {
     setPlacePage({ content });
   }, [scheduleId]);
 
+  const loadRecurrences = useCallback(async () => {
+  try {
+    const res = await ApiService.getRecurrences(scheduleId);
+    const list = res?.data ?? [];
+     console.log("🔍 [loadRecurrences] 서버 응답 list:", list);
+    setRecurrenceList(list);
+   console.log("🔍 [loadRecurrences] setRecurrenceList 후 state:", list);
+    // 보통 하나만 존재하므로 첫 번째를 editingRecurrence로 세팅
+   if (list.length > 0) {
+        setEditingRecurrence(list[0]);
+      } else {
+        setEditingRecurrence(null);
+        setExceptionList([]); // 반복 없으면 예외도 없음
+      }
+    } catch (err) {
+      console.error("반복 조회 실패", err);
+    }
+  }, [scheduleId]);
+
+const loadExceptions = useCallback(async () => {
+  if (!editingRecurrence) return;
+
+  try {
+    const res = await ApiService.getRecurrenceExceptions(
+      scheduleId,
+      editingRecurrence.recurrenceId
+    );
+
+    const list = res?.data ?? [];
+    console.log("📂 [loadExceptions] 예외 목록:", list);
+
+    setExceptionList(list);
+  } catch (err) {
+    console.error("반복 예외 조회 실패:", err);
+  }
+}, [scheduleId, editingRecurrence]);
+
+
   // 리마인더 목록 조회
 const loadReminders = useCallback(async (scheduleId) => {
   try {
@@ -140,6 +164,50 @@ const loadReminders = useCallback(async (scheduleId) => {
   }
 }, []);
 
+const updateRecurrence = async (scheduleId, recurrenceId, recurrenceData) => {
+  try {
+    await ApiService.updateRecurrence(scheduleId, recurrenceId, recurrenceData);
+    alert("반복이 수정되었습니다.");
+    await loadRecurrences(scheduleId);
+  } catch (err) {
+    console.error("반복 수정 실패:", err);
+    alert("반복 수정 실패");
+  }
+};
+
+const handleDeleteException = async (exceptionId) => {
+  if (!window.confirm("이 예외 날짜를 삭제할까요?")) return;
+
+  try {
+    await ApiService.deleteRecurrenceException(
+      scheduleId,
+      editingRecurrence.recurrenceId,
+      exceptionId
+    );
+
+    await loadExceptions();
+    alert("예외 날짜 삭제 완료!");
+  } catch (err) {
+    console.error("예외 삭제 실패:", err);
+    alert("삭제 실패!");
+  }
+};
+
+
+function toValidISO(dt) {
+  if (!dt) return null;
+
+  // 이미 'Z' 포함된 경우 그대로 사용
+  if (dt.endsWith("Z")) return dt;
+
+  // 초가 없는 datetime-local → ":00Z" 추가
+  // 2025-11-27T16:41 → 2025-11-27T16:41:00Z
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(dt)) {
+    return dt + ":00Z";
+  }
+
+  return dt;
+}
 
   const loadAttachments = useCallback(async () => {
     const [images, files] = await Promise.all([
@@ -162,10 +230,22 @@ const loadReminders = useCallback(async (scheduleId) => {
       startDateTime: toLocalInputValue(eventData.startDateTime || eventData.startAt),
       endDateTime: toLocalInputValue(eventData.endDateTime || eventData.endAt),
       color: eventData.color || '#3b82f6',
-      recurrence: eventData.recurrence || null,
+      recurrence: null,
     });
       loadData();
+      loadRecurrences();
   }, [isOpen, eventData, loadData]);
+
+  useEffect(() => {
+  if (!isOpen || !eventData) return;
+
+  loadData();
+
+  // recurrence 로드 후 예외도 로드
+  setTimeout(() => {
+    loadExceptions();
+  }, 50);
+}, [isOpen, eventData, loadData, loadExceptions]);
 
 // 리마인더 삭제
 const handleDeleteReminder = async (reminderId) => {
@@ -210,8 +290,6 @@ const handleDeleteReminder = async (reminderId) => {
     await ApiService.removeSchedulePlace(scheduleId, p.id ?? p.schedulePlaceId);
     loadPlaces();
   };
-
-
 
 // 링크 삭제
 const handleDeleteLink = async (linkId) => {
@@ -320,7 +398,6 @@ const {
       startAt: localInputToISO(formData.startDateTime),
       endAt: localInputToISO(formData.endDateTime),
       color: formData.color,
-      recurrence: formData.recurrence,
     });
     
     // ✅ 새 첨부파일 업로드(선택된 경우만)
@@ -443,7 +520,185 @@ return (
                 </div>
               ))}
             </div>
+            {/* 반복 정보 */}
+<div style={sectionStyle}>
+  <label style={labelStyle}>🔁 반복 설정</label>
 
+  {editingRecurrence ? (
+    <>
+      <div style={{ marginBottom: "8px" }}>
+        <strong>반복 유형:</strong> {editingRecurrence.freq}
+      </div>
+      <div style={{ marginBottom: "8px" }}>
+        <strong>간격:</strong> {editingRecurrence.intervalCount}
+      </div>
+      {editingRecurrence.byDay?.length > 0 && (
+        <div style={{ marginBottom: "8px" }}>
+          <strong>요일:</strong> {editingRecurrence.byDay.join(', ')}
+        </div>
+      )}
+      {editingRecurrence.until && (
+        <div style={{ marginBottom: "8px" }}>
+          <strong>종료:</strong> {editingRecurrence.until}
+        </div>
+      )}
+
+      {/* 수정버튼 */}
+      <button
+       type="button"
+       style={{ ...subButton, background: "#dbeafe" }}
+       onClick={() => setIsRecurrenceEditing(true)}
+>
+       반복 수정
+      </button>
+      {isRecurrenceEditing && (
+  <div style={{ marginTop: '0.75rem', padding: '0.75rem', background: '#f3f4f6', borderRadius: 8 }}>
+
+    <label style={labelStyle}>🔁 반복 주기</label>
+    <select
+      name="freq"
+      value={editingRecurrence.freq}
+      onChange={(e) =>
+        setEditingRecurrence(prev => ({ ...prev, freq: e.target.value }))
+      }
+      style={inputStyle}
+    >
+      <option value="">없음</option>
+      <option value="DAILY">매일</option>
+      <option value="WEEKLY">매주</option>
+      <option value="MONTHLY">매월</option>
+    </select>
+
+    <label style={labelStyle}>간격</label>
+    <input
+      type="number"
+      name="intervalCount"
+      value={editingRecurrence.intervalCount}
+      onChange={(e) =>
+        setEditingRecurrence(prev => ({ ...prev, intervalCount: Number(e.target.value) }))
+      }
+      style={inputStyle}
+    />
+
+    <label style={labelStyle}>반복 요일</label>
+    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+      {['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'].map((day) => (
+        <label key={day} style={{ display: 'flex', alignItems: 'center' }}>
+          <input
+            type="checkbox"
+            name="byDay"
+            value={day}
+            checked={editingRecurrence.byDay?.includes(day)}
+            onChange={() => {
+              setEditingRecurrence(prev => {
+                const exists = prev.byDay.includes(day);
+                return {
+                  ...prev,
+                  byDay: exists
+                    ? prev.byDay.filter(d => d !== day)
+                    : [...prev.byDay, day]
+                };
+              });
+            }}
+            style={{ marginRight: '0.5rem' }}
+          />
+          {day}
+        </label>
+      ))}
+    </div>
+
+    <label style={labelStyle}>반복 종료일</label>
+    <input
+      type="datetime-local"
+      name="until"
+      value={editingRecurrence.until || ''}
+      onChange={(e) =>
+        setEditingRecurrence(prev => ({ ...prev, until: e.target.value }))
+      }
+      style={inputStyle}
+    />
+    {/* 🔥 반복 예외 목록 UI */}
+<div style={{ marginTop: '1.2rem' }}>
+  <label style={{ ...labelStyle, fontWeight: 600 }}>❗ 반복 예외 날짜</label>
+
+  {exceptionList.length === 0 ? (
+    <p style={{ color: "#9ca3af" }}>예외 날짜 없음</p>
+  ) : (
+    exceptionList.map((ex) => (
+      <div key={ex.exceptionId} style={itemRow}>
+        <span>{ex.exceptionDate}</span>
+
+        <button
+          type="button"
+          onClick={() => handleDeleteException(ex.exceptionId)}
+          style={{ ...iconButton, color: '#ef4444' }}
+        >
+          <Trash2 size={16} />
+        </button>
+      </div>
+    ))
+  )}
+</div>
+
+    {/* 저장 버튼 */}
+    <button
+  type="button"
+  style={{ ...subButton, background: '#3b82f6', color: '#fff', marginTop: 8 }}
+  onClick={() => {
+    const fixedData = {
+      ...editingRecurrence,
+      until: toValidISO(editingRecurrence.until)
+    };
+    updateRecurrence(
+      scheduleId,
+      editingRecurrence.recurrenceId,
+      fixedData
+    );
+    
+    setIsRecurrenceEditing(false);
+  }}
+>
+  저장
+</button>
+  </div>
+)}
+
+      {/* 삭제 버튼 */}
+      <button
+        type="button"
+        style={{ ...subButton, background: "#fee2e2", color: "#b91c1c", marginLeft: "8px" }}
+       onClick={async () => {
+  if (!window.confirm("반복을 삭제할까요?")) return;
+
+  // 🔥 최신값 보장
+  await loadRecurrences(scheduleId);
+  console.log("🧪 삭제 후 다시 불러온 recurrenceList:", recurrenceList);
+
+  const target = editingRecurrence || recurrenceList[0];
+  if (!target || !target.recurrenceId) {
+    alert("반복 정보를 찾을 수 없습니다.");
+    return;
+  }
+
+  console.log("🗑 삭제 요청:", {
+    scheduleId,
+    recurrenceId: target.recurrenceId
+  });
+
+  await ApiService.deleteRecurrence(scheduleId, target.recurrenceId);
+  await loadRecurrences(scheduleId);
+  alert("반복 삭제 완료");
+          console.log("🗑 삭제 요청 scheduleId:", scheduleId);
+        }}
+      >
+        반복 삭제
+      </button>
+    </>
+  ) : (
+    <p style={{ color: "#9ca3af" }}>반복 없음</p>
+  )}
+  
+</div>
       {/* 리마인더 UI */}
       <div style={sectionStyle}>
         <label style={labelStyle}>⏰ 리마인더</label>
@@ -629,7 +884,6 @@ return (
       )}
     </div>
   </div>
+  
 );
-
-
 }
