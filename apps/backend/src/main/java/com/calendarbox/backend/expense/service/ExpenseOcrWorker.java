@@ -5,7 +5,6 @@ import com.calendarbox.backend.expense.domain.Expense;
 import com.calendarbox.backend.expense.domain.ExpenseAttachment;
 import com.calendarbox.backend.expense.domain.ExpenseLine;
 import com.calendarbox.backend.expense.domain.ExpenseOcrTask;
-import com.calendarbox.backend.expense.dto.response.OcrProcessResult;
 import com.calendarbox.backend.expense.repository.ExpenseAttachmentRepository;
 import com.calendarbox.backend.expense.repository.ExpenseLineRepository;
 import com.calendarbox.backend.expense.repository.ExpenseOcrTaskRepository;

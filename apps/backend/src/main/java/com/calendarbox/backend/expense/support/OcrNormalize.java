@@ -30,6 +30,11 @@ public class OcrNormalize {
             String merchant = toStr(nested(img0, "storeInfo", "name", "formatted", "value"), null);
             if (isBlank(merchant)) merchant = toStr(nested(img0, "storeInfo", "name", "text"), "영수증");
 
+            // 상호명이 비어있으면 subName도 시도
+            if (isBlank(merchant)) {
+                merchant = toStr(nested(img0, "storeInfo", "subName", "text"), "영수증");
+            }
+
             // 3) 날짜/시간 일부만 있을 때도 커버
             Map<String, Object> dateFmt = asMapOrNull(nested(img0, "paymentInfo", "date", "formatted"));
             Map<String, Object> timeFmt = asMapOrNull(nested(img0, "paymentInfo", "time", "formatted"));
@@ -64,6 +69,10 @@ public class OcrNormalize {
 
                     items.add(new NormalizedReceipt.Item(isBlank(label) ? "항목" : label, qty, unit, line));
                 }
+            }
+
+            if (total == 0 && !items.isEmpty()) {
+                total = items.stream().mapToLong(NormalizedReceipt.Item::lineAmount).sum();
             }
 
             return new NormalizedReceipt(
