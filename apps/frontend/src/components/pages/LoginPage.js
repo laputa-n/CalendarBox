@@ -12,7 +12,7 @@ export const LoginPage = () => {
   try {
     setLoading(true);
    //window.location.href = 'http://localhost:8080/api/auth/kakao/login';
-  Window.location.href = ApiService.getKakaoLoginUrl();
+    window.location.href = ApiService.getKakaoLoginUrl();
   } catch (error) {
     console.error('Login failed:', error);
   } finally {
