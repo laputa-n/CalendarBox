@@ -1,13 +1,13 @@
 // src/services/apiService.js
 
 const API_CONFIG = {
-  development: 'http://localhost:8080/api', // 로컬에서만 localhost 사용
-  production: '/api',                       // 서버에서는 같은 호스트 + /api 로만
-  staging: '/api',                          // 있으면 같이 맞춰도 됨
+  development: 'http://localhost:8080/api',
+  staging: '/api',
+  production: '/api',
 };
 
 const API_BASE_URL = API_CONFIG[process.env.NODE_ENV] || API_CONFIG.development;
-
+const getAuthToken = () => localStorage.getItem('accessToken');
 export class ApiService {
   /**
    * 공통 fetch 래퍼
@@ -15,6 +15,9 @@ export class ApiService {
   static async request(endpoint, options = {}) {
     const { headers = {}, ...rest } = options;
     const hasBody = rest.body !== undefined && rest.body !== null;
+    const base = API_BASE_URL.endsWith('/') ? API_BASE_URL : `${API_BASE_URL}/`;
+ const path = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+ const fullUrl = base + path;
 
     const config = {
       credentials: 'include', // ✅ 항상 쿠키 포함
@@ -25,14 +28,25 @@ export class ApiService {
       },
     };
 
-    const res = await fetch(`${API_BASE_URL}${endpoint}`, config);
+   const res = await fetch(fullUrl, config);
 
     if (!res.ok) {
       const ct = res.headers.get('content-type') || '';
       const errorData = ct.includes('application/json')
         ? await res.json().catch(() => ({}))
         : {};
-      throw new Error(errorData.message || `HTTP error! status: ${res.status}`);
+      const err = new Error(errorData?.message || `HTTP ${res.status}`);
+   err.status = res.status;
+   err.url = fullUrl;
+   err.data = errorData;
+  console.error('[API ERROR]', {
+     url: fullUrl,
+     status: res.status,
+     serverMessage: errorData?.message,
+     serverBody: errorData,
+  });
+
+   throw err;
     }
 
     const contentType = res.headers.get('content-type') || '';
@@ -224,7 +238,6 @@ static async removeCalendarMember(calendarMemberId) {
   return response;
 }
 
-  // === 일정 관련 API ===
 // === 일정 관련 API ===
 static async getCalendarSchedules(calendarId, params = {}) {
   const queryString = new URLSearchParams(params).toString();
@@ -305,29 +318,123 @@ static async deleteSchedule(scheduleId) {
     return this.request(`/schedules/${scheduleId}/places`);
   }
 
-  static async reorderSchedulePlaces(scheduleId, placesOrder) {
+  // === 일정 장소 순서 재정렬 ===
+  static async reorderSchedulePlaces(scheduleId, positions) {
     return this.request(`/schedules/${scheduleId}/places`, {
-      method: 'PUT',
-      body: JSON.stringify(placesOrder),
+      method: 'PATCH',
+      body: JSON.stringify({ positions }),
     });
   }
 
+  // === 일정 장소 상세 조회 ===
   static async getSchedulePlaceById(scheduleId, schedulePlaceId) {
     return this.request(`/schedules/${scheduleId}/places/${schedulePlaceId}`);
   }
 
-  static async updateSchedulePlace(scheduleId, schedulePlaceId, placeData) {
+  // === 일정 장소 이름 수정 ===
+  static async updateSchedulePlace(scheduleId, schedulePlaceId, name) {
     return this.request(`/schedules/${scheduleId}/places/${schedulePlaceId}`, {
-      method: 'PUT',
-      body: JSON.stringify(placeData),
+      method: 'PATCH',
+      body: JSON.stringify({ name }),
     });
   }
 
+  // === 일정 장소 삭제 ===
   static async removeSchedulePlace(scheduleId, schedulePlaceId) {
     return this.request(`/schedules/${scheduleId}/places/${schedulePlaceId}`, {
       method: 'DELETE',
     });
   }
+
+  // === 첨부파일 관련 ===
+static async getPresignedUrl(scheduleId, file, isReceipt = false) {
+  console.log('[DEBUG] getPresignedUrl called with:', {
+    scheduleId,
+    filename: file.name,
+    type: file.type,
+    isReceipt,
+  });
+
+  return this.request(`/attachments/uploads/presign`, {
+    method: 'POST',
+    body: JSON.stringify({
+      scheduleId: Number(scheduleId),
+      filename: file.name,
+      contentType: file.type,
+      size: file.size,
+      isReceipt: Boolean(isReceipt),
+    }),
+  });
+}
+
+static async completeUpload(uploadId, objectKey, isReceipt = false) {
+  return this.request(`/attachments/uploads/complete`, {
+    method: 'POST',
+    body: JSON.stringify({
+      uploadId,
+      objectKey,
+      isReceipt,
+    }),
+  });
+}
+
+static async getImageAttachments(scheduleId) {
+  return this.request(`/schedules/${scheduleId}/attachments/images`);
+}
+
+static async getFileAttachments(scheduleId) {
+  return this.request(`/schedules/${scheduleId}/attachments/files`);
+}
+
+static async deleteAttachment(attachmentId) {
+  return this.request(`/attachments/${attachmentId}`, { method: 'DELETE' });
+}
+
+static async getDownloadUrl(attachmentId) {
+  return this.request(`/attachments/${attachmentId}/download`);
+}
+
+
+// ✅ 일정 투두 관련 API
+static async getTodos(scheduleId) {
+  return this.request(`/schedules/${scheduleId}/todos`, { method: 'GET' });
+}
+
+static async addTodo(scheduleId, content) {
+  return this.request(`/schedules/${scheduleId}/todos`, {
+    method: 'POST',
+    body: JSON.stringify({ content }),
+  });
+}
+
+static async updateTodo(scheduleId, todoId, content) {
+  return this.request(`/schedules/${scheduleId}/todos/${todoId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ content }),
+  });
+}
+
+static async toggleTodo(scheduleId, todoId) {
+  return this.request(`/schedules/${scheduleId}/todos/${todoId}/toggle`, {
+    method: 'PATCH',
+  });
+}
+
+static async reorderTodos(scheduleId, orders) {
+  return this.request(`/schedules/${scheduleId}/todos/reorder`, {
+    method: 'PATCH',
+    body: JSON.stringify({ orders }),
+  });
+}
+
+static async deleteTodo(scheduleId, todoId) {
+  return this.request(`/schedules/${scheduleId}/todos/${todoId}`, {
+    method: 'DELETE',
+  });
+}
+
+
+
 
   // === 알림 ===
   static async getNotifications(params = {}) {
@@ -360,4 +467,151 @@ static async deleteSchedule(scheduleId) {
   static async getUserActivity() {
     return this.request('/statistics/activity');
   }
+  // === 일정 지출 관련 ===
+  static async listExpenses(scheduleId, page = 0, size = 50) {
+    return this.request(`/schedules/${scheduleId}/expenses?page=${page}&size=${size}`, {
+      method: 'GET',
+    });
+  }
+
+  static async createExpense(scheduleId, expenseData) {
+    return this.request(`/schedules/${scheduleId}/expenses`, {
+      method: 'POST',
+      body: JSON.stringify(expenseData),
+    });
+  }
+
+  static async getExpenseDetail(scheduleId, expenseId) {
+    return this.request(`/schedules/${scheduleId}/expenses/${expenseId}`, {
+      method: 'GET',
+    });
+  }
+
+  static async updateExpense(scheduleId, expenseId, partialData) {
+    return this.request(`/schedules/${scheduleId}/expenses/${expenseId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(partialData),
+    });
+  }
+
+  static async deleteExpense(scheduleId, expenseId) {
+    return this.request(`/schedules/${scheduleId}/expenses/${expenseId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // === 일정 지출 상세 항목(Expense Lines) ===
+  static async listExpenseLines(expenseId, page = 0, size = 100) {
+    return this.request(`/expenses/${expenseId}/lines?page=${page}&size=${size}`, {
+      method: 'GET',
+    });
+  }
+
+  static async createExpenseLine(expenseId, lineData) {
+    return this.request(`/expenses/${expenseId}/lines`, {
+      method: 'POST',
+      body: JSON.stringify(lineData),
+    });
+  }
+
+  static async updateExpenseLine(expenseId, lineId, partialData) {
+    return this.request(`/expenses/${expenseId}/lines/${lineId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(partialData),
+    });
+  }
+
+  static async deleteExpenseLine(expenseId, lineId) {
+    return this.request(`/expenses/${expenseId}/lines/${lineId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  
+// === 일정 리마인더 관련 API ===
+
+static async createReminder(scheduleId, minutesBefore) {
+  return this.request(`/schedules/${scheduleId}/reminders`, {
+    method: 'POST',
+    body: JSON.stringify({ minutesBefore }),
+  });
 }
+static async listReminders(scheduleId) {
+  return this.request(`/schedules/${scheduleId}/reminders`, {
+    method: 'GET',
+  });
+}
+static async deleteReminder(scheduleId, reminderId) {
+  return this.request(`/schedules/${scheduleId}/reminders/${reminderId}`, {
+    method: 'DELETE',
+  });
+}
+
+static async createScheduleLink(scheduleId, { url, label }) {
+  const response = await this.request(`/schedules/${scheduleId}/links`, {
+    method: 'POST',
+    body: JSON.stringify({ url, label }),
+  });
+  return response;
+}
+
+static async getScheduleLinks(scheduleId) {
+  return this.request(`/schedules/${scheduleId}/links`, 
+    { method: 'GET' });
+}
+
+static async deleteScheduleLink(scheduleId, linkId) {
+  return this.request(`/schedules/${scheduleId}/links/${linkId}`, 
+    { method: 'DELETE' });
+}
+//===========반복 ==============
+static async createRecurrence(scheduleId, recurrenceData) {
+  console.log('recurrenceData:', recurrenceData); // 값 확인
+  const response = await this.request(`/schedules/${scheduleId}/recurrences`, {
+    method: 'POST',
+    body: JSON.stringify(recurrenceData),
+  });
+  return response;
+}
+
+static async getRecurrences(scheduleId) {
+  return this.request(`/schedules/${scheduleId}/recurrences`, { method: 'GET' });
+}
+
+static async updateRecurrence(scheduleId, recurrenceId, recurrenceData) {
+  const response = await this.request(`/schedules/${scheduleId}/recurrences/${recurrenceId}`, {
+    method: 'PUT',
+    body: JSON.stringify(recurrenceData),
+  });
+  return response;
+}
+
+static async deleteRecurrence(scheduleId, recurrenceId) {
+  return this.request(`/schedules/${scheduleId}/recurrences/${recurrenceId}`, { method: 'DELETE' });
+}
+
+
+}
+
+
+
+// ✅ 클래스 바깥(닫는 } 다음 줄)에 붙여야 함
+ApiService.getScheduleSummary = (scheduleId) =>
+  ApiService.request(`/schedules/${scheduleId}`, { method: 'GET' });
+
+ApiService.listSchedulePlaces = (scheduleId, page = 0, size = 20) =>
+  ApiService.request(`/schedules/${scheduleId}/places?page=${page}&size=${size}`, { method: 'GET' });
+
+ApiService.getSchedulePlaceDetail = (scheduleId, schedulePlaceId) =>
+  ApiService.request(`/schedules/${scheduleId}/places/${schedulePlaceId}`, { method: 'GET' });
+
+ApiService.listTodos = (scheduleId, page = 0, size = 50) =>
+  ApiService.request(`/schedules/${scheduleId}/todos?page=${page}&size=${size}`, { method: 'GET' });
+
+ApiService.listImageAttachments = (scheduleId, page = 0, size = 20) =>
+  ApiService.request(`/schedules/${scheduleId}/attachments/images?page=${page}&size=${size}`, { method: 'GET' });
+
+ApiService.listFileAttachments = (scheduleId, page = 0, size = 20) =>
+  ApiService.request(`/schedules/${scheduleId}/attachments/files?page=${page}&size=${size}`, { method: 'GET' });
+
+
