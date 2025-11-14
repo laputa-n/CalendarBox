@@ -103,13 +103,13 @@ public class ExpenseOcrWorker {
         // 6) 저장
         var expense = expenseRepository.save(Expense.fromReceipt(
                 task.getSchedule(),
-                norm.getMerchantNameOrDefault("영수증"),
+                cut(norm.getMerchantNameOrDefault("영수증"),255),
                 norm.totalAmount(),
                 norm.paidAt(),
                 norm.asMap()
         ));
         var lines = norm.items().stream()
-                .map(i -> ExpenseLine.of(expense, i.label(), i.qty(), i.unitAmount(), i.lineAmount()))
+                .map(i -> ExpenseLine.of(expense, cut(i.label(),255), i.qty(), i.unitAmount(), i.lineAmount()))
                 .toList();
         expenseLineRepository.saveAll(lines);
         expenseAttachmentRepository.save(ExpenseAttachment.of(expense, att));
@@ -117,6 +117,9 @@ public class ExpenseOcrWorker {
 
         log.info("[OCR] success taskId={}, expenseId={}", task.getOcrTaskId(), expense.getId());
     }
-
+    private static String cut(String s, int max){
+        if (s == null) return null;
+        return s.length() <= max ? s : s.substring(0, max);
+    }
 
 }
