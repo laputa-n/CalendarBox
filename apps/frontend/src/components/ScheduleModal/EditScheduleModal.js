@@ -358,6 +358,8 @@ const {
         method: 'PUT',
         headers: { 'Content-Type': expenseReceiptFile.type },
         body: expenseReceiptFile,
+        mode: 'cors',
+        credentials: 'omit',
       });
        const completeRes = await ApiService.completeUpload(uploadId, objectKey);
       alert('지출 등록 + 영수증 업로드 완료');

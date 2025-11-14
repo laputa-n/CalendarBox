@@ -85,6 +85,8 @@ const handleCreate = async () => {
         method: 'PUT',
         headers: { 'Content-Type': receiptFile.type },
         body: receiptFile,
+        mode: 'cors',
+        credentials: 'omit',
       });
       console.log('[ExpenseModal] S3 업로드 완료:', { uploadId, objectKey });
 
@@ -116,6 +118,8 @@ const handleCreate = async () => {
           method: 'PUT',
           headers: { 'Content-Type': receiptFile.type },
           body: receiptFile,
+          mode: 'cors',
+          credentials: 'omit',
         });
         const completeRes = await ApiService.completeUpload(uploadId, objectKey);
         console.log('[ExpenseModal] 수동 + 영수증 OCR 완료:', completeRes);

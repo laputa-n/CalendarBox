@@ -170,6 +170,8 @@ if (recurrenceId && exceptionDates.length > 0) {
     method: 'PUT',
     headers: { 'Content-Type': expenseReceiptFile.type },
     body: expenseReceiptFile,
+    mode: 'cors',
+    credentials: 'omit',
   });
 
   // OCR 트리거 (백엔드에서 attachment + OCR 처리)

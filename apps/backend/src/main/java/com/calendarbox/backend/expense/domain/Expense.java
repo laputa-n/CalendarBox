@@ -34,7 +34,7 @@ public class Expense {
     @JoinColumn(name = "schedule_id", nullable = false)
     private Schedule schedule;
 
-    @Column(nullable = false, length = 50)
+    @Column(nullable = false, length = 255)
     private String name;
 
     @Column(nullable = false)

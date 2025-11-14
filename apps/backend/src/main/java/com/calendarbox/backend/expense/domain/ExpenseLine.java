@@ -27,7 +27,7 @@ public class ExpenseLine {
     @JoinColumn(name = "expense_id", nullable = false)
     private Expense expense;
 
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false, length = 255)
     private String label;
 
     @Column(nullable = false)
