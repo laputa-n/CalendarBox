@@ -1,5 +1,4 @@
 // src/services/apiService.js
-
 const API_CONFIG = {
   development: 'http://localhost:8080/api', // 로컬에서만 localhost 사용
   production: '/api',                       // 서버에서는 같은 호스트 + /api 로만
@@ -9,7 +8,6 @@ const API_CONFIG = {
   //staging: 'https://api-staging.calbox.com/api',
   //production: 'https://api.calbox.com/api',
 };
-
 const API_BASE_URL = API_CONFIG[process.env.NODE_ENV] || API_CONFIG.development;
 const getAuthToken = () => localStorage.getItem('accessToken');
 export class ApiService {
@@ -397,8 +395,6 @@ static async deleteAttachment(attachmentId) {
 static async getDownloadUrl(attachmentId) {
   return this.request(`/attachments/${attachmentId}/download`);
 }
-
-
 // ✅ 일정 투두 관련 API
 static async getTodos(scheduleId) {
   return this.request(`/schedules/${scheduleId}/todos`, { method: 'GET' });
@@ -436,10 +432,6 @@ static async deleteTodo(scheduleId, todoId) {
     method: 'DELETE',
   });
 }
-
-
-
-
   // === 알림 ===
   static async getNotifications(params = {}) {
     const queryString = new URLSearchParams(params).toString();
@@ -531,7 +523,6 @@ static async deleteTodo(scheduleId, todoId) {
     });
   }
 
-  
 // === 일정 리마인더 관련 API ===
 
 static async createReminder(scheduleId, minutesBefore) {
@@ -570,7 +561,6 @@ static async deleteScheduleLink(scheduleId, linkId) {
 }
 //===========반복 ==============
 static async createRecurrence(scheduleId, recurrenceData) {
-  console.log('recurrenceData:', recurrenceData); // 값 확인
   const response = await this.request(`/schedules/${scheduleId}/recurrences`, {
     method: 'POST',
     body: JSON.stringify(recurrenceData),
@@ -583,10 +573,6 @@ static async getRecurrences(scheduleId) {
 }
 
 static async updateRecurrence(scheduleId, recurrenceId, recurrenceData) {
-  console.log("📡 [API 요청 - updateRecurrence]");
-  console.log("   URL:", `/schedules/${scheduleId}/recurrences/${recurrenceId}`);
-  console.log("   payload:", recurrenceData);
-
   const response = await this.request(
     `/schedules/${scheduleId}/recurrences/${recurrenceId}`,
     {
@@ -600,32 +586,23 @@ static async updateRecurrence(scheduleId, recurrenceId, recurrenceData) {
 }
 
 static async deleteRecurrence(scheduleId, recurrenceId) {
-  console.log("🗑️ [API] deleteRecurrence 요청:", { scheduleId, recurrenceId });
-
   const response = await this.request(
     `/schedules/${scheduleId}/recurrences/${recurrenceId}`,
     { method: 'DELETE' }
   );
-
-  console.log("🗑️ [API] deleteRecurrence 응답:", response);
   return response;
 }
 
 // 🔍 1) 반복 예외 목록 조회
 static async getRecurrenceExceptions(scheduleId, recurrenceId) {
-  console.log("📂 [API] getRecurrenceExceptions:", { scheduleId, recurrenceId });
   return this.request(
     `/schedules/${scheduleId}/recurrences/${recurrenceId}/exceptions`,
     { method: 'GET' }
   );
 }
-
 // ➕ 2) 반복 예외 생성
 static async createRecurrenceException(scheduleId, recurrenceId, dateString) {
   const payload = { exceptionDate: dateString };
-
-  console.log("📤 최종 전송 payload:", payload);
-
   return this.request(
     `/schedules/${scheduleId}/recurrences/${recurrenceId}/exceptions`,
     {
@@ -635,27 +612,33 @@ static async createRecurrenceException(scheduleId, recurrenceId, dateString) {
     }
   );
 }
-
-
 // 🗑 3) 반복 예외 삭제
 static async deleteRecurrenceException(scheduleId, recurrenceId, exceptionId) {
-  console.log("🗑 [API] deleteRecurrenceException:", {
-    scheduleId,
-    recurrenceId,
-    exceptionId
-  });
-
   return this.request(
     `/schedules/${scheduleId}/recurrences/${recurrenceId}/exceptions/${exceptionId}`,
     { method: 'DELETE' }
   );
 }
+static async getAllOccurrences({ fromKst, toKst }) {
+  const response = await this.request(
+    `/occurrences?from=${encodeURIComponent(fromKst)}&to=${encodeURIComponent(toKst)}`,
+    { method: "GET" }
+  );
 
+  console.log("📡 [API 응답 - 전체 오커런스]:", response);
+  return response;
+}
+static async getCalendarOccurrences(calendarId, { fromKst, toKst }) {
+  const response = await this.request(
+    `/calendars/${calendarId}/occurrences?from=${encodeURIComponent(fromKst)}&to=${encodeURIComponent(toKst)}`,
+    { method: "GET" }
+  );
 
+  console.log(`📡 [API 응답 - 캘린더(${calendarId}) 오커런스]:`, response);
+  return response;
 }
 
-
-
+}
 // ✅ 클래스 바깥(닫는 } 다음 줄)에 붙여야 함
 ApiService.getScheduleSummary = (scheduleId) =>
   ApiService.request(`/schedules/${scheduleId}`, { method: 'GET' });

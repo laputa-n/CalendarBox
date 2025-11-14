@@ -79,10 +79,8 @@ export default function EditScheduleModal({ isOpen, onClose, eventData }) {
   const loadLinks = useCallback(async (scheduleId) => {
   try {
     const res = await ApiService.getScheduleLinks(scheduleId);
-    console.log('링크 조회 성공:', res); // 응답 데이터 확인
      setLinks(res?.data?.scheduleLinkDtos || []);
   } catch (error) {
-    console.error('링크 조회 실패:', error);
   }
 }, []);
   // ========== 로드 ==========
@@ -97,7 +95,6 @@ export default function EditScheduleModal({ isOpen, onClose, eventData }) {
         loadLinks(scheduleId)
       ]);
     } catch (error) {
-      console.error('데이터 로드 실패:', error);
     }
   }, [scheduleId, loadLinks]);
 
@@ -123,7 +120,6 @@ export default function EditScheduleModal({ isOpen, onClose, eventData }) {
      console.log("🔍 [loadRecurrences] 서버 응답 list:", list);
     setRecurrenceList(list);
    console.log("🔍 [loadRecurrences] setRecurrenceList 후 state:", list);
-    // 보통 하나만 존재하므로 첫 번째를 editingRecurrence로 세팅
    if (list.length > 0) {
         setEditingRecurrence(list[0]);
       } else {
@@ -149,7 +145,6 @@ const loadExceptions = useCallback(async () => {
 
     setExceptionList(list);
   } catch (err) {
-    console.error("반복 예외 조회 실패:", err);
   }
 }, [scheduleId, editingRecurrence]);
 
@@ -196,16 +191,10 @@ const handleDeleteException = async (exceptionId) => {
 
 function toValidISO(dt) {
   if (!dt) return null;
-
-  // 이미 'Z' 포함된 경우 그대로 사용
   if (dt.endsWith("Z")) return dt;
-
-  // 초가 없는 datetime-local → ":00Z" 추가
-  // 2025-11-27T16:41 → 2025-11-27T16:41:00Z
   if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(dt)) {
     return dt + ":00Z";
   }
-
   return dt;
 }
 
@@ -240,7 +229,6 @@ function toValidISO(dt) {
   if (!isOpen || !eventData) return;
 
   loadData();
-
   // recurrence 로드 후 예외도 로드
   setTimeout(() => {
     loadExceptions();
@@ -254,7 +242,6 @@ const handleDeleteReminder = async (reminderId) => {
       await ApiService.deleteReminder(scheduleId, reminderId);
       loadReminders(scheduleId); // 삭제 후 목록 다시 로드
     } catch (error) {
-      console.error('리마인더 삭제 실패:', error);
     }
   }
 };
@@ -333,9 +320,9 @@ const handleDeleteLink = async (linkId) => {
 const {
   imageQueue,
   fileQueue,
-  handleSelectFiles,   // onChange에 그대로 물리면 큐에 자동 분류
-  uploadFiles,         // 실제 업로드 (scheduleId 전달)
-  clearQueues,         // 닫을 때 초기화용(선택)
+  handleSelectFiles,   
+  uploadFiles,         
+  clearQueues,         
 } = useAttachments(scheduleId);
 
   const handleDownload = async (attachmentId) => {
@@ -365,10 +352,7 @@ const {
     await ApiService.createExpense(scheduleId, expenseData);
 
     if (expenseReceiptFile) {
-      console.log('[RECEIPT STEP 1] 업로드 시작:', expenseReceiptFile);
       const presign = await ApiService.getPresignedUrl(scheduleId, expenseReceiptFile, true);
-       console.log('[RECEIPT STEP 2] presign 응답:', presign);
-
       const { uploadId, objectKey, presignedUrl } = presign.data;
       await fetch(presignedUrl, {
         method: 'PUT',
@@ -377,9 +361,7 @@ const {
         mode: 'cors',
         credentials: 'omit',
       });
-       console.log('[RECEIPT STEP 3] S3 업로드 완료:', { uploadId, objectKey });
        const completeRes = await ApiService.completeUpload(uploadId, objectKey);
-        console.log('[RECEIPT STEP 4] completeUpload 응답:', completeRes);
       alert('지출 등록 + 영수증 업로드 완료');
     } else {
       alert('지출 등록 완료');
@@ -681,12 +663,6 @@ return (
     alert("반복 정보를 찾을 수 없습니다.");
     return;
   }
-
-  console.log("🗑 삭제 요청:", {
-    scheduleId,
-    recurrenceId: target.recurrenceId
-  });
-
   await ApiService.deleteRecurrence(scheduleId, target.recurrenceId);
   await loadRecurrences(scheduleId);
   alert("반복 삭제 완료");
