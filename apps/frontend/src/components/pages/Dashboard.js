@@ -12,10 +12,7 @@ import { formatDate, formatTime, isToday } from '../../utils/dateUtils';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
-
-
-
-import { ScheduleModal } from '../ScheduleModal';
+import  ScheduleModal  from '../ScheduleModal/ScheduleModal';
 import { LoadingSpinner } from '../common/LoadingSpinner';
 
 export const Dashboard = () => {

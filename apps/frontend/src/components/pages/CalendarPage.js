@@ -7,7 +7,8 @@ import { LoadingSpinner } from '../common/LoadingSpinner';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import { ScheduleModal } from '../ScheduleModal';
+
+import  ScheduleModal  from '../ScheduleModal/ScheduleModal';
 
 export const CalendarPage = () => {
   const { calendars, createCalendar, updateCalendar, deleteCalendar, loading, setCurrentCalendar, currentCalendar } =
