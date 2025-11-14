@@ -78,5 +78,10 @@ app:
   s3:
     bucket: ${S3_BUCKET}
     region: ${S3_REGION}
+    endpoint:
+    accessKey:
+    secretKey:
+    usePathStyle: false
     presignMinutes: 5
     thumbPrefix: "thumb/256"
+
