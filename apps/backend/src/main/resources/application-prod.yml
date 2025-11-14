@@ -42,7 +42,9 @@ management:
 logging:
   level:
     root: INFO
-    org.springframework: INFO
+    com.calendarbox: DEBUG
+    org.springframework.web.reactive.function.client: DEBUG
+    reactor.netty.http.client: DEBUG
     org.hibernate.SQL: DEBUG
 
 kakao:

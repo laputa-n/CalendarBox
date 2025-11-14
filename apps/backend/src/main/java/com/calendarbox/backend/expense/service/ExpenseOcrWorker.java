@@ -31,101 +31,85 @@ public class ExpenseOcrWorker {
     private final NaverOcrClient naverOcrClient;
     private final StorageClient storageClient;
 
-    /** 바깥 트랜잭션: 상태 전환 + task의 raw/normalized/expense 링크 저장 */
     @Transactional
-    public int processBatch(int batchSize) {
+    public int processBatch(int batchSize){
         var tasks = expenseOcrTaskRepository.lockQueuedForProcess(batchSize);
         for (var t : tasks) {
             try {
                 t.markRunning();
-                expenseOcrTaskRepository.saveAndFlush(t);
-
-                // 내부 트랜잭션: OCR호출, Expense/Line/Attachment 생성
-                OcrProcessResult result = processOne(t);
-
-                // 바깥에서 task에 결과 반영
-                t.updateRawResponse(result.raw());
-                t.updateNormalized(result.normalized());
-                if (result.expense() != null) {
-                    t.linkExpense(result.expense());
-                }
+                expenseOcrTaskRepository.save(t);
+                processOne(t);
                 t.markSuccess();
             } catch (Exception e) {
-                log.warn("[OCR] task={} failed: {}", t.getOcrTaskId(), e.getMessage());
-                t.markFailed(e.getMessage());
+                log.error("[OCR] Task {} failed", t.getOcrTaskId(), e);
+                t.markFailed(e);               // ← 메시지 null 방지
             }
-            expenseOcrTaskRepository.saveAndFlush(t);
+            expenseOcrTaskRepository.save(t);
         }
         return tasks.size();
     }
 
-    /** 내부 트랜잭션: 순수 작업만 수행하고 결과 반환 */
+
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    protected OcrProcessResult processOne(ExpenseOcrTask task) {
+    protected void processOne(ExpenseOcrTask task){
+        log.info("[OCR] start taskId={}, attKey={}", task.getOcrTaskId(), task.getAttachment().getObjectKey());
+
         var att = task.getAttachment();
 
-        // 1) S3 바이트 -> base64
+        // 1) S3 바이트 읽기
         byte[] bytes = storageClient.getObjectBytes(att.getObjectKey());
-        String b64 = Base64.getEncoder().encodeToString(bytes);
+        log.info("[OCR] read s3 bytes: {}", (bytes == null ? 0 : bytes.length));
 
         // 2) 확장자/포맷
-        String ext = extFrom(att.getOriginalName()); // jpg/png/pdf 체크 포함
+        String ext = Optional.ofNullable(att.getOriginalName())
+                .map(n -> n.substring(n.lastIndexOf('.')+1).toLowerCase())
+                .orElse("jpg");
+        if (ext.equals("jpeg")) ext = "jpg";
+        if (!List.of("jpg","png","pdf").contains(ext)) {
+            throw new IllegalArgumentException("Unsupported image format: " + ext);
+        }
+        log.info("[OCR] ext={}", ext);
 
-        // 3) 네이버 OCR 바디 생성 (data: base64)
-        Map<String, Object> body = buildOcrBodyV2(ext, b64);
+        // 3) base64 변환 + 요청 바디
+        String b64 = java.util.Base64.getEncoder().encodeToString(bytes);
+        Map<String, Object> body = Map.of(
+                "version", "V2",
+                "requestId", "req-" + System.currentTimeMillis(),
+                "timestamp", System.currentTimeMillis(),
+                "images", List.of(Map.of(
+                        "format", ext,
+                        "name", "receipt",
+                        "data", b64
+                ))
+        );
+        log.info("[OCR] ready to call Naver OCR (len={})", b64.length());
 
-        // 4) 요청
-        Map<String, Object> raw = naverOcrClient.request(body);
+        // 4) 호출
+        Map<String,Object> raw = naverOcrClient.request(body);
+        log.info("[OCR] got response keys={}", raw.keySet());
+        task.updateRawResponse(raw);
 
-        // 5) normalize (가변 map/list로 생성되는 asMap 사용)
+        // 5) 정규화
         var norm = OcrNormalize.normalize(raw);
-        Map<String, Object> normMap = norm.asMap();
+        task.updateNormalized(norm.asMap());
+        log.info("[OCR] normalized total={}, items={}", norm.totalAmount(), norm.items().size());
 
-        // 6) DB 저장 (Expense / ExpenseLine / ExpenseAttachment)
-        Expense expense = expenseRepository.save(Expense.fromReceipt(
+        // 6) 저장
+        var expense = expenseRepository.save(Expense.fromReceipt(
                 task.getSchedule(),
                 norm.getMerchantNameOrDefault("영수증"),
                 norm.totalAmount(),
                 norm.paidAt(),
-                normMap
+                norm.asMap()
         ));
-
         var lines = norm.items().stream()
                 .map(i -> ExpenseLine.of(expense, i.label(), i.qty(), i.unitAmount(), i.lineAmount()))
                 .toList();
         expenseLineRepository.saveAll(lines);
-
         expenseAttachmentRepository.save(ExpenseAttachment.of(expense, att));
+        task.linkExpense(expense);
 
-        return new OcrProcessResult(raw, normMap, expense);
-    }
-
-    /* ====================== helpers ====================== */
-
-    private static String extFrom(String originalName) {
-        String ext = Optional.ofNullable(originalName)
-                .filter(n -> n.contains("."))
-                .map(n -> n.substring(n.lastIndexOf('.') + 1))
-                .map(String::toLowerCase)
-                .orElse("jpg");
-        if ("jpeg".equals(ext)) ext = "jpg";
-        if (!List.of("jpg", "png", "pdf").contains(ext)) {
-            throw new IllegalArgumentException("Unsupported image format: " + ext);
-        }
-        return ext;
-    }
-
-    private static Map<String, Object> buildOcrBodyV2(String ext, String base64data) {
-        Map<String, Object> image = new LinkedHashMap<>();
-        image.put("format", ext);
-        image.put("name", "receipt");
-        image.put("data", base64data);
-
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("version", "V2");
-        body.put("requestId", "req-" + System.currentTimeMillis());
-        body.put("timestamp", System.currentTimeMillis());
-        body.put("images", List.of(image));
-        return body;
+        log.info("[OCR] success taskId={}, expenseId={}", task.getOcrTaskId(), expense.getId());
     }
 }

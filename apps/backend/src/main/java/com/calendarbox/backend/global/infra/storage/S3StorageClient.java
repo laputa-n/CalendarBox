@@ -2,6 +2,8 @@ package com.calendarbox.backend.global.infra.storage;
 
 import com.calendarbox.backend.global.config.props.AppS3Props;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.core.ResponseBytes;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
@@ -13,6 +15,8 @@ public class S3StorageClient implements StorageClient {
     private final S3Client s3;
     private final S3Presigner presigner;
     private final AppS3Props p;
+
+    private static final long MAX_OCR_BYTES = 10 * 1024 * 1024; // 10MB 가드(필요시 조정)
 
     public S3StorageClient(S3Client s3, S3Presigner presigner, AppS3Props p) {
         this.s3 = s3; this.presigner = presigner; this.p = p;
@@ -69,8 +73,37 @@ public class S3StorageClient implements StorageClient {
 
     @Override
     public byte[] getObjectBytes(String key) {
-        var resp = s3.getObjectAsBytes(b -> b.bucket(p.bucket()).key(key));
-        return resp.asByteArray();
-    }
-}
+        try {
+            GetObjectRequest req = GetObjectRequest.builder()
+                    .bucket(p.bucket())
+                    .key(key)
+                    .build();
+
+            // 바이트+메타 함께 (contentLength 확인용)
+            ResponseBytes<GetObjectResponse> rb = s3.getObjectAsBytes(req);
+            long contentLen = rb.response().contentLength() == null ? -1L : rb.response().contentLength();
+
+            // 사이즈 가드
+            if (contentLen > 0 && contentLen > MAX_OCR_BYTES) {
+                throw new IllegalStateException("S3 object too large for OCR: key=" + key + ", size=" + contentLen);
+            }
+
+            byte[] bytes = rb.asByteArray();
+            if (bytes == null || bytes.length == 0) {
+                throw new IllegalStateException("S3 object empty: key=" + key);
+            }
+            return bytes;
+
+        } catch (NoSuchKeyException e) {
+            // 키가 아예 없는 경우
+            throw new IllegalStateException("S3 object not found: key=" + key, e);
+        } catch (S3Exception e) {
+            // S3 서버 측 에러(권한, 403/404/5xx 등)
+            String code = e.awsErrorDetails() != null ? e.awsErrorDetails().errorCode() : "S3Exception";
+            throw new IllegalStateException("S3 error fetching key=" + key + " (" + code + ")", e);
+        } catch (SdkClientException e) {
+            // 네트워크/타임아웃/클라이언트 구성 문제
+            throw new IllegalStateException("S3 client error fetching key=" + key + ": " + e.getMessage(), e);
+        }
+    }}
 
