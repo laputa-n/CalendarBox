@@ -14,7 +14,8 @@ import com.calendarbox.backend.global.infra.storage.StorageClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import lombok.extern.slf4j.Slf4j;
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ExpenseOcrWorker {
@@ -42,7 +43,9 @@ public class ExpenseOcrWorker {
 
     protected void processOne(ExpenseOcrTask task){
         var s3url = storageClient.presignGet(task.getAttachment().getObjectKey(), task.getAttachment().getOriginalName(), true);
+        log.info("OCR task {} presignGet url = {}", task.getOcrTaskId(), s3url);
         var raw = naverOcrClient.request(s3url);
+        log.info("OCR task {} Naver OCR raw keys = {}", task.getOcrTaskId(), raw.keySet());
         task.updateRawResponse(raw);
 
         var norm = OcrNormalize.normalize(raw);

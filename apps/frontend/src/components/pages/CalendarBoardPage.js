@@ -5,8 +5,8 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { useSchedules } from '../../contexts/ScheduleContext';
 import { useCalendars } from '../../contexts/CalendarContext';
-import { ScheduleModal } from '../ScheduleModal';
 
+import  ScheduleModal  from '../ScheduleModal/ScheduleModal';
 export const CalendarBoardPage = () => {
   const { fetchSchedules, schedules } = useSchedules();
   const { calendars } = useCalendars(); // ✅ 모든 캘린더 가져오기

@@ -20,7 +20,7 @@ export const ScheduleProvider = ({ children }) => {
    * Helper: 백엔드 → 프론트 변환
    * ========================= */
   const transformScheduleData = (item) => ({
-    id: item.scheduleId,
+    id: item.scheduleId || item.id, // ✅ 둘 다 지원
     calendarId: item.calendarId,
     calendarType: item.calendarType,
     calendarName: item.calendarName,
@@ -38,11 +38,6 @@ export const ScheduleProvider = ({ children }) => {
    * 일정 조회 (현재 캘린더 기준)
    * ========================= */
   const fetchSchedules = useCallback(async (params = {}) => {
-    console.log("📡 [fetchSchedules] 실행됨:", {
-      calendarId: currentCalendar?.id,
-      userId: user?.id,
-    });
-
     if (!currentCalendar || !user) {
       console.warn("⚠️ currentCalendar 또는 user가 없습니다. 요청 중단");
       return;
@@ -50,13 +45,9 @@ export const ScheduleProvider = ({ children }) => {
 
     try {
       setLoading(true);
-
-      // ✅ 이번 달 1일 ~ 다음 달 1일
       const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
-      const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0);
-      const from = startOfMonth.toISOString();
-      const to = startOfNextMonth.toISOString();
+      const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const to = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
 
       const queryParams = {
         from,
@@ -65,21 +56,15 @@ export const ScheduleProvider = ({ children }) => {
         ...params,
       };
 
-      console.log("📤 [fetchSchedules] 요청 파라미터:", queryParams);
-
       const response = await ApiService.getSchedules(queryParams);
-      console.log("📦 [fetchSchedules] 응답:", response.data);
+      const rawList = response.data?.content || response.data || [];
 
-      const scheduleList = response.data?.content || [];
-      console.log("🧩 [fetchSchedules] 변환 전 리스트:", scheduleList);
-
-      const transformed = scheduleList.map(transformScheduleData);
-      console.log("✅ [fetchSchedules] 변환 후 리스트:", transformed);
-
+      const transformed = rawList.map(transformScheduleData);
       setSchedules(transformed);
+      console.log("✅ [fetchSchedules] 완료:", transformed);
     } catch (error) {
-      console.error("❌ [fetchSchedules] 일정 조회 실패:", error);
-      showError(error.message || "일정 조회에 실패했습니다.");
+      console.error("❌ [fetchSchedules] 실패:", error);
+      showError(error.message || "일정 조회 실패");
     } finally {
       setLoading(false);
     }
@@ -90,44 +75,28 @@ export const ScheduleProvider = ({ children }) => {
    * ========================= */
   const fetchAllSchedules = useCallback(async (params = {}) => {
     if (!user) return;
-    console.log("📡 [fetchAllSchedules] 전체 일정 조회 시작");
 
     try {
       setLoading(true);
-
       const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
-      const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0);
-      const from = startOfMonth.toISOString();
-      const to = startOfNextMonth.toISOString();
+      const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const to = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
 
-      const safeParams = {
-        from,
-        to,
-        ...params,
-      };
-
-      console.log("📤 [fetchAllSchedules] 요청 파라미터:", safeParams);
-
+      const safeParams = { from, to, ...params };
       const response = await ApiService.getSchedules(safeParams);
-      console.log("📦 [fetchAllSchedules] 응답:", response.data);
-
-      const scheduleList =
+      const rawList =
         response.data?.content ||
         response.data?.scheduleList ||
         response.scheduleList ||
         response.data ||
         [];
 
-      console.log("🧩 [fetchAllSchedules] 변환 전 리스트:", scheduleList);
-
-      const transformed = scheduleList.map(transformScheduleData);
-      console.log("✅ [fetchAllSchedules] 변환 후 리스트:", transformed);
-
+      const transformed = rawList.map(transformScheduleData);
       setSchedules(transformed);
+      console.log("✅ [fetchAllSchedules] 완료:", transformed);
     } catch (error) {
       console.error("❌ [fetchAllSchedules] 실패:", error);
-      showError(error.message || "전체 일정 조회에 실패했습니다.");
+      showError(error.message || "전체 일정 조회 실패");
     } finally {
       setLoading(false);
     }
@@ -137,20 +106,16 @@ export const ScheduleProvider = ({ children }) => {
    * 일정 생성
    * ========================= */
   const createSchedule = async (scheduleData) => {
-    if (!currentCalendar?.id) {
-      showError("캘린더를 선택해주세요.");
-      return;
-    }
-
     try {
       setLoading(true);
+
       const apiData = {
         title: scheduleData.title,
         memo: scheduleData.memo || scheduleData.description || "",
         theme:
           scheduleData.theme && scheduleData.theme.startsWith("#")
             ? "BLUE"
-            : scheduleData.theme?.toUpperCase() || "BLUE",
+            : String(scheduleData.theme || "BLUE").toUpperCase(),
         startAt: new Date(scheduleData.startAt || scheduleData.startDateTime).toISOString(),
         endAt: new Date(scheduleData.endAt || scheduleData.endDateTime).toISOString(),
         links: scheduleData.links || [],
@@ -158,18 +123,16 @@ export const ScheduleProvider = ({ children }) => {
         participants: scheduleData.participants || [],
         todos: scheduleData.todos || [],
         reminders: scheduleData.reminders || [],
-        recurrence: scheduleData.recurrence || null,
+        recurrence: scheduleData.recurrence || { freq: 'DAILY', intervalCount: 1, byDay: [], until: '' }
       };
 
-      console.log("📦 [createSchedule] 전송 데이터:", apiData);
-
-      const response = await ApiService.createSchedule(currentCalendar.id, apiData);
-      console.log("✅ [createSchedule] 응답:", response);
-
-      await fetchSchedules(); // ✅ 즉시 DB 새로고침
+      const res = await ApiService.createSchedule(currentCalendar.id, apiData);
+      await fetchAllSchedules(); // ✅ 생성 후 즉시 새로고침
+      return res;
     } catch (error) {
       console.error("❌ [createSchedule] 실패:", error);
-      showError(error.message || "일정 생성에 실패했습니다.");
+      showError(error.message || "일정 생성 실패");
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -178,48 +141,43 @@ export const ScheduleProvider = ({ children }) => {
   /** =========================
    * 일정 수정
    * ========================= */
- const updateSchedule = async (scheduleId, scheduleData) => {
-  try {
-    setLoading(true);
+  const updateSchedule = async (scheduleId, scheduleData) => {
+    try {
+      setLoading(true);
 
-    const apiData = {};
+      const apiData = {};
+      if ('title' in scheduleData) apiData.title = scheduleData.title;
+      if ('memo' in scheduleData || 'description' in scheduleData)
+        apiData.memo = scheduleData.memo ?? scheduleData.description ?? '';
 
-    if ('title' in scheduleData) apiData.title = scheduleData.title;
-    if ('memo' in scheduleData || 'description' in scheduleData) {
-      apiData.memo = scheduleData.memo ?? scheduleData.description ?? '';
+      const rawTheme = scheduleData.theme || scheduleData.color;
+      if (rawTheme) {
+        apiData.theme = rawTheme.startsWith('#')
+          ? 'BLUE'
+          : String(rawTheme).toUpperCase();
+      }
+
+      if (scheduleData.startAt || scheduleData.startDateTime) {
+        const s = new Date(scheduleData.startAt || scheduleData.startDateTime);
+        if (!isNaN(s)) apiData.startAt = s.toISOString();
+      }
+
+      if (scheduleData.endAt || scheduleData.endDateTime) {
+        const e = new Date(scheduleData.endAt || scheduleData.endDateTime);
+        if (!isNaN(e)) apiData.endAt = e.toISOString();
+      }
+
+      console.log('📤 [updateSchedule] 요청 페이로드:', apiData);
+
+      await ApiService.patchSchedule(scheduleId, apiData);
+      await fetchAllSchedules(); // ✅ 수정 후 전체 갱신
+    } catch (error) {
+      console.error('❌ [updateSchedule] 실패:', error);
+      showError(error.message || '일정 수정 실패');
+    } finally {
+      setLoading(false);
     }
-
-    // ✅ theme 변환 (ENUM 매칭)
-    const rawTheme = scheduleData.theme || scheduleData.color;
-    if (rawTheme) {
-      apiData.theme = rawTheme.startsWith('#')
-        ? 'BLUE' // 기본값으로 ENUM
-        : String(rawTheme).toUpperCase();
-    }
-
-    // ✅ 날짜 변환 (UTC ISO)
-    if (scheduleData.startAt || scheduleData.startDateTime) {
-      const s = new Date(scheduleData.startAt || scheduleData.startDateTime);
-      if (!isNaN(s)) apiData.startAt = s.toISOString();
-    }
-    if (scheduleData.endAt || scheduleData.endDateTime) {
-      const e = new Date(scheduleData.endAt || scheduleData.endDateTime);
-      if (!isNaN(e)) apiData.endAt = e.toISOString();
-    }
-
-    console.log('📤 [updateSchedule] 요청 페이로드:', apiData);
-
-    // ✅ PATCH로 변경
-    await ApiService.patchSchedule(scheduleId, apiData);
-    await fetchSchedules();
-  } catch (error) {
-    console.error('❌ [updateSchedule] 실패:', error);
-    showError(error.message || '일정 수정에 실패했습니다.');
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   /** =========================
    * 일정 삭제
@@ -227,16 +185,12 @@ export const ScheduleProvider = ({ children }) => {
   const deleteSchedule = async (scheduleId) => {
     try {
       setLoading(true);
-      console.log("🗑 [deleteSchedule] 삭제 요청:", scheduleId);
-
       await ApiService.deleteSchedule(scheduleId);
-      console.log("✅ [deleteSchedule] 성공:", scheduleId);
-
       if (currentSchedule?.scheduleId === scheduleId) setCurrentSchedule(null);
-      await fetchSchedules();
+      await fetchAllSchedules(); // ✅ 삭제 후 전체 갱신
     } catch (error) {
       console.error("❌ [deleteSchedule] 실패:", error);
-      showError(error.message || "일정 삭제에 실패했습니다.");
+      showError(error.message || "일정 삭제 실패");
     } finally {
       setLoading(false);
     }
@@ -247,7 +201,6 @@ export const ScheduleProvider = ({ children }) => {
    * ========================= */
   useEffect(() => {
     if (currentCalendar?.id) {
-      console.log("🔄 [useEffect] 캘린더 변경 감지됨:", currentCalendar.id);
       fetchSchedules();
     }
   }, [currentCalendar, fetchSchedules]);
