@@ -24,34 +24,25 @@ public class OcrNormalize {
             Map<String, Object> img0 = firstMapFromList(raw.get("images"));
             if (img0 == null) return null;
 
-            long total = toLong(nested(img0, "totalPrice", "price", "formatted", "value"));
+            // ✅ V2 실제 루트는 여기
+            Map<String, Object> result = asMapOrNull(nested(img0, "receipt", "result"));
+            if (result == null) return null;
 
-            // 1) 상호명 추출 보강
-            String merchant = toStr(nested(img0, "storeInfo", "name", "formatted", "value"), null);
-            if (isBlank(merchant)) merchant = toStr(nested(img0, "storeInfo", "name", "text"), "영수증");
+            // 총액
+            long total = toLong(nested(result, "totalPrice", "price", "formatted", "value"));
 
-            // 상호명이 비어있으면 subName도 시도
+            // 상호명
+            String merchant = toStr(nested(result, "storeInfo", "name", "formatted", "value"), null);
+            if (isBlank(merchant)) merchant = toStr(nested(result, "storeInfo", "name", "text"), null);
+
+            // 📌 fallback: subName도 시도
             if (isBlank(merchant)) {
-                merchant = toStr(nested(img0, "storeInfo", "subName", "text"), "영수증");
+                merchant = toStr(nested(result, "storeInfo", "subName", "text"), "영수증");
             }
 
-            // 3) 날짜/시간 일부만 있을 때도 커버
-            Map<String, Object> dateFmt = asMapOrNull(nested(img0, "paymentInfo", "date", "formatted"));
-            Map<String, Object> timeFmt = asMapOrNull(nested(img0, "paymentInfo", "time", "formatted"));
-            Instant paidAt = null;
-            if (dateFmt != null) {
-                int y  = toInt(dateFmt.get("year"), 1970);
-                int m  = toInt(dateFmt.get("month"), 1);
-                int d  = toInt(dateFmt.get("day"), 1);
-                int hh = (timeFmt != null) ? toInt(timeFmt.get("hour"), 0)   : 0;
-                int mm = (timeFmt != null) ? toInt(timeFmt.get("minute"), 0) : 0;
-                int ss = (timeFmt != null) ? toInt(timeFmt.get("second"), 0) : 0;
-                paidAt = ZonedDateTime.of(y, m, d, hh, mm, ss, 0, ZoneId.of("Asia/Seoul")).toInstant();
-            }
-
-            // 2) subResults 전체 flatten
+            // 항목들
             List<NormalizedReceipt.Item> items = new ArrayList<>();
-            List<?> subResults = asListOrEmpty(img0.get("subResults"));
+            List<?> subResults = asListOrEmpty(result.get("subResults"));
             for (Object srObj : subResults) {
                 Map<String, Object> sr = asMapOrNull(srObj);
                 if (sr == null) continue;
@@ -60,19 +51,34 @@ public class OcrNormalize {
                     if (m == null) continue;
 
                     String label = toStr(nested(m, "name", "text"), "항목");
-                    int qty      = toInt(nested(m, "count", "formatted", "value"), 1);
-                    long unit    = toLong(nested(m, "price", "unitPrice", "formatted", "value"));
-                    long line    = toLong(nested(m, "price", "price", "formatted", "value"));
+                    int   qty    = toInt(nested(m, "count", "formatted", "value"), 1);
+                    long  unit   = toLong(nested(m, "price", "unitPrice", "formatted", "value"));
+                    long  line   = toLong(nested(m, "price", "price", "formatted", "value"));
 
                     if (unit == 0 && qty > 0) unit = line / Math.max(qty, 1);
                     if (isBlank(label) && qty <= 0 && line <= 0) continue;
 
-                    items.add(new NormalizedReceipt.Item(isBlank(label) ? "항목" : label, qty, unit, line));
+                    items.add(new NormalizedReceipt.Item(label, qty, unit, line));
                 }
             }
 
+            // ✅ 총액 보정 (총액 0이면 라인 합계 사용)
             if (total == 0 && !items.isEmpty()) {
                 total = items.stream().mapToLong(NormalizedReceipt.Item::lineAmount).sum();
+            }
+
+            // 결제 시간
+            Map<String, Object> dateFmt = asMapOrNull(nested(result, "paymentInfo", "date", "formatted"));
+            Map<String, Object> timeFmt = asMapOrNull(nested(result, "paymentInfo", "time", "formatted"));
+            Instant paidAt = null;
+            if (dateFmt != null) {
+                int y  = toInt(dateFmt.get("year"), 1970);
+                int m  = toInt(dateFmt.get("month"), 1);
+                int d  = toInt(dateFmt.get("day"), 1);
+                int hh = (timeFmt != null) ? toInt(timeFmt.get("hour"),   0) : 0;
+                int mm = (timeFmt != null) ? toInt(timeFmt.get("minute"), 0) : 0;
+                int ss = (timeFmt != null) ? toInt(timeFmt.get("second"), 0) : 0;
+                paidAt = ZonedDateTime.of(y, m, d, hh, mm, ss, 0, ZoneId.of("Asia/Seoul")).toInstant();
             }
 
             return new NormalizedReceipt(
@@ -86,6 +92,7 @@ public class OcrNormalize {
             return null; // legacy로 폴백
         }
     }
+
 
 
     /* =============== Legacy(V1) parser =============== */
