@@ -7,8 +7,6 @@ import { localInputToISO } from '../../utils/datetime';
 import { validateSchedulePayload } from '../../utils/scheduleValidator';
 import { useAttachments } from '../../hooks/useAttachments';
 
-
-
 // ✅ 생성 전용 모달 (첨부/지출은 수정 모달에서 처리)
 export default function ScheduleModal({ isOpen, onClose, selectedDate }) {
   const { createSchedule } = useSchedules();
@@ -45,7 +43,6 @@ export default function ScheduleModal({ isOpen, onClose, selectedDate }) {
   const [expenseReceiptFile, setExpenseReceiptFile] = useState(null);
   const [exceptionDates, setExceptionDates] = useState([]);
 
- 
   // ====== 영수증 ======
   const handleReceiptUpload = (e) => {
     const file = e.target.files[0];
@@ -128,51 +125,34 @@ const handleSubmit = async (e) => {
       places: [], // 예시에서는 비워둠
       links: formData.links,
     };
-
-    console.log('[Submit] formData:', formData);
-    console.log('[Submit] recurrence data:', recurrenceData); // 최종적으로 보내는 데이터 확인
-
     const errs = validateSchedulePayload ? validateSchedulePayload(payload) : [];
     if (errs.length) {
       console.warn('[Schedule] payload validation warnings:', errs);
     }
-
-
 
       // 1️⃣ 일정 생성
       const res = await createSchedule(payload);
       const newId = extractScheduleId(res);
       if (!newId) throw new Error('일정 생성 응답에 id가 없습니다.');
 
-      console.log("📌 일정 생성 완료, scheduleId =", newId);
-
 // 2️⃣ recurrenceId 조회
 let recurrenceId = null;
 try {
   const recRes = await ApiService.getRecurrences(newId); 
-  console.log("📌 반복 조회 결과:", recRes);
-
   recurrenceId = recRes?.data?.[0]?.recurrenceId ?? null;
-  console.log("📌 recurrenceId =", recurrenceId);
 } catch (e) {
   console.warn("⚠ 반복 없음 또는 조회 실패:", e);
 }
 
 // 3️⃣ 예외 생성
 if (recurrenceId && exceptionDates.length > 0) {
-  console.log("📌 예외 날짜 생성 시작:", exceptionDates);
-
   for (const d of exceptionDates) {
     try {
       await ApiService.createRecurrenceException(newId, recurrenceId, d);
-
-      console.log(`✔ 예외 날짜 생성 완료: ${d}`);
     } catch (err) {
-      console.error(`❌ 예외 생성 실패: ${d}`, err);
     }
   }
 }
- 
       // 2️⃣ 첨부파일 업로드 (이미지/일반파일)
       await uploadFiles(newId);
 
@@ -193,11 +173,9 @@ if (recurrenceId && exceptionDates.length > 0) {
     mode: 'cors',
     credentials: 'omit',
   });
-  console.log('[RECEIPT STEP 3] S3 업로드 완료:', { uploadId, objectKey });
 
   // OCR 트리거 (백엔드에서 attachment + OCR 처리)
   const completeRes = await ApiService.completeUpload(uploadId, objectKey);
-  console.log('[RECEIPT STEP 4] completeUpload 응답:', completeRes);
 }
 
 // 3-2️⃣ ✅ 수동 입력 모드: 이름/금액 입력 시
@@ -207,9 +185,7 @@ if (expenseName && expenseAmount) {
     amount: parseInt(expenseAmount, 10),
     paidAt: new Date().toISOString(),
   });
-  console.log('지출 등록 완료:', expenseRes);
 }
-
       // 4️⃣ 장소 개별 등록
       if (Array.isArray(formData.places) && formData.places.length) {
         for (const place of formData.places) {
@@ -227,15 +203,12 @@ if (expenseName && expenseAmount) {
               lng: Number(place.lng),
             });
           } catch (e2) {
-            console.warn('장소 등록 실패(생성 후 계속 진행):', e2);
           }
         }
       }
-
       alert('✅ 일정 + 첨부 + 지출 등록 완료!');
       onClose && onClose();
     } catch (error) {
-      console.error('일정 저장 실패:', error);
       alert(error?.message || '일정 저장 중 오류가 발생했습니다.');
     }
   };
@@ -369,7 +342,6 @@ if (expenseName && expenseAmount) {
 
       setFormData(prev => ({ ...prev, places: [...prev.places, newPlace] }));
     } catch (err) {
-      console.error('[place-search]', err);
       alert('장소 검색 중 오류가 발생했습니다.');
     }
   };
@@ -741,9 +713,6 @@ if (expenseName && expenseAmount) {
             {fileQueue.map((f, i) => <div key={i}>{f.name}</div>)}
           </div>
         
-
-         
-
           {/* 설명 */}
           <textarea
             placeholder="메모 / 상세 내용"
