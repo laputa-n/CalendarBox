@@ -11,8 +11,8 @@ export const LoginPage = () => {
   const handleKakaoLogin = async () => {
   try {
     setLoading(true);
-    // AuthContext의 startKakaoLogin 대신 직접 페이지 이동
-    window.location.href = ApiService.getKakaoLoginUrl();
+   // window.location.href = 'http://localhost:8080/api/auth/kakao/login';
+  window.location.href = ApiService.getKakaoLoginUrl();
   } catch (error) {
     console.error('Login failed:', error);
   } finally {
