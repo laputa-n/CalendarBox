@@ -9,7 +9,7 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
 
-public interface ExpenseOcrTaskRepository extends JpaRepository<ExpenseOcrTask, Integer> {
+public interface ExpenseOcrTaskRepository extends JpaRepository<ExpenseOcrTask, Long> {
     Optional<ExpenseOcrTask> findByRequestHash(String requestHash);
 
     @Query(

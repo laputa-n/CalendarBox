@@ -38,13 +38,15 @@ public class ExpenseOcrWorker {
             try {
                 t.markRunning();
                 expenseOcrTaskRepository.save(t);
+
                 processOne(t);
+
                 t.markSuccess();
             } catch (Exception e) {
                 log.error("[OCR] Task {} failed", t.getOcrTaskId(), e);
-                t.markFailed(e);               // ← 메시지 null 방지
+                t.markFailed(e); // ← Throwable로 남김
             }
-            expenseOcrTaskRepository.save(t);
+            expenseOcrTaskRepository.saveAndFlush(t); // ← 상태/메시지 즉시 반영
         }
         return tasks.size();
     }
@@ -52,16 +54,17 @@ public class ExpenseOcrWorker {
 
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    protected void processOne(ExpenseOcrTask task){
+    protected void processOne(ExpenseOcrTask detachedTask){
+        var task = expenseOcrTaskRepository.findById(detachedTask.getOcrTaskId()).orElseThrow();
         log.info("[OCR] start taskId={}, attKey={}", task.getOcrTaskId(), task.getAttachment().getObjectKey());
 
         var att = task.getAttachment();
 
-        // 1) S3 바이트 읽기
+        // 1) S3
         byte[] bytes = storageClient.getObjectBytes(att.getObjectKey());
         log.info("[OCR] read s3 bytes: {}", (bytes == null ? 0 : bytes.length));
 
-        // 2) 확장자/포맷
+        // 2) 확장자
         String ext = Optional.ofNullable(att.getOriginalName())
                 .map(n -> n.substring(n.lastIndexOf('.')+1).toLowerCase())
                 .orElse("jpg");
@@ -71,7 +74,7 @@ public class ExpenseOcrWorker {
         }
         log.info("[OCR] ext={}", ext);
 
-        // 3) base64 변환 + 요청 바디
+        // 3) 요청 바디
         String b64 = java.util.Base64.getEncoder().encodeToString(bytes);
         Map<String, Object> body = Map.of(
                 "version", "V2",
@@ -87,8 +90,11 @@ public class ExpenseOcrWorker {
 
         // 4) 호출
         Map<String,Object> raw = naverOcrClient.request(body);
+        if (raw == null || raw.isEmpty()) {
+            throw new IllegalStateException("OCR empty or null response");
+        }
         log.info("[OCR] got response keys={}", raw.keySet());
-        task.updateRawResponse(raw);
+        task.updateRawResponse(raw); // ← 먼저 저장
 
         // 5) 정규화
         var norm = OcrNormalize.normalize(raw);
@@ -112,4 +118,6 @@ public class ExpenseOcrWorker {
 
         log.info("[OCR] success taskId={}, expenseId={}", task.getOcrTaskId(), expense.getId());
     }
+
+
 }
