@@ -123,7 +123,7 @@ public class ScheduleRecurrenceService {
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
         if (!schedule.getId().equals(scheduleId))
             throw new BusinessException(ErrorCode.SCHEDULE_RECUR_EXDATE_MISMATCH);
-        scheduleRecurrenceRepository.delete(r);
+        schedule.removeRecurrence(r);
     }
 
     private RecurrenceResponse toResponse(ScheduleRecurrence r) {
