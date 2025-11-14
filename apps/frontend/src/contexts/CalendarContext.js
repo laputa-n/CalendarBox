@@ -13,9 +13,11 @@ export const CalendarProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [sharedCalendars, setSharedCalendars] = useState([]);
   const [calendarMembers, setCalendarMembers] = useState([]);
-  
   const { user, isAuthenticated } = useAuth();
   const { showError } = useError();
+
+  // ✅ 오커런스 상태
+  const [occurrencesByDay, setOccurrencesByDay] = useState({});
 
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -23,7 +25,61 @@ export const CalendarProvider = ({ children }) => {
     }
   }, [isAuthenticated, user]);
 
-  // 백엔드 데이터를 프론트엔드에서 사용하기 편한 형태로 변환
+  /**
+   * ✅ 캘린더 발생(Occurrences) 조회
+   * 백엔드 응답 예
+   * {
+   *   calendarId: 1,
+   *   fromUtc: "...",
+   *   toUtc: "...",
+   *   days: {
+   *     "2025-11-01": [ {occ}, {occ} ],
+   *     "2025-11-02": [ {occ} ]
+   *   }
+   * }
+   */
+  const fetchOccurrences = async ({ fromKst, toKst, calendarId }) => {
+    try {
+      console.log('[fetchOccurrences] params:', { fromKst, toKst, calendarId });
+
+      const res = await ApiService.getCalendarOccurrences(calendarId, {
+        fromKst,
+        toKst,
+      });
+
+      const root = res?.data ?? res;
+      console.log('[fetchOccurrences] raw root:', root);
+
+      const daysObj =
+        root?.days ??
+        root?.data?.days ??
+        {};
+
+      if (!daysObj || typeof daysObj !== 'object') {
+        console.warn('[fetchOccurrences] 예상과 다른 응답 형태:', root);
+        setOccurrencesByDay({});
+        return;
+      }
+
+      // normalize
+      const normalized = {};
+      Object.entries(daysObj).forEach(([dateStr, list]) => {
+        console.log(`📌 ${dateStr} occurrences:`, list);
+        if (!Array.isArray(list)) return;
+
+        normalized[dateStr] = list.map((occ) => ({
+          ...occ,
+          date: occ.date || dateStr,
+        }));
+      });
+
+      setOccurrencesByDay(normalized);
+    } catch (e) {
+      console.error('❌ [fetchOccurrences] 실패:', e);
+    }
+  };
+
+  // ---------- 캘린더 CRUD ----------
   const transformCalendarData = (backendCalendar) => ({
     id: backendCalendar.calendarId,
     calendarId: backendCalendar.calendarId,
@@ -38,7 +94,6 @@ export const CalendarProvider = ({ children }) => {
     updatedAt: backendCalendar.updatedAt,
   });
 
-  // API 명세 에러 처리 헬퍼
   const handleApiError = (error, defaultMessage) => {
     console.error('API Error:', error);
     if (error.response) {
@@ -61,29 +116,29 @@ export const CalendarProvider = ({ children }) => {
     }
   };
 
-const fetchCalendars = async () => {
-  if (!isAuthenticated || !user) return;
+  const fetchCalendars = async () => {
+    if (!isAuthenticated || !user) return;
 
-  try {
-    setLoading(true);
-    const response = await ApiService.getCalendars();
+    try {
+      setLoading(true);
+      const response = await ApiService.getCalendars();
 
-    // ✅ 백엔드 구조 대응
-    const calendarsArray =
-      response?.data?.content || response?.data || response || [];
+      const calendarsArray =
+        response?.data?.content || response?.data || response || [];
 
-    const transformedCalendars = calendarsArray.map(transformCalendarData);
-    setCalendars(transformedCalendars);
+      const transformed = calendarsArray.map(transformCalendarData);
+      setCalendars(transformed);
 
-    if (transformedCalendars.length > 0 && !currentCalendar) {
-      setCurrentCalendar(transformedCalendars[0]);
+      if (transformed.length > 0 && !currentCalendar) {
+        setCurrentCalendar(transformed[0]);
+      }
+    } catch (error) {
+      handleApiError(error, '캘린더 조회에 실패했습니다.');
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    handleApiError(error, '캘린더 조회에 실패했습니다.');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
+
   const createCalendar = async (calendarData) => {
     try {
       setLoading(true);
@@ -91,7 +146,7 @@ const fetchCalendars = async () => {
         name: calendarData.name,
         type: calendarData.type || 'PERSONAL',
         visibility: calendarData.visibility || 'PRIVATE',
-        isDefault: calendarData.isDefault ?? false
+        isDefault: calendarData.isDefault ?? false,
       };
       const response = await ApiService.createCalendar(backendData);
       await fetchCalendars();
@@ -140,12 +195,10 @@ const fetchCalendars = async () => {
       await ApiService.deleteCalendar(calendarId);
 
       if (currentCalendar?.calendarId === calendarId) {
-        const remainingCalendars = calendars.filter(
+        const remaining = calendars.filter(
           (cal) => cal.calendarId !== calendarId
         );
-        setCurrentCalendar(
-          remainingCalendars.length > 0 ? remainingCalendars[0] : null
-        );
+        setCurrentCalendar(remaining.length > 0 ? remaining[0] : null);
       }
 
       await fetchCalendars();
@@ -167,10 +220,31 @@ const fetchCalendars = async () => {
     }
   };
 
+  const fetchCalendarMembers = async (calendarId, page = 1, size = 10) => {
+    try {
+      const response = await ApiService.getCalendarMembers(
+        calendarId,
+        page,
+        size
+      );
+      const memberList = Array.isArray(response)
+        ? response
+        : response.content || [];
+      setCalendarMembers(memberList);
+      return memberList;
+    } catch (error) {
+      console.error('Failed to fetch calendar members:', error);
+      return [];
+    }
+  };
+
   const inviteCalendarMembers = async (calendarId, memberIds) => {
     try {
       setLoading(true);
-      const response = await ApiService.inviteCalendarMembers(calendarId, memberIds);
+      const response = await ApiService.inviteCalendarMembers(
+        calendarId,
+        memberIds
+      );
       await fetchCalendarMembers(calendarId);
       return response;
     } catch (error) {
@@ -181,22 +255,13 @@ const fetchCalendars = async () => {
     }
   };
 
-  const fetchCalendarMembers = async (calendarId, page = 1, size = 10) => {
-    try {
-      const response = await ApiService.getCalendarMembers(calendarId, page, size);
-      const memberList = Array.isArray(response) ? response : response.content || [];
-      setCalendarMembers(memberList);
-      return memberList;
-    } catch (error) {
-      console.error('Failed to fetch calendar members:', error);
-      return [];
-    }
-  };
-
   const respondToCalendarInvite = async (calendarMemberId, status) => {
     try {
       setLoading(true);
-      const response = await ApiService.respondToCalendarInvite(calendarMemberId, status);
+      const response = await ApiService.respondToCalendarInvite(
+        calendarMemberId,
+        status
+      );
       await fetchCalendars();
       return response;
     } catch (error) {
@@ -260,22 +325,32 @@ const fetchCalendars = async () => {
     calendars,
     currentCalendar,
     setCurrentCalendar: switchCalendar,
+
     sharedCalendars,
     calendarMembers,
     loading,
+
+    // ✨ occurrences exposed
+    occurrencesByDay,
+    fetchOccurrences,
+
+    // calendar CRUD
     createCalendar,
     updateCalendar,
     deleteCalendar,
     getCalendarById,
+
+    // members
     inviteCalendarMembers,
     fetchCalendarMembers,
     respondToCalendarInvite,
     removeCalendarMember,
-    refreshCalendars: fetchCalendars,
+
     fetchSharedCalendars,
     getCalendarScheduleCount,
-    switchCalendar,
     shareCalendar,
+
+    refreshCalendars: fetchCalendars,
   };
 
   return (

@@ -1,5 +1,5 @@
 // src/components/pages/CalendarPage.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Calendar as CalendarIcon, Plus, Edit, Trash2 } from 'lucide-react';
 import { useCalendars } from '../../contexts/CalendarContext';
 import { useSchedules } from '../../contexts/ScheduleContext';
@@ -11,8 +11,18 @@ import interactionPlugin from '@fullcalendar/interaction';
 import  ScheduleModal  from '../ScheduleModal/ScheduleModal';
 
 export const CalendarPage = () => {
-  const { calendars, createCalendar, updateCalendar, deleteCalendar, loading, setCurrentCalendar, currentCalendar } =
-    useCalendars();
+  const {
+  calendars,
+  createCalendar,
+  updateCalendar,
+  deleteCalendar,
+  loading,
+  setCurrentCalendar,
+  currentCalendar,
+  fetchOccurrences,
+  occurrencesByDay
+} = useCalendars();
+
   const { schedules, fetchSchedules, fetchAllSchedules } = useSchedules();
 
   const [showForm, setShowForm] = useState(false);
@@ -28,10 +38,18 @@ export const CalendarPage = () => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // ✅ 선택된 캘린더 일정 불러오기
-  useEffect(() => {
-   if (currentCalendar) fetchAllSchedules({ calendarId: currentCalendar.id });
-  }, [currentCalendar]);
+useEffect(() => {
+  if (!currentCalendar) return;
+
+  const api = calendarRef.current?.getApi();
+  if (!api) return;
+
+  const view = api.view;
+  handleDatesSet({
+    start: view.currentStart,
+    end: view.currentEnd
+  });
+}, [currentCalendar]);
 
   // ✅ 캘린더 선택 핸들러
   const handleSelectCalendar = (calendar) => {
@@ -96,11 +114,15 @@ export const CalendarPage = () => {
   };
 
   const handleEventClick = (info) => {
-    const event = schedules.find((s) => s.id === Number(info.event.id));
-    setSelectedEvent(event);
-    setSelectedDate(null);
-    setIsModalOpen(true);
-  };
+  const scheduleId = info.event.extendedProps.scheduleId;
+
+  const event = schedules.find((s) => s.id === scheduleId);
+
+  setSelectedEvent(event || null);
+  setSelectedDate(null);
+  setIsModalOpen(true);
+};
+
 
   /** =========================
    *  스타일
@@ -127,6 +149,71 @@ export const CalendarPage = () => {
     fontSize: '0.875rem',
     fontWeight: '500',
   };
+
+  const convertOccurrencesToEvents = () => {
+  if (!occurrencesByDay) return [];
+
+  const events = [];
+  Object.entries(occurrencesByDay).forEach(([day, list]) => {
+    console.log("🔵 occurrencesByDay:", occurrencesByDay);
+    console.log("🔵 convertOccurrencesToEvents input:", occurrencesByDay);
+    list.forEach((occ) => {
+      // 시작 시각 우선순위: UTC > KST > 그냥 startAt
+      const start =
+        occ.startAtUtc ||
+        occ.startAtKst ||
+        occ.startAt;
+
+      if (!start) return; // 시작이 없으면 패스
+
+      events.push({
+        id: occ.occurrenceId ?? occ.id,
+        title: occ.title,
+        start,           // ✅ 시작만 넘김 (end 안 씀)
+        // end: 제거! (여기 때문에 막 길게 보였던 거)
+        allDay: false,
+        backgroundColor: getThemeColor(occ.theme),
+        borderColor: getThemeColor(occ.theme),
+        extendedProps: {
+          scheduleId: occ.scheduleId,
+          recurring: occ.recurring,
+        },
+      });
+    });
+  });
+
+  console.log('✅ convertOccurrencesToEvents result:', events);
+  return events;
+};
+
+const getThemeColor = (theme) => {
+  const map = {
+    BLUE: '#3b82f6',
+    GREEN: '#10b981',
+    ORANGE: '#f97316',
+    RED: '#ef4444',
+    PURPLE: '#8b5cf6',
+  };
+  return map[theme] || '#3b82f6';
+};
+
+const calendarRef = useRef(null);
+
+const toKstIso = (date) => {
+  const offset = 9 * 60 * 60 * 1000;
+  return new Date(date.getTime() + offset).toISOString().replace('Z', '+09:00');
+};
+
+const handleDatesSet = (arg) => {
+  if (!currentCalendar) return;
+
+  fetchOccurrences({
+    fromKst: toKstIso(arg.start),
+    toKst: toKstIso(arg.end),
+    calendarId: currentCalendar.id,
+  });
+};
+
 
   /** =========================
    *  렌더링
@@ -236,27 +323,22 @@ export const CalendarPage = () => {
       {currentCalendar ? (
         <div style={cardStyle}>
           <FullCalendar
-            key={schedules.length}
+            ref={calendarRef}
             plugins={[dayGridPlugin, interactionPlugin]}
             initialView="dayGridMonth"
             locale="ko"
-            events={schedules.map((s) => ({
-              id: s.id,
-              title: s.title,
-              start: s.startAt || s.startDateTime,
-              end: s.endAt || s.endDateTime,
-              backgroundColor: s.color,
-              borderColor: s.color,
-            }))}
+            events={convertOccurrencesToEvents()}
+            datesSet={handleDatesSet}
             dateClick={handleDateClick}
             eventClick={handleEventClick}
             height="80vh"
             headerToolbar={{
-              left: 'prev,next today',
-              center: 'title',
-              right: 'dayGridMonth,dayGridWeek,dayGridDay',
-            }}
-          />
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,dayGridWeek,dayGridDay',
+  }}
+/>
+
         </div>
       ) : (
         <div style={{ ...cardStyle, textAlign: 'center', color: '#6b7280' }}>
