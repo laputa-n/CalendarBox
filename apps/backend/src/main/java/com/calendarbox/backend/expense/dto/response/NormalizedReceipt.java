@@ -21,12 +21,12 @@ public record NormalizedReceipt(
     public Map<String,Object> asMap() {
         var itemMaps = (items == null) ? List.<Map<String,Object>>of()
                 : items.stream().map(Item::toMap).toList();
-        return Map.of(
-                "merchantName", getMerchantNameOrDefault("영수증"),
-                "paidAt", paidAt != null ? paidAt.toString() : null,
-                "totalAmount", totalAmount,
-                "items", itemMaps
-        );
+        var m = new java.util.LinkedHashMap<String,Object>();
+        m.put("merchantName", getMerchantNameOrDefault("영수증"));
+        if (paidAt != null) m.put("paidAt", paidAt.toString());
+        m.put("totalAmount", totalAmount == null ? 0L : totalAmount);
+        m.put("items", itemMaps);
+        return m;
     }
     public String getMerchantNameOrDefault(String def) { return merchantName != null? merchantName : def; }
 }
