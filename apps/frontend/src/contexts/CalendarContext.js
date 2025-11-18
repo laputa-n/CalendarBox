@@ -68,6 +68,7 @@ export const CalendarProvider = ({ children }) => {
         if (!Array.isArray(list)) return;
 
         normalized[dateStr] = list.map((occ) => ({
+          
           ...occ,
           date: occ.date || dateStr,
         }));
