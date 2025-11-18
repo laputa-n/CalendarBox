@@ -5,6 +5,7 @@ import com.calendarbox.backend.schedule.domain.Schedule;
 import org.springframework.cglib.core.Local;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -122,7 +123,7 @@ WHERE ps.month >= :startMonth
 GROUP BY ps.month, ps.person_id, ps.person_name
 ORDER BY ps.month, meet_count DESC NULLS LAST
 """, nativeQuery = true)
-    List<Object[]> findPersonMonthlyScheduleStats(Long memberId, LocalDateTime startMonth, LocalDateTime endMonth);
+    List<Object[]> findPersonMonthlyScheduleStats(@Param("memberId") Long memberId, @Param("startMonth") LocalDateTime startMonth, @Param("endMonth") LocalDateTime endMonth);
 
     @Query(value = """
 WITH my_schedules AS (
@@ -176,7 +177,13 @@ GROUP BY ps.month, ps.person_id, ps.person_name
 ORDER BY ps.month, meet_count DESC NULLS LAST
 LIMIT :size OFFSET :offset
 """, nativeQuery = true)
-    List<Object[]> findPersonMonthlyScheduleStatsPaged(Long memberId, LocalDateTime startMonth, LocalDateTime endMonth,int size, int offset);
+    List<Object[]> findPersonMonthlyScheduleStatsPaged(
+            @Param("memberId") Long memberId,
+            @Param("startMonth") LocalDateTime startMonth,
+            @Param("endMonth") LocalDateTime endMonth,
+            @Param("size") int size,
+            @Param("offset") int offset
+    );
 
     @Query(value = """
 WITH my_schedules AS (
@@ -221,7 +228,11 @@ FROM person_schedules ps
 WHERE ps.month >= :startMonth
   AND ps.month < :endMonth
 """, nativeQuery = true)
-    long countPersonMonthlyScheduleStats(Long memberId, LocalDateTime startMonth, LocalDateTime endMonth);
+    long countPersonMonthlyScheduleStats(
+            @Param("memberId") Long memberId,
+            @Param("startMonth") LocalDateTime startMonth,
+            @Param("endMonth") LocalDateTime endMonth
+    );
 
     //사람별 지출 통계
     @Query(value = """
@@ -277,7 +288,11 @@ WHERE ps.month >= :startMonth
 GROUP BY ps.month, ps.person_id, ps.person_name
 ORDER BY ps.month, total_amount DESC NULLS LAST, avg_amount DESC NULLS LAST
 """, nativeQuery = true)
-    List<Object[]> findPersonMonthlyExpenseStats(Long memberId, LocalDateTime startMonth, LocalDateTime endMonth);
+    List<Object[]> findPersonMonthlyExpenseStats(
+            @Param("memberId") Long memberId,
+            @Param("startMonth") LocalDateTime startMonth,
+            @Param("endMonth") LocalDateTime endMonth
+    );
 
 
     @Query(value = """
@@ -334,7 +349,13 @@ GROUP BY ps.month, ps.person_id, ps.person_name
 ORDER BY ps.month, total_amount DESC NULLS LAST, avg_amount DESC NULLS LAST
 LIMIT :size OFFSET :offset
 """, nativeQuery = true)
-    List<Object[]> findPersonMonthlyExpenseStatsPaged(Long memberId, LocalDateTime startMonth, LocalDateTime endMonth, int size, int offset);
+    List<Object[]> findPersonMonthlyExpenseStatsPaged(
+            @Param("memberId") Long memberId,
+            @Param("startMonth") LocalDateTime startMonth,
+            @Param("endMonth") LocalDateTime endMonth,
+            @Param("size") int size,
+            @Param("offset") int offset
+    );
 
     @Query(value = """
 WITH my_schedules AS (
@@ -379,7 +400,11 @@ FROM person_schedules ps
 WHERE ps.month >= :startMonth
   AND ps.month < :endMonth
 """, nativeQuery = true)
-    long countPersonMonthlyExpenseStats(Long memberId, LocalDateTime startMonth, LocalDateTime endMonth);
+    long countPersonMonthlyExpenseStats(
+            @Param("memberId") Long memberId,
+            @Param("startMonth") LocalDateTime startMonth,
+            @Param("endMonth") LocalDateTime endMonth
+    );
 
 
 
@@ -432,7 +457,11 @@ WHERE ps.month >= :startMonth
 GROUP BY ps.month, ps.place_id, ps.place_name
 ORDER BY ps.month, visit_count DESC NULLS LAST
 """, nativeQuery = true)
-    List<Object[]> findPlaceMonthlyStats(Long memberId, LocalDateTime startMonth, LocalDateTime endMonth);
+    List<Object[]> findPlaceMonthlyStats(
+            @Param("memberId") Long memberId,
+            @Param("startMonth") LocalDateTime startMonth,
+            @Param("endMonth") LocalDateTime endMonth
+    );
 
     @Query(value = """
 WITH my_schedules AS (
@@ -482,7 +511,13 @@ GROUP BY ps.month, ps.place_id, ps.place_name
 ORDER BY ps.month, visit_count DESC NULLS LAST
 LIMIT :size OFFSET :offset
 """, nativeQuery = true)
-    List<Object[]> findPlaceMonthlyStatsPaged(Long memberId, LocalDateTime startMonth, LocalDateTime endMonth, int size, int offset);
+    List<Object[]> findPlaceMonthlyStatsPaged(
+            @Param("memberId") Long memberId,
+            @Param("startMonth") LocalDateTime startMonth,
+            @Param("endMonth") LocalDateTime endMonth,
+            @Param("size") int size,
+            @Param("offset") int offset
+    );
 
     @Query(value = """
 WITH my_schedules AS (
@@ -525,7 +560,11 @@ FROM place_schedules ps
 WHERE ps.month >= :startMonth
   AND ps.month < :endMonth
 """, nativeQuery = true)
-    long countPlaceMonthlyStats(Long memberId, LocalDateTime startMonth, LocalDateTime endMonth);
+    long countPlaceMonthlyStats(
+            @Param("memberId") Long memberId,
+            @Param("startMonth") LocalDateTime startMonth,
+            @Param("endMonth") LocalDateTime endMonth
+    );
 
 
     //장소별 지출 통계
@@ -590,7 +629,12 @@ WHERE pe.month >= :startMonth
 GROUP BY pe.month, pe.place_id, pe.place_name
 ORDER BY pe.month, total_amount DESC NULLS LAST, avg_amount DESC NULLS LAST
 """, nativeQuery = true)
-    List<Object[]> findPlaceMonthlyExpenseStats(Long memberId, LocalDateTime startMonth, LocalDateTime endMonth);
+    List<Object[]> findPlaceMonthlyExpenseStats(
+            @Param("memberId") Long memberId,
+            @Param("startMonth") LocalDateTime startMonth,
+            @Param("endMonth") LocalDateTime endMonth
+    );
+
 
     @Query(value = """
 WITH my_schedules AS (
@@ -654,7 +698,13 @@ GROUP BY pe.month, pe.place_id, pe.place_name
 ORDER BY pe.month, total_amount DESC NULLS LAST, avg_amount DESC NULLS LAST
 LIMIT :size OFFSET :offset
 """, nativeQuery = true)
-    List<Object[]> findPlaceMonthlyExpenseStatsPaged(Long memberId, LocalDateTime startMonth, LocalDateTime endMonth,int size, int offset);
+    List<Object[]> findPlaceMonthlyExpenseStatsPaged(
+            @Param("memberId") Long memberId,
+            @Param("startMonth") LocalDateTime startMonth,
+            @Param("endMonth") LocalDateTime endMonth,
+            @Param("size") int size,
+            @Param("offset") int offset
+    );
 
     @Query(value = """
 WITH my_schedules AS (
@@ -709,7 +759,11 @@ FROM place_expenses pe
 WHERE pe.month >= :startMonth
   AND pe.month < :endMonth
 """, nativeQuery = true)
-    long countPlaceMonthlyExpenseStats(Long memberId, LocalDateTime startMonth, LocalDateTime endMonth);
+    long countPlaceMonthlyExpenseStats(
+            @Param("memberId") Long memberId,
+            @Param("startMonth") LocalDateTime startMonth,
+            @Param("endMonth") LocalDateTime endMonth
+    );
 
     // 요일 + 시간별 스케줄 통계
     @Query(value = """
@@ -745,7 +799,9 @@ WHERE pe.month >= :startMonth
     ORDER BY day_of_week, hour_of_day
     """, nativeQuery = true
     )
-    List<Object[]> findDayHourScheduleDistribution(Long memberId);
+    List<Object[]> findDayHourScheduleDistribution(
+            @Param("memberId") Long memberId
+    );
 
 
     //월별 일정 증가 추이
@@ -779,5 +835,7 @@ WHERE pe.month >= :startMonth
     GROUP BY month
     ORDER BY month;
 """, nativeQuery = true)
-    List<Object[]> findMonthlyScheduleTrend(Long memberId);
+    List<Object[]> findMonthlyScheduleTrend(
+            @Param("memberId") Long memberId
+    );
 }
