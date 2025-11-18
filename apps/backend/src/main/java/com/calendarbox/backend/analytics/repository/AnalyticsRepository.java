@@ -86,7 +86,7 @@ public interface AnalyticsRepository extends JpaRepository<Schedule, Long> {
     expanded AS (
         SELECT 
             ms.id AS schedule_id,
-            date_trunc('month', gs)::date AS month
+            date_trunc('month', gs) AS month
         FROM my_schedules ms,
              generate_series(
                  date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
@@ -139,7 +139,7 @@ WITH my_schedules AS (
 expanded AS (
     SELECT 
         ms.id AS schedule_id,
-        date_trunc('month', gs)::date AS month
+        date_trunc('month', gs) AS month
     FROM my_schedules ms,
          generate_series(
              date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
@@ -193,7 +193,7 @@ WITH my_schedules AS (
 expanded AS (
     SELECT 
         ms.id AS schedule_id,
-        date_trunc('month', gs)::date AS month
+        date_trunc('month', gs) AS month
     FROM my_schedules ms,
          generate_series(
              date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
@@ -239,7 +239,7 @@ WITH my_schedules AS (
 expanded AS (
     SELECT 
         ms.id AS schedule_id,
-        date_trunc('month', gs)::date AS month
+        date_trunc('month', gs) AS month
     FROM my_schedules ms,
          generate_series(
              date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
@@ -295,7 +295,7 @@ WITH my_schedules AS (
 expanded AS (
     SELECT 
         ms.id AS schedule_id,
-        date_trunc('month', gs)::date AS month
+        date_trunc('month', gs) AS month
     FROM my_schedules ms,
          generate_series(
              date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
@@ -351,7 +351,7 @@ WITH my_schedules AS (
 expanded AS (
     SELECT 
         ms.id AS schedule_id,
-        date_trunc('month', gs)::date AS month
+        date_trunc('month', gs) AS month
     FROM my_schedules ms,
          generate_series(
              date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
@@ -400,7 +400,7 @@ WITH my_schedules AS (
 expanded AS (
     SELECT 
         ms.id AS schedule_id,
-        date_trunc('month', gs)::date AS month
+        date_trunc('month', gs) AS month
     FROM my_schedules ms,
          generate_series(
              date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
@@ -449,7 +449,7 @@ WITH my_schedules AS (
 expanded AS (
     SELECT 
         ms.id AS schedule_id,
-        date_trunc('month', gs)::date AS month
+        date_trunc('month', gs) AS month
     FROM my_schedules ms,
          generate_series(
              date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
@@ -499,7 +499,7 @@ WITH my_schedules AS (
 expanded AS (
     SELECT 
         ms.id AS schedule_id,
-        date_trunc('month', gs)::date AS month
+        date_trunc('month', gs) AS month
     FROM my_schedules ms,
          generate_series(
              date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
@@ -544,7 +544,7 @@ WITH my_schedules AS (
 expanded AS (
     SELECT 
         ms.id AS schedule_id,
-        date_trunc('month', gs)::date AS month
+        date_trunc('month', gs) AS month
     FROM my_schedules ms,
          generate_series(
              date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
@@ -607,7 +607,7 @@ WITH my_schedules AS (
 expanded AS (
     SELECT 
         ms.id AS schedule_id,
-        date_trunc('month', gs)::date AS month
+        date_trunc('month', gs) AS month
     FROM my_schedules ms,
          generate_series(
              date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
@@ -671,7 +671,7 @@ WITH my_schedules AS (
 expanded AS (
     SELECT 
         ms.id AS schedule_id,
-        date_trunc('month', gs)::date AS month
+        date_trunc('month', gs) AS month
     FROM my_schedules ms,
          generate_series(
              date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
@@ -764,7 +764,7 @@ WHERE pe.month >= :startMonth
     expanded AS (
         SELECT 
             ms.id AS schedule_id,
-            date_trunc('month', gs)::date AS month
+            date_trunc('month', gs) AS month
         FROM my_schedules ms,
              generate_series(
                  date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
