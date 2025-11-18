@@ -1,12 +1,12 @@
 // src/services/apiService.js
 const API_CONFIG = {
-  development: 'http://localhost:8080/api', // 로컬에서만 localhost 사용
-  production: '/api',                       // 서버에서는 같은 호스트 + /api 로만
-  staging: '/api',                          // 있으면 같이 맞춰도 됨
+  //development: 'http://localhost:8080/api', // 로컬에서만 localhost 사용
+  //production: '/api',                       // 서버에서는 같은 호스트 + /api 로만
+  //staging: '/api',                          // 있으면 같이 맞춰도 됨
 
-  //development: 'http://localhost:8080/api',
-  //staging: 'https://api-staging.calbox.com/api',
-  //production: 'https://api.calbox.com/api',
+  development: 'http://localhost:8080/api',
+  staging: 'https://api-staging.calbox.com/api',
+  production: 'https://api.calbox.com/api',
 };
 const API_BASE_URL = API_CONFIG[process.env.NODE_ENV] || API_CONFIG.development;
 const getAuthToken = () => localStorage.getItem('accessToken');
@@ -636,8 +636,38 @@ static async getCalendarOccurrences(calendarId, { fromKst, toKst }) {
 
   console.log(`📡 [API 응답 - 캘린더(${calendarId}) 오커런스]:`, response);
   return response;
-}
 
+  
+}
+ // === 사람(일정, 지출) 통계 요약 및 top3 ===
+  static async getPeopleSummary(month) {
+    return this.request(`/analytics/people/summary?month=${month}`, { method: 'GET' });
+  }
+
+  // === 사람(일정, 지출) 통계 목록 조회 ===
+  static async getPeopleList(page = 1, size = 10) {
+    return this.request(`/analytics/people?page=${page - 1}&size=${size}`, { method: 'GET' });
+  }
+
+  // === 장소(일정, 지출) 통계 요약 및 top3 ===
+  static async getPlaceSummary(month) {
+    return this.request(`/analytics/place/summary?month=${month}`, { method: 'GET' });
+  }
+
+  // === 장소(일정, 지출) 통계 목록 조회 ===
+  static async getPlaceList(page = 1, size = 10) {
+    return this.request(`/analytics/place?page=${page - 1}&size=${size}`, { method: 'GET' });
+  }
+
+  // === 요일-시간대 별 스케줄 분포 조회 ===
+  static async getScheduleDayHourDistribution() {
+    return this.request('/analytics/schedule/day-hour', { method: 'GET' });
+  }
+
+  // === 월별 스케줄 추이 조회 ===
+  static async getMonthlyScheduleTrend() {
+    return this.request('/analytics/schedule/trend', { method: 'GET' });
+  }
 }
 // ✅ 클래스 바깥(닫는 } 다음 줄)에 붙여야 함
 ApiService.getScheduleSummary = (scheduleId) =>
