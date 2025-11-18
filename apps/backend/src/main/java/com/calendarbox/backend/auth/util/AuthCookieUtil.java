@@ -12,6 +12,17 @@ public class AuthCookieUtil {
         return "localhost".equalsIgnoreCase(host) || "127.0.0.1".equals(host);
     }
 
+
+    public static ResponseCookie buildSignupCookie(String token, boolean local) {
+        return ResponseCookie.from("signup_token", token)
+                .httpOnly(true)
+                .secure(!local)               // 로컬: false, 배포: true
+                .sameSite(local ? "Lax" : "None")
+                .path("/")                    // 프런트와 백이 다른 포트면 "/" 유지
+                .maxAge(300)                  // 5분
+                .build();
+    }
+
     public static ResponseCookie buildAccessCookie(String token, boolean local) {
         return ResponseCookie.from(ACCESS_COOKIE, token)
                 .httpOnly(true)

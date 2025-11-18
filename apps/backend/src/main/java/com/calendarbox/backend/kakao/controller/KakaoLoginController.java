@@ -1,6 +1,7 @@
 package com.calendarbox.backend.kakao.controller;
 
 import com.calendarbox.backend.auth.service.RefreshTokenService;
+import com.calendarbox.backend.auth.util.AuthCookieUtil;
 import com.calendarbox.backend.kakao.service.KakaoService;
 import com.calendarbox.backend.kakao.service.KakaoTempStore;
 import com.calendarbox.backend.member.domain.Member;
@@ -38,26 +39,28 @@ public class KakaoLoginController {
     private final ObjectMapper objectMapper;
 
     @GetMapping("/callback")
-    public ResponseEntity<?> callback(@RequestParam("code") String code, HttpServletResponse resp) {
+    public ResponseEntity<?> callback(@RequestParam("code") String code,HttpServletRequest req, HttpServletResponse resp) {
         var token = kakaoService.exchangeToken(code);
         var info  = kakaoService.getUserInfo(token.getAccessToken());
         Long kakaoId = info.getId();
         String email  = info.getKakaoAccount().getEmail();
 
         var m = kakaoAccountRepository.findByProviderUserId(kakaoId).map(KakaoAccount::getMember);
+        boolean local = AuthCookieUtil.isLocal(req);
+
         if (m.isPresent()) {
             Member member = m.get();
             String accessToken  = jwtService.issueAccessToken(member);
             String refreshToken = jwtService.issueRefreshToken(member);
             refreshTokenService.save(member.getId(), refreshToken);
 
-            resp.addHeader("Set-Cookie", ResponseCookie.from("access_token", accessToken)
-                    .httpOnly(true).secure(false).sameSite("Lax").path("/").maxAge(60 * 60).build().toString());
-            resp.addHeader("Set-Cookie", ResponseCookie.from("refresh_token", refreshToken)
-                    .httpOnly(true).secure(false).sameSite("Lax").path("/api/auth").maxAge(14 * 24 * 60 * 60).build().toString());
+            resp.addHeader("Set-Cookie", AuthCookieUtil.buildAccessCookie(accessToken, local).toString());
+            resp.addHeader("Set-Cookie", AuthCookieUtil.buildRefreshCookie(refreshToken, local).toString());
 
+
+            String redirect = local ? "http://localhost:3000/login/success" : "/login/success";
             return ResponseEntity.status(302)
-                    .header("Location", "/login/success")
+                    .header("Location", redirect)
                     .build();
         }
 
@@ -67,11 +70,11 @@ public class KakaoLoginController {
 
         String signupToken = jwtService.issueTempSignupToken(kakaoId, email);
 
-        resp.addHeader("Set-Cookie", ResponseCookie.from("signup_token", signupToken)
-                .httpOnly(true).secure(false).sameSite("Lax").path("/").maxAge(300).build().toString());
+        resp.addHeader("Set-Cookie", AuthCookieUtil.buildSignupCookie(signupToken, local).toString());
 
+        String redirect = local ? "http://localhost:3000/signup/complete" : "/signup/complete";
         return ResponseEntity.status(302)
-                .header("Location", "/signup/complete")
+                .header("Location", redirect)
                 .build();
     }
 
