@@ -640,8 +640,8 @@ static async getCalendarOccurrences(calendarId, { fromKst, toKst }) {
   
 }
  // === 사람(일정, 지출) 통계 요약 및 top3 ===
-  static async getPeopleSummary(month) {
-    return this.request(`/analytics/people/summary?month=${month}`, { method: 'GET' });
+  static async getPeopleSummary(yearMonth) {
+    return this.request(`/analytics/people/summary?yearMonth=${encodeURIComponent(yearMonth)}`, { method: 'GET' });
   }
 
   // === 사람(일정, 지출) 통계 목록 조회 ===
@@ -650,8 +650,8 @@ static async getCalendarOccurrences(calendarId, { fromKst, toKst }) {
   }
 
   // === 장소(일정, 지출) 통계 요약 및 top3 ===
-  static async getPlaceSummary(month) {
-    return this.request(`/analytics/place/summary?month=${month}`, { method: 'GET' });
+  static async getPlaceSummary(yearMonth) {
+    return this.request(`/analytics/place/summary?yearMonth=${encodeURIComponent(yearMonth)}`, { method: 'GET' });
   }
 
   // === 장소(일정, 지출) 통계 목록 조회 ===

@@ -74,7 +74,7 @@ auth:
 
 security:
   cors:
-    allowed-origins: "https://your-frontend.com,http://localhost:3000,http://ec2-13-124-26-129.ap-northeast-2.compute.amazonaws.com" # 후에 ngrok 대신 우리 도메인 주소 기입
+    allowed-origins: "https://your-frontend.com,http://localhost:3000,http://ec2-13-124-26-129.ap-northeast-2.compute.amazonaws.com,https://calendarbox.life" # 후에 ngrok 대신 우리 도메인 주소 기입
 
 app:
   s3:
