@@ -87,3 +87,11 @@ app:
     presignMinutes: 5
     thumbPrefix: "thumb/256"
 
+
+gemini:
+  api-key: ${GEMINI_API_KEY}
+
+embedding:
+  python:
+    url: ${ML_URL}
+
