@@ -29,9 +29,11 @@ import com.calendarbox.backend.schedule.enums.RecurrenceFreq;
 import com.calendarbox.backend.schedule.enums.ScheduleParticipantStatus;
 import com.calendarbox.backend.schedule.enums.ScheduleTheme;
 import com.calendarbox.backend.schedule.repository.*;
+import com.calendarbox.backend.schedule.util.DefaultScheduleEmbeddingService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,6 +46,7 @@ import java.util.*;
 
 import static com.calendarbox.backend.schedule.enums.ScheduleParticipantStatus.INVITED;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -62,6 +65,8 @@ public class ScheduleService {
     private final FriendshipRepository friendshipRepository;
     private final NotificationRepository notificationRepository;
     private final PlaceRepository placeRepository;
+    private final DefaultScheduleEmbeddingService scheduleEmbeddingService;
+    private final ScheduleEmbeddingRepository scheduleEmbeddingRepository;
 
 
     public CloneScheduleResponse clone(Long userId, Long calendarId, CloneScheduleRequest request) {
@@ -110,6 +115,8 @@ public class ScheduleService {
         scheduleTodoRepository.copyAll(srcId,dstId);
         schedulePlaceRepository.copyAllForClone(srcId, dstId);
         attachmentRepository.copyAllDbOnly(srcId, dstId);
+
+        scheduleEmbeddingRepository.copyFrom(srcId, dstId);
 
         return new CloneScheduleResponse(dstId);
     }
@@ -308,6 +315,13 @@ public class ScheduleService {
         scheduleRepository.save(schedule);
         scheduleRepository.flush();
 
+        try {
+            float[] embedding = scheduleEmbeddingService.embedScheduleEntity(schedule);
+            scheduleEmbeddingRepository.upsertEmbedding(schedule.getId(), embedding);
+        } catch (Exception e) {
+            log.error("Failed to update schedule embedding. scheduleId={}", schedule.getId(), e);
+        }
+
         List<Notification> inviteNotis = schedule.getParticipants().stream()
                 .filter(sp -> sp.getMember() != null)
                 .filter(sp -> sp.getStatus() == INVITED)
@@ -396,7 +410,14 @@ public class ScheduleService {
         }
         s.touchUpdateBy(user);
 
+
         if(!diff.isEmpty()){
+            try {
+                float[] embedding = scheduleEmbeddingService.embedScheduleEntity(s);
+                scheduleEmbeddingRepository.upsertEmbedding(s.getId(), embedding);
+            } catch (Exception e) {
+                log.error("Failed to update schedule embedding. scheduleId={}", s.getId(), e);
+            }
             CalendarHistory history = CalendarHistory.builder()
                     .calendar(c)
                     .actor(user)
@@ -432,6 +453,7 @@ public class ScheduleService {
                 .type(CalendarHistoryType.SCHEDULE_DELETED)
                 .build();
         calendarHistoryRepository.save(history);
+        scheduleEmbeddingRepository.deleteByScheduleId(s.getId());
         scheduleRepository.delete(s);
     }
 

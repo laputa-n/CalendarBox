@@ -10,10 +10,14 @@ import org.testcontainers.utility.DockerImageName;
 @TestConfiguration(proxyBeanMethods = false)
 class TestcontainersConfiguration {
 
+	private static final DockerImageName POSTGRES_IMAGE =
+			DockerImageName.parse("ankane/pgvector:latest")  // 버전도 고정 추천
+					.asCompatibleSubstituteFor("postgres");
+
 	@Bean
 	@ServiceConnection
 	PostgreSQLContainer<?> postgresContainer() {
-		return new PostgreSQLContainer<>(DockerImageName.parse("postgres:latest"));
+		return new PostgreSQLContainer<>(POSTGRES_IMAGE);
 	}
 
 	@Bean

@@ -1,0 +1,29 @@
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 가상환경
+venv/
+.venv/
+
+# 테스트/툴 캐시
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# 편집기 설정
+.vscode/
+.idea/
+
+# Jupyter 노트북 체크포인트 (혹시 쓸 경우)
+.ipynb_checkpoints/
+
+# 로그 파일
+*.log
+
+# 환경 변수 파일
+.env
+.env.*
