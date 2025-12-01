@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: ankane/pgvector:latest-pg17
+    image: ankane/pgvector:latest
     environment:
       POSTGRES_DB: calendarbox_db
       POSTGRES_USER: calendarbox_user
