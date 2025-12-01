@@ -51,7 +51,6 @@ public class PlaceRecommendService {
                 .map(PgVectorSimilarScheduleFinder.SimilarSchedule::scheduleId).toList();
 
         if (scheduleIds.isEmpty()) {
-            // TODO: fallback (region 기반 추천만 써서 10개 뽑기)
             return List.of();
         }
 

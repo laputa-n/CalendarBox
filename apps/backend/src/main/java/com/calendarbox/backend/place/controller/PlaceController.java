@@ -49,7 +49,7 @@ public class PlaceController {
         return ResponseEntity.ok(ApiResponse.ok("장소 검색 성공", data));
     }
 
-    @PostMapping("/recommendation")
+    @PostMapping("/recommend")
     public ResponseEntity<ApiResponse<List<PlaceResponseDto>>> recommend(
             @AuthenticationPrincipal(expression="id") Long userId,
             @RequestBody @Valid PlaceRecommendRequest request
