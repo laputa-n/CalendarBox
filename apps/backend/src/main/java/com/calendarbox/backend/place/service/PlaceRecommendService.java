@@ -33,12 +33,16 @@ public class PlaceRecommendService {
 
         double anchorLng = 0;
         double anchorLat = 0;
-        for(PlacePreview p:anchorPlaces){
-            anchorLng += p.lng();
-            anchorLat += p.lat();
+
+        if(!anchorPlaces.isEmpty()){
+            for(PlacePreview p:anchorPlaces){
+                anchorLng += p.lng();
+                anchorLat += p.lat();
+            }
+            anchorLng /= anchorPlaces.size();
+            anchorLat /= anchorPlaces.size();
         }
-        anchorLng /= anchorPlaces.size();
-        anchorLat /= anchorPlaces.size();
+
 
         final double centerLng = anchorLng;
         final double centerLat = anchorLat;
