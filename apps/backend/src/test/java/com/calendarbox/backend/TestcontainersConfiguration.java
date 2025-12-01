@@ -11,7 +11,7 @@ import org.testcontainers.utility.DockerImageName;
 class TestcontainersConfiguration {
 
 	private static final DockerImageName POSTGRES_IMAGE =
-			DockerImageName.parse("ankane/pgvector:pg17")  // 버전도 고정 추천
+			DockerImageName.parse("ankane/pgvector:latest")  // 버전도 고정 추천
 					.asCompatibleSubstituteFor("postgres");
 
 	@Bean
