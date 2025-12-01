@@ -4,4 +4,12 @@ services:
   redis:
     ports: ["6379:6379"]
   minio:
+    image: minio/minio:latest
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio123}
+    command: server /data --console-address ":9001"
+    volumes:
+      - ./data/minio:/data
+    restart: unless-stopped
     ports: ["9000:9000","9001:9001"]
