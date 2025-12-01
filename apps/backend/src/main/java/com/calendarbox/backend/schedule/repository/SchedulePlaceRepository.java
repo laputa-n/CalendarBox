@@ -1,5 +1,6 @@
 package com.calendarbox.backend.schedule.repository;
 
+import com.calendarbox.backend.place.domain.Place;
 import com.calendarbox.backend.schedule.domain.SchedulePlace;
 import com.calendarbox.backend.schedule.domain.ScheduleTodo;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -12,6 +13,11 @@ import java.util.Collection;
 import java.util.List;
 
 public interface SchedulePlaceRepository extends JpaRepository<SchedulePlace, Long> {
+
+    interface SchedulePlaceProjection{
+        Long getScheduleId();
+        Place getPlace();
+    }
     boolean existsByScheduleIdAndPlaceId(Long scheduleId, Long placeId);
     boolean existsByScheduleIdAndName(Long scheduleId, String name);
     boolean existsBySchedule_Id(Long scheduleId);
@@ -36,5 +42,12 @@ public interface SchedulePlaceRepository extends JpaRepository<SchedulePlace, Lo
 
     Long countBySchedule_Id(Long scheduleId);
 
+    @Query("""
+        select sp.schedule.id as scheduleId, sp.place as place
+        from SchedulePlace sp
+        where sp.schedule.id in :scheduleIds
+            and sp.place is not null
+    """)
+    List<SchedulePlaceProjection> findByScheduleIds(List<Long> scheduleIds);
 }
 

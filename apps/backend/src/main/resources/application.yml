@@ -82,3 +82,10 @@ app:
     usePathStyle: true
     presignMinutes: 5
     thumbPrefix: "thumb/256"
+
+gemini:
+  api-key: AIzaSyCaEfYxbI3-wgFzQ8W287bj_R9iipRajjw
+
+embedding:
+  python:
+    url: http://localhost:8000/embed
