@@ -25,6 +25,26 @@ public class PgVectorSimilarScheduleFinder {
         log.info("[similar] start findSimilar, limit={}, title={}, memo={}",
                 limit, request.title(), request.memo());
 
+        Integer totalEmb = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM schedule_embedding",
+                Integer.class
+        );
+        Integer withPlace = jdbcTemplate.queryForObject(
+                """
+                SELECT count(*)
+                FROM schedule_embedding se
+                WHERE EXISTS (
+                    SELECT 1
+                    FROM schedule_place sp
+                    WHERE sp.schedule_id = se.schedule_id
+                      AND sp.place_id IS NOT NULL
+                )
+                """,
+                Integer.class
+        );
+
+        log.info("[similar][debug] from JDBC: totalEmb={}, withPlace={}", totalEmb, withPlace);
+
         // 1) 요청으로부터 검색 텍스트 만들기 (필드 이름에 맞게 수정)
         float[] queryEmbedding = scheduleEmbeddingService.embedScheduleForSearch(request);
         log.info("[similar] embedding dimension = {}, first3 = [{}, {}, {}]",
@@ -36,7 +56,7 @@ public class PgVectorSimilarScheduleFinder {
 
         // 2) pgvector literal 만들기
         PGobject vectorObject = toPgVectorObject(queryEmbedding);
-        log.info("[vectorObject]: ", vectorObject);
+        log.info("[vectorObject]:{} ", vectorObject);
 
         String sql = """
     SELECT schedule_id,
