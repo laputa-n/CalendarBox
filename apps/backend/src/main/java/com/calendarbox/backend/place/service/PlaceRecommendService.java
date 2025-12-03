@@ -10,6 +10,7 @@ import com.calendarbox.backend.schedule.repository.SchedulePlaceRepository;
 import com.calendarbox.backend.schedule.util.GeminiScheduleCategoryExtractor;
 import com.calendarbox.backend.schedule.util.PgVectorSimilarScheduleFinder;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +18,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
@@ -29,7 +31,10 @@ public class PlaceRecommendService {
 
 
     public List<PlaceResponseDto> recommend(PlaceRecommendRequest request){
+        log.info("[recommend] request = {}", request);
+
         List<PlacePreview> anchorPlaces = placeSearchService.search(request.regionQuery(),5,"random");
+        log.info("[recommend] anchorPlaces size = {}", anchorPlaces.size());
 
         double anchorLng = 0;
         double anchorLat = 0;
@@ -46,15 +51,21 @@ public class PlaceRecommendService {
 
         final double centerLng = anchorLng;
         final double centerLat = anchorLat;
+        log.info("[recommend] centerLat={}, centerLng={}", centerLat, centerLng);
 
         //일정 카테고리 추출
         ScheduleCategory category = categoryExtractor.extract(request);
+        log.info("[recommend] extracted category = {}", category);
 
         var similarList = similarScheduleFinder.findSimilar(request,50);
+        log.info("[recommend] similarList size = {}", similarList.size());
+        log.info("[recommend] similarList detail = {}", similarList);
+
         List<Long> scheduleIds = similarList.stream()
                 .map(PgVectorSimilarScheduleFinder.SimilarSchedule::scheduleId).toList();
 
         if (scheduleIds.isEmpty()) {
+            log.warn("[recommend] no similar schedules found, returning empty result");
             return List.of();
         }
 
@@ -64,8 +75,11 @@ public class PlaceRecommendService {
                         PgVectorSimilarScheduleFinder.SimilarSchedule::similarity
                 ));
 
+        log.info("[recommend] similarityMap keys(scheduleIds) = {}", similarityMap.keySet());
+
         List<SchedulePlaceRepository.SchedulePlaceProjection> rows =
                 schedulePlaceRepository.findByScheduleIds(scheduleIds);
+        log.info("[recommend] schedule places rows size = {}", rows.size());
 
         var placeMaxSimMap = new HashMap<Place,Double>();
 
