@@ -45,7 +45,7 @@ public class PgVectorSimilarScheduleFinder {
 
         log.info("[similar][debug] from JDBC: totalEmb={}, withPlace={}", totalEmb, withPlace);
 
-        // 1) 요청으로부터 검색 텍스트 만들기 (필드 이름에 맞게 수정)
+        // 1) 요청으로부터 검색 텍스트 임베딩 추출
         float[] queryEmbedding = scheduleEmbeddingService.embedScheduleForSearch(request);
         log.info("[similar] embedding dimension = {}, first3 = [{}, {}, {}]",
                 queryEmbedding.length,
@@ -54,32 +54,32 @@ public class PgVectorSimilarScheduleFinder {
                 queryEmbedding.length > 2 ? queryEmbedding[2] : null
         );
 
-        // 2) pgvector literal 만들기
-        String vectorString = toVectorString(queryEmbedding);
-        log.info("[vectorString]: {}", vectorString);
+        // 2) pgvector PGobject 만들기
+        PGobject vectorObject = toPgVectorObject(queryEmbedding);
+        log.info("[vectorObject]: {}", vectorObject);
 
         String sql = """
-    SELECT se.schedule_id,
-           1 - (se.embedding <=> ?::vector) AS similarity
-    FROM schedule_embedding se
-    WHERE EXISTS (
-        SELECT 1
-        FROM schedule_place sp
-        WHERE sp.schedule_id = se.schedule_id
-          AND sp.place_id IS NOT NULL
-    )
-    ORDER BY se.embedding <=> ?::vector
-    LIMIT ?
-    """;
+        SELECT se.schedule_id,
+               1 - (se.embedding <=> ?) AS similarity
+        FROM schedule_embedding se
+        WHERE EXISTS (
+            SELECT 1
+            FROM schedule_place sp
+            WHERE sp.schedule_id = se.schedule_id
+              AND sp.place_id IS NOT NULL
+        )
+        ORDER BY se.embedding <=> ?
+        LIMIT ?
+        """;
 
         log.debug("[similar] SQL = {}", sql);
 
-        // 3) JDBC 쿼리
+        // 3) JDBC 쿼리 (파라미터 타입은 PGobject(vector))
         List<SimilarSchedule> result = jdbcTemplate.query(
                 connection -> {
                     var ps = connection.prepareStatement(sql);
-                    ps.setString(1, vectorString); // 첫 번째 ?  → vector
-                    ps.setString(2, vectorString); // 두 번째 ?  → vector
+                    ps.setObject(1, vectorObject); // 첫 번째 ?  → vector
+                    ps.setObject(2, vectorObject); // 두 번째 ?  → vector
                     ps.setInt(3, limit);           // 세 번째 ?  → limit
                     return ps;
                 },
@@ -96,14 +96,23 @@ public class PgVectorSimilarScheduleFinder {
         return result;
     }
 
-    private String toVectorString(float[] embedding) {
+    private PGobject toPgVectorObject(float[] embedding) {
         StringBuilder sb = new StringBuilder();
         sb.append('[');
         for (int i = 0; i < embedding.length; i++) {
             if (i > 0) sb.append(',');
-            sb.append(embedding[i]);
+            sb.append(embedding[i]); // 예: 0.07754992
         }
-        sb.append(']');
-        return sb.toString(); // 예: "[0.07,0.08,...]"
+        sb.append(']');              // 예: [0.07,0.08,...]
+
+        PGobject obj = new PGobject();
+        obj.setType("vector");      // pgvector 타입 이름
+        try {
+            obj.setValue(sb.toString());
+        } catch (SQLException e) {
+            log.error("[similar] failed to set pgvector value", e);
+            throw new IllegalStateException("Failed to set pgvector value", e);
+        }
+        return obj;
     }
 }
