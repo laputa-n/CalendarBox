@@ -74,19 +74,19 @@ public interface AnalyticsRepository extends JpaRepository<Schedule, Long> {
     // 월별 친구 통계
     @Query(value = """
     WITH my_schedules AS (
-        SELECT s.id, s.start_at, s.end_at, s.created_by
+        SELECT s.schedule_id, s.start_at, s.end_at, s.created_by
         FROM schedule s
         WHERE s.created_by = :memberId
         UNION
-        SELECT s.id, s.start_at, s.end_at, s.created_by
+        SELECT s.schedule_id, s.start_at, s.end_at, s.created_by
         FROM schedule_participant sp
-        JOIN schedule s ON sp.schedule_id = s.id
+        JOIN schedule s ON sp.schedule_id = s.schedule_id
         WHERE sp.member_id = :memberId
           AND sp.status = 'ACCEPTED'
     ),
     expanded AS (
         SELECT 
-            ms.id AS schedule_id,
+            ms.schedule_id AS schedule_id,
             date_trunc('month', gs) AS month
         FROM my_schedules ms,
              generate_series(
@@ -98,14 +98,14 @@ public interface AnalyticsRepository extends JpaRepository<Schedule, Long> {
     person_schedules AS (
     SELECT DISTINCT
         e.month,
-        s.id AS schedule_id,
+        s.schedule_id AS schedule_id,
         COALESCE(sp.member_id, s.created_by) AS person_id,
         COALESCE(sp.name, creator.name) AS person_name,
         EXTRACT(EPOCH FROM (s.end_at - s.start_at)) / 60 AS duration_min
     FROM expanded e
-    JOIN schedule s ON s.id = e.schedule_id
-    LEFT JOIN schedule_participant sp ON s.id = sp.schedule_id
-    LEFT JOIN member creator ON creator.id = s.created_by
+    JOIN schedule s ON s.schedule_id = e.schedule_id
+    LEFT JOIN schedule_participant sp ON s.schedule_id = sp.schedule_id
+    LEFT JOIN member creator ON creator.member_id = s.created_by
     WHERE (
         (sp.member_id IS NULL OR sp.member_id <> :memberId)
         AND s.created_by <> :memberId
@@ -127,19 +127,19 @@ ORDER BY ps.month, meet_count DESC NULLS LAST
 
     @Query(value = """
 WITH my_schedules AS (
-    SELECT s.id, s.start_at, s.end_at, s.created_by
+    SELECT s.schedule_id, s.start_at, s.end_at, s.created_by
     FROM schedule s
     WHERE s.created_by = :memberId
     UNION
-    SELECT s.id, s.start_at, s.end_at, s.created_by
+    SELECT s.schedule_id, s.start_at, s.end_at, s.created_by
     FROM schedule_participant sp
-    JOIN schedule s ON sp.schedule_id = s.id
+    JOIN schedule s ON sp.schedule_id = s.schedule_id
     WHERE sp.member_id = :memberId
       AND sp.status = 'ACCEPTED'
 ),
 expanded AS (
     SELECT 
-        ms.id AS schedule_id,
+        ms.schedule_id AS schedule_id,
         date_trunc('month', gs) AS month
     FROM my_schedules ms,
          generate_series(
@@ -151,14 +151,14 @@ expanded AS (
 person_schedules AS (
     SELECT DISTINCT
         e.month,
-        s.id AS schedule_id,
+        s.schedule_id AS schedule_id,
         COALESCE(sp.member_id, s.created_by) AS person_id,
         COALESCE(sp.name, creator.name) AS person_name,
         EXTRACT(EPOCH FROM (s.end_at - s.start_at)) / 60 AS duration_min
     FROM expanded e
-    JOIN schedule s ON s.id = e.schedule_id
-    LEFT JOIN schedule_participant sp ON s.id = sp.schedule_id
-    LEFT JOIN member creator ON creator.id = s.created_by
+    JOIN schedule s ON s.schedule_id = e.schedule_id
+    LEFT JOIN schedule_participant sp ON s.schedule_id = sp.schedule_id
+    LEFT JOIN member creator ON creator.member_id = s.created_by
     WHERE (
         (sp.member_id IS NULL OR sp.member_id <> :memberId)
         AND s.created_by <> :memberId
@@ -187,19 +187,19 @@ LIMIT :size OFFSET :offset
 
     @Query(value = """
 WITH my_schedules AS (
-    SELECT s.id, s.start_at, s.end_at, s.created_by
+    SELECT s.schedule_id, s.start_at, s.end_at, s.created_by
     FROM schedule s
     WHERE s.created_by = :memberId
     UNION
-    SELECT s.id, s.start_at, s.end_at, s.created_by
+    SELECT s.schedule_id, s.start_at, s.end_at, s.created_by
     FROM schedule_participant sp
-    JOIN schedule s ON sp.schedule_id = s.id
+    JOIN schedule s ON sp.schedule_id = s.schedule_id
     WHERE sp.member_id = :memberId
       AND sp.status = 'ACCEPTED'
 ),
 expanded AS (
     SELECT 
-        ms.id AS schedule_id,
+        ms.schedule_id AS schedule_id,
         date_trunc('month', gs) AS month
     FROM my_schedules ms,
          generate_series(
@@ -211,13 +211,13 @@ expanded AS (
 person_schedules AS (
     SELECT DISTINCT
         e.month,
-        s.id AS schedule_id,
+        s.schedule_id AS schedule_id,
         COALESCE(sp.member_id, s.created_by) AS person_id,
         COALESCE(sp.name, creator.name) AS person_name
     FROM expanded e
-    JOIN schedule s ON s.id = e.schedule_id
-    LEFT JOIN schedule_participant sp ON s.id = sp.schedule_id
-    LEFT JOIN member creator ON creator.id = s.created_by
+    JOIN schedule s ON s.schedule_id = e.schedule_id
+    LEFT JOIN schedule_participant sp ON s.schedule_id = sp.schedule_id
+    LEFT JOIN member creator ON creator.member_id = s.created_by
     WHERE (
         (sp.member_id IS NULL OR sp.member_id <> :memberId)
         AND s.created_by <> :memberId
@@ -237,19 +237,19 @@ WHERE ps.month >= :startMonth
     //사람별 지출 통계
     @Query(value = """
 WITH my_schedules AS (
-    SELECT s.id, s.start_at, s.end_at, s.created_by
+    SELECT s.schedule_id, s.start_at, s.end_at, s.created_by
     FROM schedule s
     WHERE s.created_by = :memberId
     UNION
-    SELECT s.id, s.start_at, s.end_at, s.created_by
+    SELECT s.schedule_id, s.start_at, s.end_at, s.created_by
     FROM schedule_participant sp
-    JOIN schedule s ON sp.schedule_id = s.id
+    JOIN schedule s ON sp.schedule_id = s.schedule_id
     WHERE sp.member_id = :memberId
       AND sp.status = 'ACCEPTED'
 ),
 expanded AS (
     SELECT 
-        ms.id AS schedule_id,
+        ms.schedule_id AS schedule_id,
         date_trunc('month', gs) AS month
     FROM my_schedules ms,
          generate_series(
@@ -261,15 +261,15 @@ expanded AS (
 person_schedules AS (
     SELECT DISTINCT
         e.month,
-        s.id AS schedule_id,
+        s.schedule_id AS schedule_id,
         COALESCE(sp.member_id, s.created_by) AS person_id,
         COALESCE(sp.name, creator.name) AS person_name,
         e2.amount AS amount
     FROM expanded e
-    JOIN schedule s ON s.id = e.schedule_id
-    LEFT JOIN schedule_participant sp ON s.id = sp.schedule_id
-    LEFT JOIN member creator ON creator.id = s.created_by
-    LEFT JOIN expense e2 ON e2.schedule_id = s.id
+    JOIN schedule s ON s.schedule_id = e.schedule_id
+    LEFT JOIN schedule_participant sp ON s.schedule_id = sp.schedule_id
+    LEFT JOIN member creator ON creator.member_id = s.created_by
+    LEFT JOIN expense e2 ON e2.schedule_id = s.schedule_id
     WHERE (
         (sp.member_id IS NULL OR sp.member_id <> :memberId)
         AND s.created_by <> :memberId
@@ -297,19 +297,19 @@ ORDER BY ps.month, total_amount DESC NULLS LAST, avg_amount DESC NULLS LAST
 
     @Query(value = """
 WITH my_schedules AS (
-    SELECT s.id, s.start_at, s.end_at, s.created_by
+    SELECT s.schedule_id, s.start_at, s.end_at, s.created_by
     FROM schedule s
     WHERE s.created_by = :memberId
     UNION
-    SELECT s.id, s.start_at, s.end_at, s.created_by
+    SELECT s.schedule_id, s.start_at, s.end_at, s.created_by
     FROM schedule_participant sp
-    JOIN schedule s ON sp.schedule_id = s.id
+    JOIN schedule s ON sp.schedule_id = s.schedule_id
     WHERE sp.member_id = :memberId
       AND sp.status = 'ACCEPTED'
 ),
 expanded AS (
     SELECT 
-        ms.id AS schedule_id,
+        ms.schedule_id AS schedule_id,
         date_trunc('month', gs) AS month
     FROM my_schedules ms,
          generate_series(
@@ -321,15 +321,15 @@ expanded AS (
 person_schedules AS (
     SELECT DISTINCT
         e.month,
-        s.id AS schedule_id,
+        s.schedule_id AS schedule_id,
         COALESCE(sp.member_id, s.created_by) AS person_id,
         COALESCE(sp.name, creator.name) AS person_name,
         e2.amount AS amount
     FROM expanded e
-    JOIN schedule s ON s.id = e.schedule_id
-    LEFT JOIN schedule_participant sp ON s.id = sp.schedule_id
-    LEFT JOIN member creator ON creator.id = s.created_by
-    LEFT JOIN expense e2 ON e2.schedule_id = s.id
+    JOIN schedule s ON s.schedule_id = e.schedule_id
+    LEFT JOIN schedule_participant sp ON s.schedule_id = sp.schedule_id
+    LEFT JOIN member creator ON creator.member_id = s.created_by
+    LEFT JOIN expense e2 ON e2.schedule_id = s.schedule_id
     WHERE (
         (sp.member_id IS NULL OR sp.member_id <> :memberId)
         AND s.created_by <> :memberId
@@ -359,19 +359,19 @@ LIMIT :size OFFSET :offset
 
     @Query(value = """
 WITH my_schedules AS (
-    SELECT s.id, s.start_at, s.end_at, s.created_by
+    SELECT s.schedule_id, s.start_at, s.end_at, s.created_by
     FROM schedule s
     WHERE s.created_by = :memberId
     UNION
-    SELECT s.id, s.start_at, s.end_at, s.created_by
+    SELECT s.schedule_id, s.start_at, s.end_at, s.created_by
     FROM schedule_participant sp
-    JOIN schedule s ON sp.schedule_id = s.id
+    JOIN schedule s ON sp.schedule_id = s.schedule_id
     WHERE sp.member_id = :memberId
       AND sp.status = 'ACCEPTED'
 ),
 expanded AS (
     SELECT 
-        ms.id AS schedule_id,
+        ms.schedule_id AS schedule_id,
         date_trunc('month', gs) AS month
     FROM my_schedules ms,
          generate_series(
@@ -386,10 +386,10 @@ person_schedules AS (
         COALESCE(sp.member_id, s.created_by) AS person_id,
         COALESCE(sp.name, creator.name) AS person_name
     FROM expanded e
-    JOIN schedule s ON s.id = e.schedule_id
-    LEFT JOIN schedule_participant sp ON s.id = sp.schedule_id
-    LEFT JOIN member creator ON creator.id = s.created_by
-    LEFT JOIN expense e2 ON e2.schedule_id = s.id
+    JOIN schedule s ON s.schedule_id = e.schedule_id
+    LEFT JOIN schedule_participant sp ON s.schedule_id = sp.schedule_id
+    LEFT JOIN member creator ON creator.member_id = s.created_by
+    LEFT JOIN expense e2 ON e2.schedule_id = s.schedule_id
     WHERE (
         (sp.member_id IS NULL OR sp.member_id <> :memberId)
         AND s.created_by <> :memberId
@@ -412,19 +412,19 @@ WHERE ps.month >= :startMonth
     //월별 장소 통계
     @Query(value = """
 WITH my_schedules AS (
-    SELECT s.id, s.start_at, s.end_at
+    SELECT s.schedule_id, s.start_at, s.end_at
     FROM schedule s
     WHERE s.created_by = :memberId
     UNION
-    SELECT s.id, s.start_at, s.end_at
+    SELECT s.schedule_id, s.start_at, s.end_at
     FROM schedule_participant sp
-    JOIN schedule s ON sp.schedule_id = s.id
+    JOIN schedule s ON sp.schedule_id = s.schedule_id
     WHERE sp.member_id = :memberId
       AND sp.status = 'ACCEPTED'
 ),
 expanded AS (
     SELECT 
-        ms.id AS schedule_id,
+        ms.schedule_id AS schedule_id,
         date_trunc('month', gs) AS month
     FROM my_schedules ms,
          generate_series(
@@ -436,13 +436,13 @@ expanded AS (
 place_schedules AS (
     SELECT DISTINCT
         e.month,
-        s.id AS schedule_id,
+        s.schedule_id AS schedule_id,
         COALESCE(p.place_id, NULL) AS place_id,
         COALESCE(p.title, sp2.name) AS place_name,
         EXTRACT(EPOCH FROM (s.end_at - s.start_at)) / 60 AS duration_min
     FROM expanded e
-    JOIN schedule s ON s.id = e.schedule_id
-    JOIN schedule_place sp2 ON s.id = sp2.schedule_id
+    JOIN schedule s ON s.schedule_id = e.schedule_id
+    JOIN schedule_place sp2 ON s.schedule_id = sp2.schedule_id
     LEFT JOIN place p ON sp2.place_id = p.place_id
 )
 SELECT
@@ -465,19 +465,19 @@ ORDER BY ps.month, visit_count DESC NULLS LAST
 
     @Query(value = """
 WITH my_schedules AS (
-    SELECT s.id, s.start_at, s.end_at
+    SELECT s.schedule_id, s.start_at, s.end_at
     FROM schedule s
     WHERE s.created_by = :memberId
     UNION
-    SELECT s.id, s.start_at, s.end_at
+    SELECT s.schedule_id, s.start_at, s.end_at
     FROM schedule_participant sp
-    JOIN schedule s ON sp.schedule_id = s.id
+    JOIN schedule s ON sp.schedule_id = s.schedule_id
     WHERE sp.member_id = :memberId
       AND sp.status = 'ACCEPTED'
 ),
 expanded AS (
     SELECT 
-        ms.id AS schedule_id,
+        ms.schedule_id AS schedule_id,
         date_trunc('month', gs) AS month
     FROM my_schedules ms,
          generate_series(
@@ -489,13 +489,13 @@ expanded AS (
 place_schedules AS (
     SELECT DISTINCT
         e.month,
-        s.id AS schedule_id,
+        s.schedule_id AS schedule_id,
         COALESCE(p.place_id, NULL) AS place_id,
         COALESCE(p.title, sp2.name) AS place_name,
         EXTRACT(EPOCH FROM (s.end_at - s.start_at)) / 60 AS duration_min
     FROM expanded e
-    JOIN schedule s ON s.id = e.schedule_id
-    JOIN schedule_place sp2 ON s.id = sp2.schedule_id
+    JOIN schedule s ON s.schedule_id = e.schedule_id
+    JOIN schedule_place sp2 ON s.schedule_id = sp2.schedule_id
     LEFT JOIN place p ON sp2.place_id = p.place_id
 )
 SELECT
@@ -521,19 +521,19 @@ LIMIT :size OFFSET :offset
 
     @Query(value = """
 WITH my_schedules AS (
-    SELECT s.id, s.start_at, s.end_at
+    SELECT s.schedule_id, s.start_at, s.end_at
     FROM schedule s
     WHERE s.created_by = :memberId
     UNION
-    SELECT s.id, s.start_at, s.end_at
+    SELECT s.schedule_id, s.start_at, s.end_at
     FROM schedule_participant sp
-    JOIN schedule s ON sp.schedule_id = s.id
+    JOIN schedule s ON sp.schedule_id = s.schedule_id
     WHERE sp.member_id = :memberId
       AND sp.status = 'ACCEPTED'
 ),
 expanded AS (
     SELECT 
-        ms.id AS schedule_id,
+        ms.schedule_id AS schedule_id,
         date_trunc('month', gs) AS month
     FROM my_schedules ms,
          generate_series(
@@ -545,13 +545,13 @@ expanded AS (
 place_schedules AS (
     SELECT DISTINCT
         e.month,
-        s.id AS schedule_id,
+        s.schedule_id AS schedule_id,
         COALESCE(p.place_id, NULL) AS place_id,
         COALESCE(p.title, sp2.name) AS place_name,
         EXTRACT(EPOCH FROM (s.end_at - s.start_at)) / 60 AS duration_min
     FROM expanded e
-    JOIN schedule s ON s.id = e.schedule_id
-    JOIN schedule_place sp2 ON s.id = sp2.schedule_id
+    JOIN schedule s ON s.schedule_id = e.schedule_id
+    JOIN schedule_place sp2 ON s.schedule_id = sp2.schedule_id
     LEFT JOIN place p ON sp2.place_id = p.place_id
 )
 SELECT
@@ -570,19 +570,19 @@ WHERE ps.month >= :startMonth
     //장소별 지출 통계
     @Query(value = """
 WITH my_schedules AS (
-    SELECT s.id, s.start_at, s.end_at
+    SELECT s.schedule_id, s.start_at, s.end_at
     FROM schedule s
     WHERE s.created_by = :memberId
     UNION
-    SELECT s.id, s.start_at, s.end_at
+    SELECT s.schedule_id, s.start_at, s.end_at
     FROM schedule_participant sp
-    JOIN schedule s ON sp.schedule_id = s.id
+    JOIN schedule s ON sp.schedule_id = s.schedule_id
     WHERE sp.member_id = :memberId
       AND sp.status = 'ACCEPTED'
 ),
 expanded AS (
     SELECT 
-        ms.id AS schedule_id,
+        ms.schedule_id AS schedule_id,
         date_trunc('month', gs) AS month
     FROM my_schedules ms,
          generate_series(
@@ -594,13 +594,13 @@ expanded AS (
 place_schedules AS (
     SELECT DISTINCT
         e.month,
-        s.id AS schedule_id,
+        s.schedule_id AS schedule_id,
         COALESCE(p.place_id, NULL) AS place_id,
         COALESCE(p.title, sp2.name) AS place_name,
         EXTRACT(EPOCH FROM (s.end_at - s.start_at)) / 60 AS duration_min
     FROM expanded e
-    JOIN schedule s ON s.id = e.schedule_id
-    JOIN schedule_place sp2 ON s.id = sp2.schedule_id
+    JOIN schedule s ON s.schedule_id = e.schedule_id
+    JOIN schedule_place sp2 ON s.schedule_id = sp2.schedule_id
     LEFT JOIN place p ON sp2.place_id = p.place_id
 ),
 place_expenses AS (
@@ -638,19 +638,19 @@ ORDER BY pe.month, total_amount DESC NULLS LAST, avg_amount DESC NULLS LAST
 
     @Query(value = """
 WITH my_schedules AS (
-    SELECT s.id, s.start_at, s.end_at
+    SELECT s.schedule_id, s.start_at, s.end_at
     FROM schedule s
     WHERE s.created_by = :memberId
     UNION
-    SELECT s.id, s.start_at, s.end_at
+    SELECT s.schedule_id, s.start_at, s.end_at
     FROM schedule_participant sp
-    JOIN schedule s ON sp.schedule_id = s.id
+    JOIN schedule s ON sp.schedule_id = s.schedule_id
     WHERE sp.member_id = :memberId
       AND sp.status = 'ACCEPTED'
 ),
 expanded AS (
     SELECT 
-        ms.id AS schedule_id,
+        ms.schedule_id AS schedule_id,
         date_trunc('month', gs) AS month
     FROM my_schedules ms,
          generate_series(
@@ -662,13 +662,13 @@ expanded AS (
 place_schedules AS (
     SELECT DISTINCT
         e.month,
-        s.id AS schedule_id,
+        s.schedule_id AS schedule_id,
         COALESCE(p.place_id, NULL) AS place_id,
         COALESCE(p.title, sp2.name) AS place_name,
         EXTRACT(EPOCH FROM (s.end_at - s.start_at)) / 60 AS duration_min
     FROM expanded e
-    JOIN schedule s ON s.id = e.schedule_id
-    JOIN schedule_place sp2 ON s.id = sp2.schedule_id
+    JOIN schedule s ON s.schedule_id = e.schedule_id
+    JOIN schedule_place sp2 ON s.schedule_id = sp2.schedule_id
     LEFT JOIN place p ON sp2.place_id = p.place_id
 ),
 place_expenses AS (
@@ -708,19 +708,19 @@ LIMIT :size OFFSET :offset
 
     @Query(value = """
 WITH my_schedules AS (
-    SELECT s.id, s.start_at, s.end_at
+    SELECT s.schedule_id, s.start_at, s.end_at
     FROM schedule s
     WHERE s.created_by = :memberId
     UNION
-    SELECT s.id, s.start_at, s.end_at
+    SELECT s.schedule_id, s.start_at, s.end_at
     FROM schedule_participant sp
-    JOIN schedule s ON sp.schedule_id = s.id
+    JOIN schedule s ON sp.schedule_id = s.schedule_id
     WHERE sp.member_id = :memberId
       AND sp.status = 'ACCEPTED'
 ),
 expanded AS (
     SELECT 
-        ms.id AS schedule_id,
+        ms.schedule_id AS schedule_id,
         date_trunc('month', gs) AS month
     FROM my_schedules ms,
          generate_series(
@@ -732,13 +732,13 @@ expanded AS (
 place_schedules AS (
     SELECT DISTINCT
         e.month,
-        s.id AS schedule_id,
+        s.schedule_id AS schedule_id,
         COALESCE(p.place_id, NULL) AS place_id,
         COALESCE(p.title, sp2.name) AS place_name,
         EXTRACT(EPOCH FROM (s.end_at - s.start_at)) / 60 AS duration_min
     FROM expanded e
-    JOIN schedule s ON s.id = e.schedule_id
-    JOIN schedule_place sp2 ON s.id = sp2.schedule_id
+    JOIN schedule s ON s.schedule_id = e.schedule_id
+    JOIN schedule_place sp2 ON s.schedule_id = sp2.schedule_id
     LEFT JOIN place p ON sp2.place_id = p.place_id
 ),
 place_expenses AS (
@@ -768,19 +768,19 @@ WHERE pe.month >= :startMonth
     // 요일 + 시간별 스케줄 통계
     @Query(value = """
     WITH my_schedules AS(
-        SELECT s.id, s.start_at, s.end_at
+        SELECT s.schedule_id, s.start_at, s.end_at
         FROM schedule s
         WHERE s.created_by = :memberId
         UNION
         SELECT s.schedule_id, s.start_at, s.end_at
         FROM schedule_participant sp
-        JOIN schedule s ON sp.schedule_id = s.id
+        JOIN schedule s ON sp.schedule_id = s.schedule_id
         WHERE sp.member_id = :memberId
             AND sp.status = 'ACCEPTED'
     ),
     expanded AS (
         SELECT 
-            ms.id AS schedule_id,
+            ms.schedule_id AS schedule_id,
             EXTRACT(DOW FROM gs) AS day_of_week,
             EXTRACT(HOUR FROM gs) AS hour_of_day
         FROM my_schedules ms,
@@ -807,19 +807,19 @@ WHERE pe.month >= :startMonth
     //월별 일정 증가 추이
     @Query(value = """
     WITH my_schedules AS (
-        SELECT s.id, s.start_at, s.end_at
+        SELECT s.schedule_id, s.start_at, s.end_at
         FROM schedule s
         WHERE s.created_by = :memberId
         UNION
-        SELECT s.id, s.start_at, s.end_at
+        SELECT s.schedule_id, s.start_at, s.end_at
         FROM schedule_participant sp
-        JOIN schedule s ON sp.schedule_id = s.id
+        JOIN schedule s ON sp.schedule_id = s.schedule_id
         WHERE sp.member_id = :memberId
           AND sp.status = 'ACCEPTED'
     ),
     expanded AS (
         SELECT 
-            ms.id AS schedule_id,
+            ms.schedule_id AS schedule_id,
             date_trunc('month', gs) AS month
         FROM my_schedules ms,
              generate_series(
