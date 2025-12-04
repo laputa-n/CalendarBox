@@ -658,6 +658,7 @@ static async getCalendarOccurrences(calendarId, { fromKst, toKst }) {
   static async getMonthlyScheduleTrend() {
     return this.request('/analytics/schedule/trend', { method: 'GET' });
   }
+
 }
 // ✅ 클래스 바깥(닫는 } 다음 줄)에 붙여야 함
 ApiService.getScheduleSummary = (scheduleId) =>
@@ -677,5 +678,3 @@ ApiService.listImageAttachments = (scheduleId, page = 0, size = 20) =>
 
 ApiService.listFileAttachments = (scheduleId, page = 0, size = 20) =>
   ApiService.request(`/schedules/${scheduleId}/attachments/files?page=${page}&size=${size}`, { method: 'GET' });
-
-

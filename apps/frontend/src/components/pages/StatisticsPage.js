@@ -9,7 +9,7 @@ export const StatisticsPage = () => {
     const [selectedWeekday, setSelectedWeekday] = useState('1'); // 월요일 기본값
     const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth()); // 기본값은 이번 달
     const [yearlyData, setYearlyData] = useState([]); // 1년 동안의 월별 데이터를 저장
-
+    const weekdays = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
     // 현재 월을 "yyyy-MM" 형식으로 반환하는 함수
     function getCurrentMonth() {
         const now = new Date();
@@ -38,8 +38,9 @@ export const StatisticsPage = () => {
         }
     };
 
+
     // 선택된 월에 해당하는 통계를 가져오는 함수
-    const fetchStatistics = async () => {
+ const fetchStatistics = async () => {
         try {
             setLoading(true);
             console.log('Fetching statistics...');
@@ -59,7 +60,7 @@ export const StatisticsPage = () => {
         } finally {
             setLoading(false);
         }
-    };
+    };  
 
     // 월별 데이터를 업데이트 할 때마다 fetch
     useEffect(() => {
@@ -87,13 +88,27 @@ export const StatisticsPage = () => {
     };
 
     // 월별 스케줄 추이 (꺾은선 그래프)
-    const renderMonthlyTrend = () => (
+  const renderMonthlyTrend = () => {
+    const monthlyTrendData = statistics?.monthlyTrend || []; // 월별 스케줄 추이 데이터
+
+    // 데이터가 비어있다면, 차트가 렌더링되지 않도록 조건 추가
+    if (monthlyTrendData.length === 0) {
+        return <p>월별 데이터가 없습니다.</p>;
+    }
+
+    // "2025-09-01T00:00:00" -> "2025-09" 형식으로 변환
+    const transformedData = monthlyTrendData.map(item => ({
+        month: item.month.split('T')[0].slice(0, 7), // "2025-09" 형식으로 변경
+        scheduleCount: item.scheduleCount
+    }));
+
+    return (
         <div>
             <h3>월별 스케줄 추이</h3>
             <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={yearlyData}>
+                <LineChart data={transformedData}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
+                    <XAxis dataKey="month" /> {/* x축에 "2025-09", "2025-10" 형식으로 표시 */}
                     <YAxis />
                     <Tooltip />
                     <Legend />
@@ -102,31 +117,100 @@ export const StatisticsPage = () => {
             </ResponsiveContainer>
         </div>
     );
+};
+
 
     // 요일별 스케줄 (원형 그래프)
-    const renderWeekdayDistribution = () => (
+const renderWeekdayDistribution = () => {
+    const scheduleData = statistics?.scheduleDayHour || [];
+
+    // 요일별 스케줄 수 합산
+    const weekdayScheduleCount = [0, 0, 0, 0, 0, 0, 0]; // 일요일(0) ~ 토요일(6)
+
+    scheduleData.forEach((entry) => {
+        weekdayScheduleCount[entry.dayOfWeek] += entry.scheduleCount;
+    });
+
+    // 요일별 이름 배열
+    const weekdays = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
+
+    // 요일별 색상 배열
+    const weekdayColors = ['#FF8042', '#00C49F', '#FFBB28', '#0088FE', '#FF8042', '#00C49F', '#FFBB28'];
+
+    // 차트에 사용할 데이터 (0인 요일 제외)
+    const chartData = weekdayScheduleCount
+        .map((count, index) => ({
+            dayOfWeek: weekdays[index],
+            scheduleCount: count,
+            color: weekdayColors[index], // 색상 할당
+        }))
+        .filter((entry) => entry.scheduleCount > 0); // 스케줄 수가 0인 요일은 제외
+
+    return (
         <div>
             <h3>요일별 스케줄</h3>
             <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                     <Pie
-                        data={statistics?.scheduleDayHour || []}
+                        data={chartData}
                         dataKey="scheduleCount"
                         nameKey="dayOfWeek"
                         cx="50%"
                         cy="50%"
                         outerRadius={100}
-                        fill="#82ca9d"
+                        fill={(entry) => entry.color}  // 색상 동적 지정
                     />
                     <Tooltip />
                     <Legend />
                 </PieChart>
             </ResponsiveContainer>
+            {/* 요일과 카운트 표시 */}
+            <div style={{ textAlign: 'center' }}>
+                {chartData.map((entry, index) => (
+                    <span key={index} style={{ margin: '0 5px' }}>
+                        <span
+                            style={{
+                                display: 'inline-block',
+                                width: '10px',
+                                height: '10px',
+                                backgroundColor: entry.color,
+                                marginRight: '5px',
+                            }}
+                        />
+                        {entry.dayOfWeek} : {entry.scheduleCount}
+                    </span>
+                ))}
+            </div>
         </div>
     );
+};
 
-    // 시간대별 스케줄 (막대 그래프, 3시간 간격)
-    const renderHourlyDistribution = () => (
+
+//시간대별 통계
+const renderHourlyDistribution = () => {
+    const scheduleData = statistics?.scheduleDayHour || [];
+
+    // 선택된 요일에 해당하는 데이터만 필터링
+    const filteredData = scheduleData.filter((entry) => entry.dayOfWeek === parseInt(selectedWeekday));
+
+    // 3시간 간격으로 데이터를 변환할 배열
+    const hourlyScheduleCount = Array(8).fill(0); // 0시-3시, 3시-6시, ..., 21시-24시
+
+    filteredData.forEach((entry) => {
+        // 3시간 간격으로 나누어 카운트
+        const hourIndex = Math.floor(entry.hourOfDay / 3);
+        hourlyScheduleCount[hourIndex] += entry.scheduleCount;
+    });
+
+    // 3시간 간격으로 x축을 설정
+    const timeLabels = ['0시-3시', '3시-6시', '6시-9시', '9시-12시', '12시-15시', '15시-18시', '18시-21시', '21시-24시'];
+
+    const chartData = hourlyScheduleCount.map((count, index) => ({
+        timeRange: timeLabels[index],
+        scheduleCount: count,
+    }));
+
+    return (
         <div>
             <h3>시간대별 스케줄</h3>
             <div>
@@ -145,16 +229,16 @@ export const StatisticsPage = () => {
                     }}
                 >
                     {['월요일', '화요일', '수요일', '목요일', '금요일', '토요일', '일요일'].map((day, index) => (
-                        <option key={index} value={index + 1}>
+                        <option key={index} value={index}>
                             {day}
                         </option>
                     ))}
                 </select>
             </div>
             <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={statistics?.scheduleDayHour || []}>
+                <BarChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="hourOfDay" />
+                    <XAxis dataKey="timeRange" />
                     <YAxis />
                     <Tooltip />
                     <Legend />
@@ -163,6 +247,8 @@ export const StatisticsPage = () => {
             </ResponsiveContainer>
         </div>
     );
+};
+
 
     // 사람 통계 (Top 3 + 나머지 목록)
     const renderPeopleSummary = () => (
