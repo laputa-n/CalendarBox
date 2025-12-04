@@ -1,12 +1,12 @@
 // src/services/apiService.js
 const API_CONFIG = {
-  development: 'http://localhost:8080/api', // 로컬에서만 localhost 사용
-  production: '/api',                       // 서버에서는 같은 호스트 + /api 로만
-  staging: '/api',                          // 있으면 같이 맞춰도 됨
+  //development: 'http://localhost:8080/api', // 로컬에서만 localhost 사용
+  //production: '/api',                       // 서버에서는 같은 호스트 + /api 로만
+  //staging: '/api',                          // 있으면 같이 맞춰도 됨
 
-  // development: 'http://localhost:8080/api',
-  // staging: 'https://api-staging.calbox.com/api',
-  // production: 'https://api.calbox.com/api',
+   development: 'http://localhost:8080/api',
+   staging: 'https://api-staging.calbox.com/api',
+   production: 'https://api.calbox.com/api',
 };
 const API_BASE_URL = API_CONFIG[process.env.NODE_ENV] || API_CONFIG.development;
 const getAuthToken = () => localStorage.getItem('accessToken');
@@ -455,14 +455,6 @@ static async deleteTodo(scheduleId, todoId) {
     return this.request(`/notifications/${notificationId}`, { method: 'DELETE' });
   }
 
-  // === 통계 ===
-  static async getStatistics(period = 'month') {
-    return this.request(`/statistics?period=${period}`);
-  }
-
-  static async getUserActivity() {
-    return this.request('/statistics/activity');
-  }
   // === 일정 지출 관련 ===
   static async listExpenses(scheduleId, page = 0, size = 50) {
     return this.request(`/schedules/${scheduleId}/expenses?page=${page}&size=${size}`, {
@@ -641,23 +633,21 @@ static async getCalendarOccurrences(calendarId, { fromKst, toKst }) {
 }
  // === 사람(일정, 지출) 통계 요약 및 top3 ===
   static async getPeopleSummary(yearMonth) {
-    return this.request(`/analytics/people/summary?yearMonth=${encodeURIComponent(yearMonth)}`, { method: 'GET' });
-  }
-
+    return this.request(`/analytics/people/summary?yearMonth=${yearMonth}`, { method: 'GET' });
+}
   // === 사람(일정, 지출) 통계 목록 조회 ===
-  static async getPeopleList(page = 1, size = 10) {
-    return this.request(`/analytics/people?page=${page - 1}&size=${size}`, { method: 'GET' });
-  }
+ static async getPeopleList(yearMonth, page = 1, size = 10) {
+    return this.request(`/analytics/people?yearMonth=${yearMonth}&page=${page - 1}&size=${size}`, { method: 'GET' });
+}
 
   // === 장소(일정, 지출) 통계 요약 및 top3 ===
-  static async getPlaceSummary(yearMonth) {
-    return this.request(`/analytics/place/summary?yearMonth=${encodeURIComponent(yearMonth)}`, { method: 'GET' });
-  }
-
+ static async getPlaceSummary(yearMonth) {
+    return this.request(`/analytics/place/summary?yearMonth=${yearMonth}`, { method: 'GET' });
+}
   // === 장소(일정, 지출) 통계 목록 조회 ===
-  static async getPlaceList(page = 1, size = 10) {
-    return this.request(`/analytics/place?page=${page - 1}&size=${size}`, { method: 'GET' });
-  }
+  static async getPlaceList(yearMonth, page = 1, size = 10) {
+    return this.request(`/analytics/place?yearMonth=${yearMonth}&page=${page - 1}&size=${size}`, { method: 'GET' });
+}
 
   // === 요일-시간대 별 스케줄 분포 조회 ===
   static async getScheduleDayHourDistribution() {
