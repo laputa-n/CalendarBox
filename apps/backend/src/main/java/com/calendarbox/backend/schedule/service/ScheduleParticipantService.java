@@ -20,10 +20,12 @@ import com.calendarbox.backend.schedule.dto.request.AddParticipantRequest;
 import com.calendarbox.backend.schedule.dto.request.ParticipantRespondRequest;
 import com.calendarbox.backend.schedule.dto.response.AddParticipantResponse;
 import com.calendarbox.backend.schedule.dto.response.ScheduleParticipantResponse;
+import com.calendarbox.backend.schedule.repository.ScheduleEmbeddingRepository;
 import com.calendarbox.backend.schedule.repository.ScheduleParticipantRepository;
 import com.calendarbox.backend.schedule.repository.ScheduleRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.calendarbox.backend.schedule.util.DefaultScheduleEmbeddingService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +37,7 @@ import java.util.Objects;
 import static com.calendarbox.backend.schedule.enums.ScheduleParticipantStatus.ACCEPTED;
 import static com.calendarbox.backend.schedule.enums.ScheduleParticipantStatus.INVITED;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -43,9 +46,10 @@ public class ScheduleParticipantService {
     private final MemberRepository memberRepository;
     private final ScheduleRepository scheduleRepository;
     private final CalendarMemberRepository calendarMemberRepository;
-    private final ObjectMapper objectMapper;
     private final NotificationRepository notificationRepository;
     private final CalendarHistoryRepository calendarHistoryRepository;
+    private final DefaultScheduleEmbeddingService scheduleEmbeddingService;
+    private final ScheduleEmbeddingRepository scheduleEmbeddingRepository;
 
     public AddParticipantResponse add(Long userId, Long scheduleId, AddParticipantRequest request) {
 
@@ -68,6 +72,13 @@ public class ScheduleParticipantService {
 
         Map<String, Object> removedParticipant = new HashMap<>();
         removedParticipant.put("removedParticipantName", sp.getName());
+
+        try {
+            float[] embedding = scheduleEmbeddingService.embedScheduleEntity(s);
+            scheduleEmbeddingRepository.upsertEmbedding(s.getId(), embedding);
+        } catch (Exception e){
+            log.error("Failed to update schedule embedding. scheduleId={}", s.getId(), e);
+        }
 
         CalendarHistory history = CalendarHistory.builder()
                 .calendar(c)
@@ -99,6 +110,13 @@ public class ScheduleParticipantService {
                         .build();
                 calendarHistoryRepository.save(history);
                 sp.accept();
+
+                try {
+                    float[] embedding = scheduleEmbeddingService.embedScheduleEntity(s);
+                    scheduleEmbeddingRepository.upsertEmbedding(s.getId(), embedding);
+                } catch (Exception e){
+                    log.error("Failed to update schedule embedding. scheduleId={}", s.getId(), e);
+                }
             }
             case REJECT -> sp.decline();
         }
@@ -135,6 +153,13 @@ public class ScheduleParticipantService {
 
         notificationRepository.save(notification);
 
+        try {
+            float[] embedding = scheduleEmbeddingService.embedScheduleEntity(s);
+            scheduleEmbeddingRepository.upsertEmbedding(s.getId(), embedding);
+        } catch (Exception e){
+            log.error("Failed to update schedule embedding. scheduleId={}", s.getId(), e);
+        }
+
         return toAddParticipantResponse(sp);
     }
     private AddParticipantResponse addName(Long userId, Long scheduleId, String name) {
@@ -158,6 +183,13 @@ public class ScheduleParticipantService {
                 .changedFields(newParticipant)
                 .build();
         calendarHistoryRepository.save(history);
+
+        try {
+            float[] embedding = scheduleEmbeddingService.embedScheduleEntity(s);
+            scheduleEmbeddingRepository.upsertEmbedding(s.getId(), embedding);
+        } catch (Exception e){
+            log.error("Failed to update schedule embedding. scheduleId={}", s.getId(), e);
+        }
 
         return toAddParticipantResponse(sp);
     }

@@ -4,6 +4,8 @@ import com.calendarbox.backend.analytics.dto.response.*;
 import com.calendarbox.backend.analytics.service.AnalyticsService;
 import com.calendarbox.backend.global.dto.ApiResponse;
 import com.calendarbox.backend.global.dto.PageResponse;
+import com.calendarbox.backend.global.error.BusinessException;
+import com.calendarbox.backend.global.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +17,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
 import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 
 @RestController
@@ -33,9 +37,15 @@ public class AnalyticsController {
     @GetMapping("/people/summary")
     public ResponseEntity<ApiResponse<PeopleStatSummary>> getPeopleSummary(
             @AuthenticationPrincipal(expression = "id") Long userId,
-            @RequestParam @DateTimeFormat(pattern = "yyyy-MM") YearMonth yearMonth
+            @RequestParam String yearMonth
             ){
-        var data = analyticsService.getPeopleSummary(userId,yearMonth);
+        YearMonth ym;
+        try{
+            ym = YearMonth.parse(yearMonth, DateTimeFormatter.ofPattern("yyyy-MM"));
+        } catch (DateTimeParseException e) {
+            throw new BusinessException(ErrorCode.DATETIME_FORMAT_FAIL);
+        }
+        var data = analyticsService.getPeopleSummary(userId,ym);
         return ResponseEntity.ok(ApiResponse.ok("사람 통계 요약 성공", data));
     }
 

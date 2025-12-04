@@ -72,7 +72,11 @@ public enum ErrorCode {
 
     EXPENSE_NOT_FOUND("EXPENSE_NOT_FOUND", HttpStatus.NOT_FOUND, "지출이 존재하지 않습니다"),
     EXPENSE_LINE_NOT_FOUND("EXPENSE_LINE_NOT_FOUND", HttpStatus.NOT_FOUND,"지출 항목이 존재하지 않습니다"),
-    LINE_AMOUNT_NOT_MATCH("LINE_AMOUNT_NOT_MATCH", HttpStatus.CONFLICT, "항목 총액이 맞지 않습니다");
+    LINE_AMOUNT_NOT_MATCH("LINE_AMOUNT_NOT_MATCH", HttpStatus.CONFLICT, "항목 총액이 맞지 않습니다"),
+
+    DATETIME_FORMAT_FAIL("DATETIME_FORMAT_FAIL", HttpStatus.BAD_REQUEST,"스트링을 데이트타입으로 전환하는 것을 실패했습니다"),
+
+    EMBEDDING_FAIL("EMBEDDING_FAIL", HttpStatus.CONFLICT,"임베딩이 실패했습니다.");
 
     private final String code;
     private final HttpStatus status;
