@@ -96,21 +96,33 @@ public interface AnalyticsRepository extends JpaRepository<Schedule, Long> {
              ) AS gs
     ),
     person_schedules AS (
-    SELECT DISTINCT
-        e.month,
-        s.schedule_id AS schedule_id,
-        COALESCE(sp.member_id, s.created_by) AS person_id,
-        COALESCE(sp.name, creator.name) AS person_name,
-        EXTRACT(EPOCH FROM (s.end_at - s.start_at)) / 60 AS duration_min
-    FROM expanded e
-    JOIN schedule s ON s.schedule_id = e.schedule_id
-    LEFT JOIN schedule_participant sp ON s.schedule_id = sp.schedule_id
-    LEFT JOIN member creator ON creator.member_id = s.created_by
-    WHERE (
-        (sp.member_id IS NULL OR sp.member_id <> :memberId)
-        AND s.created_by <> :memberId
-    )
-)
+     -- A. 나 말고, ACCEPTED 된 참여자들
+     SELECT DISTINCT
+         e.month,
+         s.schedule_id,
+         sp.member_id AS person_id,
+         sp.name      AS person_name,
+         EXTRACT(EPOCH FROM (s.end_at - s.start_at)) / 60 AS duration_min
+     FROM expanded e
+     JOIN schedule s ON s.schedule_id = e.schedule_id
+     JOIN schedule_participant sp ON s.schedule_id = sp.schedule_id
+     WHERE sp.status = 'ACCEPTED'
+       AND (sp.member_id IS NULL OR sp.member_id <> :memberId)
+ 
+     UNION
+ 
+     -- B. 일정 만든 사람(creator)이 나가 아닌 경우
+     SELECT DISTINCT
+         e.month,
+         s.schedule_id,
+         s.created_by     AS person_id,
+         creator.name     AS person_name,
+         EXTRACT(EPOCH FROM (s.end_at - s.start_at)) / 60 AS duration_min
+     FROM expanded e
+     JOIN schedule s ON s.schedule_id = e.schedule_id
+     LEFT JOIN member creator ON creator.member_id = s.created_by
+     WHERE s.created_by <> :memberId
+ )
 SELECT
     ps.month,
     ps.person_id,
@@ -148,22 +160,34 @@ expanded AS (
              interval '1 month'
          ) AS gs
 ),
-person_schedules AS (
-    SELECT DISTINCT
-        e.month,
-        s.schedule_id AS schedule_id,
-        COALESCE(sp.member_id, s.created_by) AS person_id,
-        COALESCE(sp.name, creator.name) AS person_name,
-        EXTRACT(EPOCH FROM (s.end_at - s.start_at)) / 60 AS duration_min
-    FROM expanded e
-    JOIN schedule s ON s.schedule_id = e.schedule_id
-    LEFT JOIN schedule_participant sp ON s.schedule_id = sp.schedule_id
-    LEFT JOIN member creator ON creator.member_id = s.created_by
-    WHERE (
-        (sp.member_id IS NULL OR sp.member_id <> :memberId)
-        AND s.created_by <> :memberId
-    )
-)
+            person_schedules AS (
+     -- A. 나 말고, ACCEPTED 된 참여자들
+     SELECT DISTINCT
+         e.month,
+         s.schedule_id,
+         sp.member_id AS person_id,
+         sp.name      AS person_name,
+         EXTRACT(EPOCH FROM (s.end_at - s.start_at)) / 60 AS duration_min
+     FROM expanded e
+     JOIN schedule s ON s.schedule_id = e.schedule_id
+     JOIN schedule_participant sp ON s.schedule_id = sp.schedule_id
+     WHERE sp.status = 'ACCEPTED'
+       AND (sp.member_id IS NULL OR sp.member_id <> :memberId)
+ 
+     UNION
+ 
+     -- B. 일정 만든 사람(creator)이 나가 아닌 경우
+     SELECT DISTINCT
+         e.month,
+         s.schedule_id,
+         s.created_by     AS person_id,
+         creator.name     AS person_name,
+         EXTRACT(EPOCH FROM (s.end_at - s.start_at)) / 60 AS duration_min
+     FROM expanded e
+     JOIN schedule s ON s.schedule_id = e.schedule_id
+     LEFT JOIN member creator ON creator.member_id = s.created_by
+     WHERE s.created_by <> :memberId
+ )
 SELECT
     ps.month,
     ps.person_id,
@@ -208,21 +232,34 @@ expanded AS (
              interval '1 month'
          ) AS gs
 ),
-person_schedules AS (
-    SELECT DISTINCT
-        e.month,
-        s.schedule_id AS schedule_id,
-        COALESCE(sp.member_id, s.created_by) AS person_id,
-        COALESCE(sp.name, creator.name) AS person_name
-    FROM expanded e
-    JOIN schedule s ON s.schedule_id = e.schedule_id
-    LEFT JOIN schedule_participant sp ON s.schedule_id = sp.schedule_id
-    LEFT JOIN member creator ON creator.member_id = s.created_by
-    WHERE (
-        (sp.member_id IS NULL OR sp.member_id <> :memberId)
-        AND s.created_by <> :memberId
-    )
-)
+            person_schedules AS (
+     -- A. 나 말고, ACCEPTED 된 참여자들
+     SELECT DISTINCT
+         e.month,
+         s.schedule_id,
+         sp.member_id AS person_id,
+         sp.name      AS person_name,
+         EXTRACT(EPOCH FROM (s.end_at - s.start_at)) / 60 AS duration_min
+     FROM expanded e
+     JOIN schedule s ON s.schedule_id = e.schedule_id
+     JOIN schedule_participant sp ON s.schedule_id = sp.schedule_id
+     WHERE sp.status = 'ACCEPTED'
+       AND (sp.member_id IS NULL OR sp.member_id <> :memberId)
+ 
+     UNION
+ 
+     -- B. 일정 만든 사람(creator)이 나가 아닌 경우
+     SELECT DISTINCT
+         e.month,
+         s.schedule_id,
+         s.created_by     AS person_id,
+         creator.name     AS person_name,
+         EXTRACT(EPOCH FROM (s.end_at - s.start_at)) / 60 AS duration_min
+     FROM expanded e
+     JOIN schedule s ON s.schedule_id = e.schedule_id
+     LEFT JOIN member creator ON creator.member_id = s.created_by
+     WHERE s.created_by <> :memberId
+ )
 SELECT COUNT(DISTINCT COALESCE(ps.person_id::text, ps.person_name))
 FROM person_schedules ps
 WHERE ps.month >= :startMonth
@@ -258,23 +295,36 @@ expanded AS (
              interval '1 month'
          ) AS gs
 ),
-person_schedules AS (
-    SELECT DISTINCT
-        e.month,
-        s.schedule_id AS schedule_id,
-        COALESCE(sp.member_id, s.created_by) AS person_id,
-        COALESCE(sp.name, creator.name) AS person_name,
-        e2.amount AS amount
-    FROM expanded e
-    JOIN schedule s ON s.schedule_id = e.schedule_id
-    LEFT JOIN schedule_participant sp ON s.schedule_id = sp.schedule_id
-    LEFT JOIN member creator ON creator.member_id = s.created_by
-    LEFT JOIN expense e2 ON e2.schedule_id = s.schedule_id
-    WHERE (
-        (sp.member_id IS NULL OR sp.member_id <> :memberId)
-        AND s.created_by <> :memberId
-    )
-)
+            person_schedules AS (
+     -- A. 나 말고, ACCEPTED 된 참여자들
+     SELECT DISTINCT
+         e.month,
+         s.schedule_id,
+         sp.member_id AS person_id,
+         sp.name      AS person_name,
+         e2.amount    AS amount
+     FROM expanded e
+     JOIN schedule s ON s.schedule_id = e.schedule_id
+     JOIN schedule_participant sp ON s.schedule_id = sp.schedule_id
+     LEFT JOIN expense e2 ON e2.schedule_id = s.schedule_id
+     WHERE sp.status = 'ACCEPTED'
+       AND (sp.member_id IS NULL OR sp.member_id <> :memberId)
+ 
+     UNION
+ 
+     -- B. 일정 만든 사람(creator)이 나가 아닌 경우
+     SELECT DISTINCT
+         e.month,
+         s.schedule_id,
+         s.created_by   AS person_id,
+         creator.name   AS person_name,
+         e2.amount      AS amount
+     FROM expanded e
+     JOIN schedule s ON s.schedule_id = e.schedule_id
+     LEFT JOIN member creator ON creator.member_id = s.created_by
+     LEFT JOIN expense e2 ON e2.schedule_id = s.schedule_id
+     WHERE s.created_by <> :memberId
+ )
 SELECT 
     ps.month,
     ps.person_id,
@@ -318,23 +368,36 @@ expanded AS (
              interval '1 month'
          ) AS gs
 ),
-person_schedules AS (
-    SELECT DISTINCT
-        e.month,
-        s.schedule_id AS schedule_id,
-        COALESCE(sp.member_id, s.created_by) AS person_id,
-        COALESCE(sp.name, creator.name) AS person_name,
-        e2.amount AS amount
-    FROM expanded e
-    JOIN schedule s ON s.schedule_id = e.schedule_id
-    LEFT JOIN schedule_participant sp ON s.schedule_id = sp.schedule_id
-    LEFT JOIN member creator ON creator.member_id = s.created_by
-    LEFT JOIN expense e2 ON e2.schedule_id = s.schedule_id
-    WHERE (
-        (sp.member_id IS NULL OR sp.member_id <> :memberId)
-        AND s.created_by <> :memberId
-    )
-)
+            person_schedules AS (
+     -- A. 나 말고, ACCEPTED 된 참여자들
+     SELECT DISTINCT
+         e.month,
+         s.schedule_id,
+         sp.member_id AS person_id,
+         sp.name      AS person_name,
+         e2.amount    AS amount
+     FROM expanded e
+     JOIN schedule s ON s.schedule_id = e.schedule_id
+     JOIN schedule_participant sp ON s.schedule_id = sp.schedule_id
+     LEFT JOIN expense e2 ON e2.schedule_id = s.schedule_id
+     WHERE sp.status = 'ACCEPTED'
+       AND (sp.member_id IS NULL OR sp.member_id <> :memberId)
+ 
+     UNION
+ 
+     -- B. 일정 만든 사람(creator)이 나가 아닌 경우
+     SELECT DISTINCT
+         e.month,
+         s.schedule_id,
+         s.created_by   AS person_id,
+         creator.name   AS person_name,
+         e2.amount      AS amount
+     FROM expanded e
+     JOIN schedule s ON s.schedule_id = e.schedule_id
+     LEFT JOIN member creator ON creator.member_id = s.created_by
+     LEFT JOIN expense e2 ON e2.schedule_id = s.schedule_id
+     WHERE s.created_by <> :memberId
+ )
 SELECT 
     ps.month,
     ps.person_id,
@@ -380,21 +443,32 @@ expanded AS (
              interval '1 month'
          ) AS gs
 ),
-person_schedules AS (
-    SELECT DISTINCT
-        e.month,
-        COALESCE(sp.member_id, s.created_by) AS person_id,
-        COALESCE(sp.name, creator.name) AS person_name
-    FROM expanded e
-    JOIN schedule s ON s.schedule_id = e.schedule_id
-    LEFT JOIN schedule_participant sp ON s.schedule_id = sp.schedule_id
-    LEFT JOIN member creator ON creator.member_id = s.created_by
-    LEFT JOIN expense e2 ON e2.schedule_id = s.schedule_id
-    WHERE (
-        (sp.member_id IS NULL OR sp.member_id <> :memberId)
-        AND s.created_by <> :memberId
-    )
-)
+            person_schedules AS (
+     -- A. 나 말고, ACCEPTED 된 참여자들
+     SELECT DISTINCT
+         e.month,
+         sp.member_id AS person_id,
+         sp.name      AS person_name
+     FROM expanded e
+     JOIN schedule s ON s.schedule_id = e.schedule_id
+     JOIN schedule_participant sp ON s.schedule_id = sp.schedule_id
+     LEFT JOIN expense e2 ON e2.schedule_id = s.schedule_id
+     WHERE sp.status = 'ACCEPTED'
+       AND (sp.member_id IS NULL OR sp.member_id <> :memberId)
+ 
+     UNION
+ 
+     -- B. 일정 만든 사람(creator)이 나가 아닌 경우
+     SELECT DISTINCT
+         e.month,
+         s.created_by   AS person_id,
+         creator.name   AS person_name
+     FROM expanded e
+     JOIN schedule s ON s.schedule_id = e.schedule_id
+     LEFT JOIN member creator ON creator.member_id = s.created_by
+     LEFT JOIN expense e2 ON e2.schedule_id = s.schedule_id
+     WHERE s.created_by <> :memberId
+ )
 SELECT COUNT(DISTINCT COALESCE(ps.person_id::text, ps.person_name))
 FROM person_schedules ps
 WHERE ps.month >= :startMonth
