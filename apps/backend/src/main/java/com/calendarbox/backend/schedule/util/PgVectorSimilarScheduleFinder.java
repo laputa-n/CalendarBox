@@ -55,12 +55,12 @@ public class PgVectorSimilarScheduleFinder {
         );
 
         // 2) pgvector literal 만들기
-        PGobject vectorObject = toPgVectorObject(queryEmbedding);
-        log.info("[vectorObject]:{} ", vectorObject);
+        String vectorString = toVectorString(queryEmbedding);
+        log.info("[vectorString]: {}", vectorString);
 
         String sql = """
-    SELECT schedule_id,
-           1 - (embedding <=> ?) AS similarity
+    SELECT se.schedule_id,
+           1 - (se.embedding <=> ?::vector) AS similarity
     FROM schedule_embedding se
     WHERE EXISTS (
         SELECT 1
@@ -68,7 +68,7 @@ public class PgVectorSimilarScheduleFinder {
         WHERE sp.schedule_id = se.schedule_id
           AND sp.place_id IS NOT NULL
     )
-    ORDER BY se.embedding <=> ?
+    ORDER BY se.embedding <=> ?::vector
     LIMIT ?
     """;
 
@@ -78,8 +78,8 @@ public class PgVectorSimilarScheduleFinder {
         List<SimilarSchedule> result = jdbcTemplate.query(
                 connection -> {
                     var ps = connection.prepareStatement(sql);
-                    ps.setObject(1, vectorObject); // 첫 번째 ?  → vector
-                    ps.setObject(2, vectorObject); // 두 번째 ?  → vector
+                    ps.setString(1, vectorString); // 첫 번째 ?  → vector
+                    ps.setString(2, vectorString); // 두 번째 ?  → vector
                     ps.setInt(3, limit);           // 세 번째 ?  → limit
                     return ps;
                 },
@@ -96,7 +96,7 @@ public class PgVectorSimilarScheduleFinder {
         return result;
     }
 
-    private PGobject toPgVectorObject(float[] embedding) {
+    private String toVectorString(float[] embedding) {
         StringBuilder sb = new StringBuilder();
         sb.append('[');
         for (int i = 0; i < embedding.length; i++) {
@@ -104,15 +104,6 @@ public class PgVectorSimilarScheduleFinder {
             sb.append(embedding[i]);
         }
         sb.append(']');
-
-        PGobject obj = new PGobject();
-        obj.setType("vector");
-        try {
-            obj.setValue(sb.toString());
-        } catch (SQLException e) {
-            log.error("[similar] failed to set pgvector value", e);
-            throw new IllegalStateException("Failed to set pgvector value", e);
-        }
-        return obj;
+        return sb.toString(); // 예: "[0.07,0.08,...]"
     }
 }
