@@ -1,12 +1,12 @@
 // src/services/apiService.js
 const API_CONFIG = {
-  development: 'http://localhost:8080/api', // 로컬에서만 localhost 사용
-  production: '/api',                       // 서버에서는 같은 호스트 + /api 로만
-  staging: '/api',                          // 있으면 같이 맞춰도 됨
+  //development: 'http://localhost:8080/api', // 로컬에서만 localhost 사용
+  //production: '/api',                       // 서버에서는 같은 호스트 + /api 로만
+  //staging: '/api',                          // 있으면 같이 맞춰도 됨
 
-  // development: 'http://localhost:8080/api',
-  // staging: 'https://api-staging.calbox.com/api',
-  // production: 'https://api.calbox.com/api',
+   development: 'http://localhost:8080/api',
+   staging: 'https://api-staging.calbox.com/api',
+   production: 'https://api.calbox.com/api',
 };
 const API_BASE_URL = API_CONFIG[process.env.NODE_ENV] || API_CONFIG.development;
 const getAuthToken = () => localStorage.getItem('accessToken');
@@ -455,14 +455,6 @@ static async deleteTodo(scheduleId, todoId) {
     return this.request(`/notifications/${notificationId}`, { method: 'DELETE' });
   }
 
-  // === 통계 ===
-  static async getStatistics(period = 'month') {
-    return this.request(`/statistics?period=${period}`);
-  }
-
-  static async getUserActivity() {
-    return this.request('/statistics/activity');
-  }
   // === 일정 지출 관련 ===
   static async listExpenses(scheduleId, page = 0, size = 50) {
     return this.request(`/schedules/${scheduleId}/expenses?page=${page}&size=${size}`, {
