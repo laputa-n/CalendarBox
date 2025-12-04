@@ -60,7 +60,7 @@ public class PgVectorSimilarScheduleFinder {
 
         String sql = """
     SELECT schedule_id,
-           1 - (embedding <=> ?::vector) AS similarity
+           1 - (embedding <=> ?) AS similarity
     FROM schedule_embedding se
     WHERE EXISTS (
         SELECT 1
@@ -68,7 +68,7 @@ public class PgVectorSimilarScheduleFinder {
         WHERE sp.schedule_id = se.schedule_id
           AND sp.place_id IS NOT NULL
     )
-    ORDER BY se.embedding <=> ?::vector
+    ORDER BY se.embedding <=> ?
     LIMIT ?
     """;
 
@@ -76,14 +76,17 @@ public class PgVectorSimilarScheduleFinder {
 
         // 3) JDBC 쿼리
         List<SimilarSchedule> result = jdbcTemplate.query(
-                sql,
+                connection -> {
+                    var ps = connection.prepareStatement(sql);
+                    ps.setObject(1, vectorObject); // 첫 번째 ?  → vector
+                    ps.setObject(2, vectorObject); // 두 번째 ?  → vector
+                    ps.setInt(3, limit);           // 세 번째 ?  → limit
+                    return ps;
+                },
                 (rs, rowNum) -> new SimilarSchedule(
                         rs.getLong("schedule_id"),
                         rs.getDouble("similarity")
-                ),
-                vectorObject,  // 1번째 ? (SELECT)
-                vectorObject,  // 2번째 ? (ORDER BY)
-                limit          // LIMIT
+                )
         );
 
         log.info("[similar] result size = {}", result.size());
