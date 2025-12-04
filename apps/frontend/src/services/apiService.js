@@ -640,24 +640,22 @@ static async getCalendarOccurrences(calendarId, { fromKst, toKst }) {
   
 }
  // === 사람(일정, 지출) 통계 요약 및 top3 ===
-  static async getPeopleSummary(month) {
-    return this.request(`/analytics/people/summary?month=${month}`, { method: 'GET' });
-  }
-
+  static async getPeopleSummary(yearMonth) {
+    return this.request(`/analytics/people/summary?yearMonth=${yearMonth}`, { method: 'GET' });
+}
   // === 사람(일정, 지출) 통계 목록 조회 ===
-  static async getPeopleList(page = 1, size = 10) {
-    return this.request(`/analytics/people?page=${page - 1}&size=${size}`, { method: 'GET' });
-  }
+ static async getPeopleList(yearMonth, page = 1, size = 10) {
+    return this.request(`/analytics/people?yearMonth=${yearMonth}&page=${page - 1}&size=${size}`, { method: 'GET' });
+}
 
   // === 장소(일정, 지출) 통계 요약 및 top3 ===
-  static async getPlaceSummary(month) {
-    return this.request(`/analytics/place/summary?month=${month}`, { method: 'GET' });
-  }
-
+ static async getPlaceSummary(yearMonth) {
+    return this.request(`/analytics/place/summary?yearMonth=${yearMonth}`, { method: 'GET' });
+}
   // === 장소(일정, 지출) 통계 목록 조회 ===
-  static async getPlaceList(page = 1, size = 10) {
-    return this.request(`/analytics/place?page=${page - 1}&size=${size}`, { method: 'GET' });
-  }
+  static async getPlaceList(yearMonth, page = 1, size = 10) {
+    return this.request(`/analytics/place?yearMonth=${yearMonth}&page=${page - 1}&size=${size}`, { method: 'GET' });
+}
 
   // === 요일-시간대 별 스케줄 분포 조회 ===
   static async getScheduleDayHourDistribution() {
