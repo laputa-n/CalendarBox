@@ -7,6 +7,7 @@ import com.calendarbox.backend.global.dto.PageResponse;
 import com.calendarbox.backend.global.error.BusinessException;
 import com.calendarbox.backend.global.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -21,6 +22,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/analytics")
 @RequiredArgsConstructor
@@ -34,6 +36,7 @@ public class AnalyticsController {
 //        return ResponseEntity.ok(response);
 //    }
 
+<<<<<<< HEAD
    @GetMapping("/people/summary")
 public ResponseEntity<ApiResponse<PeopleStatSummary>> getPeopleSummary(
         @AuthenticationPrincipal(expression = "id") Long userId,
@@ -52,6 +55,25 @@ public ResponseEntity<ApiResponse<PeopleStatSummary>> getPeopleSummary(
         
         // 상세한 에러 메시지 제공
         throw new BusinessException(ErrorCode.DATETIME_FORMAT_FAIL, "Invalid date format. Expected format: yyyy-MM, but received: " + yearMonth);
+=======
+    @GetMapping("/people/summary")
+    public ResponseEntity<ApiResponse<PeopleStatSummary>> getPeopleSummary(
+            @AuthenticationPrincipal(expression = "id") Long userId,
+            @RequestParam String yearMonth
+            ){
+        log.info("[yearMonth]={}", yearMonth);
+        System.out.println("[yearMonth] = " + yearMonth);
+        YearMonth ym;
+        try{
+            ym = YearMonth.parse(yearMonth, DateTimeFormatter.ofPattern("yyyy-MM"));
+            log.info("[parsedYm]={}", String.valueOf(ym));
+            System.out.println("[parsedYm] = " + String.valueOf(ym));
+        } catch (DateTimeParseException e) {
+            throw new BusinessException(ErrorCode.DATETIME_FORMAT_FAIL);
+        }
+        var data = analyticsService.getPeopleSummary(userId,ym);
+        return ResponseEntity.ok(ApiResponse.ok("사람 통계 요약 성공", data));
+>>>>>>> main
     }
     
     // 데이터 처리
