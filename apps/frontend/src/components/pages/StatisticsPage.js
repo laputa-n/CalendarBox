@@ -1,72 +1,174 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Legend } from 'recharts';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Legend } from 'recharts';
 import { ApiService } from '../../services/apiService';
 
 export const StatisticsPage = () => {
     const [statistics, setStatistics] = useState(null);
     const [loading, setLoading] = useState(false);
-    const [selectedTab, setSelectedTab] = useState('people'); // 'people' 기본값 설정
+    const [selectedTab, setSelectedTab] = useState('people');
+    const [selectedWeekday, setSelectedWeekday] = useState('1'); // 월요일 기본값
+    const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth()); // 기본값은 이번 달
+    const [yearlyData, setYearlyData] = useState([]); // 1년 동안의 월별 데이터를 저장
 
-    useEffect(() => {
-        fetchStatistics();
-    }, [selectedTab]);
-
-   const fetchStatistics = async () => {
-    try {
-        setLoading(true);
-        console.log('Fetching statistics...');
-        // API 요청 (month 파라미터 수정)
-        const peopleSummaryResponse = await ApiService.getPeopleSummary('2025-11');  // month 파라미터 수정
-        console.log('People summary:', peopleSummaryResponse);
-        const placeSummaryResponse = await ApiService.getPlaceSummary('2025-11');
-        console.log('Place summary:', placeSummaryResponse);
-        const scheduleDayHourResponse = await ApiService.getScheduleDayHourDistribution();
-        console.log('Schedule day hour:', scheduleDayHourResponse);
-        const monthlyTrendResponse = await ApiService.getMonthlyScheduleTrend();
-        console.log('Monthly trend:', monthlyTrendResponse);
-
-        setStatistics({
-            peopleSummary: peopleSummaryResponse.data,
-            placeSummary: placeSummaryResponse.data,
-            scheduleDayHour: scheduleDayHourResponse.data,
-            monthlyTrend: monthlyTrendResponse.data,
-        });
-    } catch (error) {
-        console.error('Failed to fetch statistics:', error);
-    } finally {
-        setLoading(false);
+    // 현재 월을 "yyyy-MM" 형식으로 반환하는 함수
+    function getCurrentMonth() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0'); // 월은 0부터 시작하므로 +1 해줍니다.
+        return `${year}-${month}`;
     }
-};
-    // 스타일링: 탭 버튼
+
+    // 1년 동안의 월별 데이터를 요청하는 함수
+    const fetchYearlyData = async () => {
+        try {
+            setLoading(true);
+            const data = [];
+            const currentYear = new Date().getFullYear();
+            // 1년간의 각 월 데이터 요청
+            for (let month = 1; month <= 12; month++) {
+                const yearMonth = `${currentYear}-${String(month).padStart(2, '0')}`;
+                const monthlyData = await ApiService.getMonthlyScheduleTrend(yearMonth);
+                data.push(monthlyData.data);
+            }
+            setYearlyData(data); // 1년 데이터 저장
+        } catch (error) {
+            console.error('Failed to fetch yearly data:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // 선택된 월에 해당하는 통계를 가져오는 함수
+    const fetchStatistics = async () => {
+        try {
+            setLoading(true);
+            console.log('Fetching statistics...');
+            const peopleSummaryResponse = await ApiService.getPeopleSummary(selectedMonth);
+            const placeSummaryResponse = await ApiService.getPlaceSummary(selectedMonth);
+            const scheduleDayHourResponse = await ApiService.getScheduleDayHourDistribution();
+            const monthlyTrendResponse = await ApiService.getMonthlyScheduleTrend(selectedMonth);
+
+            setStatistics({
+                peopleSummary: peopleSummaryResponse.data,
+                placeSummary: placeSummaryResponse.data,
+                scheduleDayHour: scheduleDayHourResponse.data,
+                monthlyTrend: monthlyTrendResponse.data,
+            });
+        } catch (error) {
+            console.error('Failed to fetch statistics:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // 월별 데이터를 업데이트 할 때마다 fetch
+    useEffect(() => {
+        fetchStatistics(); // 선택된 월에 해당하는 통계 데이터를 불러옵니다.
+        fetchYearlyData(); // 1년 간의 월별 데이터를 불러옵니다.
+    }, [selectedMonth]); // selectedMonth가 변경될 때마다 호출
+
+    // 탭 버튼 스타일
     const tabButtonStyle = {
         padding: '12px 24px',
         fontSize: '16px',
         margin: '0 10px',
-        background: 'linear-gradient(135deg, #6b8df2, #85c4ff)', // 그라데이션 배경
+        background: 'linear-gradient(135deg, #6b8df2, #85c4ff)',
         color: '#fff',
         border: 'none',
-        borderRadius: '20px', // 모서리 둥글게
+        borderRadius: '20px',
         cursor: 'pointer',
-        transition: 'all 0.3s ease', // 호버 효과
+        transition: 'all 0.3s ease',
     };
 
     const tabButtonActiveStyle = {
         ...tabButtonStyle,
-        background: 'linear-gradient(135deg, #85c4ff, #6b8df2)', // 활성화된 탭
-        transform: 'scale(1.05)', // 클릭된 탭 강조
+        background: 'linear-gradient(135deg, #85c4ff, #6b8df2)',
+        transform: 'scale(1.05)',
     };
 
-    // 탭 버튼 클릭 스타일
-    const handleTabClick = (tab) => {
-        setSelectedTab(tab);
-    };
+    // 월별 스케줄 추이 (꺾은선 그래프)
+    const renderMonthlyTrend = () => (
+        <div>
+            <h3>월별 스케줄 추이</h3>
+            <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={yearlyData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="scheduleCount" stroke="#8884d8" />
+                </LineChart>
+            </ResponsiveContainer>
+        </div>
+    );
+
+    // 요일별 스케줄 (원형 그래프)
+    const renderWeekdayDistribution = () => (
+        <div>
+            <h3>요일별 스케줄</h3>
+            <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                    <Pie
+                        data={statistics?.scheduleDayHour || []}
+                        dataKey="scheduleCount"
+                        nameKey="dayOfWeek"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={100}
+                        fill="#82ca9d"
+                    />
+                    <Tooltip />
+                    <Legend />
+                </PieChart>
+            </ResponsiveContainer>
+        </div>
+    );
+
+    // 시간대별 스케줄 (막대 그래프, 3시간 간격)
+    const renderHourlyDistribution = () => (
+        <div>
+            <h3>시간대별 스케줄</h3>
+            <div>
+                <select
+                    value={selectedWeekday}
+                    onChange={(e) => setSelectedWeekday(e.target.value)}
+                    style={{
+                        padding: '10px 20px',
+                        borderRadius: '10px',
+                        border: '1px solid #ccc',
+                        fontSize: '16px',
+                        backgroundColor: '#f0f0f0',
+                        cursor: 'pointer',
+                        marginBottom: '20px',
+                        width: 'auto',
+                    }}
+                >
+                    {['월요일', '화요일', '수요일', '목요일', '금요일', '토요일', '일요일'].map((day, index) => (
+                        <option key={index} value={index + 1}>
+                            {day}
+                        </option>
+                    ))}
+                </select>
+            </div>
+            <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={statistics?.scheduleDayHour || []}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="hourOfDay" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="scheduleCount" fill="#8884d8" />
+                </BarChart>
+            </ResponsiveContainer>
+        </div>
+    );
 
     // 사람 통계 (Top 3 + 나머지 목록)
     const renderPeopleSummary = () => (
         <div>
             <h3>사람 통계</h3>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
-                {/* Top 3 카드 */}
                 {statistics?.peopleSummary?.top3?.map((person, index) => (
                     <div
                         key={index}
@@ -74,7 +176,7 @@ export const StatisticsPage = () => {
                             width: '30%',
                             padding: '1rem',
                             borderRadius: '8px',
-                            backgroundColor: '#ADD8E6', // 배경색
+                            backgroundColor: '#ADD8E6',
                             boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
                             textAlign: 'center',
                         }}
@@ -90,7 +192,6 @@ export const StatisticsPage = () => {
                 ))}
             </div>
 
-            {/* 나머지 리스트 (표 형식) */}
             <div>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
@@ -125,7 +226,6 @@ export const StatisticsPage = () => {
         <div>
             <h3>장소 통계</h3>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
-                {/* Top 3 카드 */}
                 {statistics?.placeSummary?.top3?.map((place, index) => (
                     <div
                         key={index}
@@ -133,7 +233,7 @@ export const StatisticsPage = () => {
                             width: '30%',
                             padding: '1rem',
                             borderRadius: '8px',
-                            backgroundColor: '#ADD8E6', // 배경색
+                            backgroundColor: '#ADD8E6',
                             boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
                             textAlign: 'center',
                         }}
@@ -149,7 +249,6 @@ export const StatisticsPage = () => {
                 ))}
             </div>
 
-            {/* 나머지 장소 리스트 (표 형식) */}
             <div>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
@@ -177,27 +276,10 @@ export const StatisticsPage = () => {
         </div>
     );
 
-    // 시간대별 스케줄 차트
-    const renderScheduleTimeChart = () => (
-        <div>
-            <h3>시간대별 스케줄</h3>
-            <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                    <Pie
-                        data={statistics?.scheduleDayHour || []}
-                        dataKey="scheduleCount"
-                        nameKey="hourOfDay"
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={100}
-                        fill="#8884d8"
-                    />
-                    <Tooltip />
-                    <Legend />
-                </PieChart>
-            </ResponsiveContainer>
-        </div>
-    );
+    // 탭 버튼
+    const handleTabClick = (tab) => {
+        setSelectedTab(tab);
+    };
 
     if (loading) {
         return <p>Loading...</p>;
@@ -220,16 +302,30 @@ export const StatisticsPage = () => {
                     장소 통계
                 </button>
                 <button
-                    style={selectedTab === 'time' ? tabButtonActiveStyle : tabButtonStyle}
-                    onClick={() => setSelectedTab('time')}
+                    style={selectedTab === 'monthly' ? tabButtonActiveStyle : tabButtonStyle}
+                    onClick={() => setSelectedTab('monthly')}
                 >
-                    시간 스케줄
+                    월별 통계
+                </button>
+                <button
+                    style={selectedTab === 'weekday' ? tabButtonActiveStyle : tabButtonStyle}
+                    onClick={() => setSelectedTab('weekday')}
+                >
+                    요일별 통계
+                </button>
+                <button
+                    style={selectedTab === 'hour' ? tabButtonActiveStyle : tabButtonStyle}
+                    onClick={() => setSelectedTab('hour')}
+                >
+                    시간대별 통계
                 </button>
             </div>
 
             {selectedTab === 'people' && renderPeopleSummary()}
             {selectedTab === 'place' && renderPlaceSummary()}
-            {selectedTab === 'time' && renderScheduleTimeChart()}
+            {selectedTab === 'monthly' && renderMonthlyTrend()}
+            {selectedTab === 'weekday' && renderWeekdayDistribution()}
+            {selectedTab === 'hour' && renderHourlyDistribution()}
         </div>
     );
 };
