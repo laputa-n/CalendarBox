@@ -36,26 +36,6 @@ public class AnalyticsController {
 //        return ResponseEntity.ok(response);
 //    }
 
-<<<<<<< HEAD
-   @GetMapping("/people/summary")
-public ResponseEntity<ApiResponse<PeopleStatSummary>> getPeopleSummary(
-        @AuthenticationPrincipal(expression = "id") Long userId,
-        @RequestParam String yearMonth) {
-    
-    // 로그 추가 - yearMonth 값 확인
-    System.out.println("Received yearMonth: " + yearMonth);  // 로그로 값 확인
-    
-    YearMonth ym;
-    try {
-        // YearMonth 파싱 시도
-        ym = YearMonth.parse(yearMonth, DateTimeFormatter.ofPattern("yyyy-MM"));
-    } catch (DateTimeParseException e) {
-        // 파싱 실패 시 로그 출력
-        System.out.println("Error parsing yearMonth: " + yearMonth);
-        
-        // 상세한 에러 메시지 제공
-        throw new BusinessException(ErrorCode.DATETIME_FORMAT_FAIL, "Invalid date format. Expected format: yyyy-MM, but received: " + yearMonth);
-=======
     @GetMapping("/people/summary")
     public ResponseEntity<ApiResponse<PeopleStatSummary>> getPeopleSummary(
             @AuthenticationPrincipal(expression = "id") Long userId,
@@ -73,14 +53,7 @@ public ResponseEntity<ApiResponse<PeopleStatSummary>> getPeopleSummary(
         }
         var data = analyticsService.getPeopleSummary(userId,ym);
         return ResponseEntity.ok(ApiResponse.ok("사람 통계 요약 성공", data));
->>>>>>> main
     }
-    
-    // 데이터 처리
-    var data = analyticsService.getPeopleSummary(userId, ym);
-    return ResponseEntity.ok(ApiResponse.ok("사람 통계 요약 성공", data));
-}
-
 
     @GetMapping("/people")
     public ResponseEntity<ApiResponse<PageResponse<PeopleStatItem>>> getPeopleStatList(
