@@ -44,10 +44,15 @@ export const StatisticsPage = () => {
         try {
             setLoading(true);
             console.log('Fetching statistics...');
-            const peopleSummaryResponse = await ApiService.getPeopleSummary(selectedMonth);
-            const placeSummaryResponse = await ApiService.getPlaceSummary(selectedMonth);
+            const yearMonth = new Date().toISOString().slice(0, 7); // 현재 날짜를 "yyyy-MM" 형식으로 변환
+            const peopleSummaryResponse = await ApiService.getPeopleSummary(yearMonth);  // month 파라미터로 "yyyy-MM" 형식 전달
+            console.log('People summary:', peopleSummaryResponse);
+            const placeSummaryResponse = await ApiService.getPlaceSummary(yearMonth); // 마찬가지로 "yyyy-MM"
+            console.log('Place summary:', placeSummaryResponse);
             const scheduleDayHourResponse = await ApiService.getScheduleDayHourDistribution();
-            const monthlyTrendResponse = await ApiService.getMonthlyScheduleTrend(selectedMonth);
+            console.log('Schedule day hour:', scheduleDayHourResponse);
+            const monthlyTrendResponse = await ApiService.getMonthlyScheduleTrend();
+            console.log('Monthly trend:', monthlyTrendResponse);
 
             setStatistics({
                 peopleSummary: peopleSummaryResponse.data,
