@@ -3,6 +3,7 @@ package com.calendarbox.backend.schedule.util;
 import com.calendarbox.backend.schedule.dto.response.GeminiResponse;
 import com.calendarbox.backend.place.dto.request.PlaceRecommendRequest;
 import com.calendarbox.backend.schedule.enums.ScheduleCategory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
@@ -12,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 @Component
+@Slf4j
 public class GeminiScheduleCategoryExtractor {
 
     private final WebClient webClient;
@@ -51,6 +53,7 @@ public class GeminiScheduleCategoryExtractor {
                     .bodyToMono(GeminiResponse.class)
                     .block();
 
+            log.info("Gemini response {}", response);
             String text = response.getText().trim().toUpperCase();
             return ScheduleCategory.valueOf(text);
         } catch (Exception e) {
