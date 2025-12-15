@@ -60,15 +60,12 @@ public class GeminiScheduleCategoryExtractor {
 
     private String buildPrompt(PlaceRecommendRequest req) {
         return """
-            You are a classifier for calendar schedules.
             Title: %s
             Memo: %s
             Start: %s
             End: %s
             ParticipantCount: %s
-            Classify into one of:
-            DINNER, CAFE, DRINK, STUDY, MEETING, WORKOUT, TRIP, FAMILY, SHOPPING, HOSPITAL, BEAUTY, CULTURE, OTHER
-            Only output the category.
+            이 스케줄의 카테고리는 무엇일까?
         """.formatted(
                 req.title()==null?"":req.title(),
                 req.memo()==null?"":req.memo(),
