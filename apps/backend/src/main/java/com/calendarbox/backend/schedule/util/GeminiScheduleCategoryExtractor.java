@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Map;
 
 @Component
-@Slf4j
 public class GeminiScheduleCategoryExtractor {
 
     private final WebClient webClient;
@@ -53,7 +52,6 @@ public class GeminiScheduleCategoryExtractor {
                     .bodyToMono(GeminiResponse.class)
                     .block();
 
-            log.info("Gemini response {}", response);
             String text = response.getText().trim().toUpperCase();
             return ScheduleCategory.valueOf(text);
         } catch (Exception e) {
@@ -63,12 +61,15 @@ public class GeminiScheduleCategoryExtractor {
 
     private String buildPrompt(PlaceRecommendRequest req) {
         return """
+            You are a classifier for calendar schedules.
             Title: %s
             Memo: %s
             Start: %s
             End: %s
             ParticipantCount: %s
-            이 스케줄의 카테고리는 무엇일까?
+            Classify into one of:
+            DINNER, CAFE, DRINK, STUDY, MEETING, WORKOUT, TRIP, FAMILY, SHOPPING, HOSPITAL, BEAUTY, CULTURE, OTHER
+            Only output the category.
         """.formatted(
                 req.title()==null?"":req.title(),
                 req.memo()==null?"":req.memo(),
