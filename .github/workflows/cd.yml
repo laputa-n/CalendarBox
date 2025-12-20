@@ -39,6 +39,7 @@ jobs:
       - name: Build frontend on GitHub Actions
         working-directory: apps/frontend
         env:
+          CI: "false"
           GENERATE_SOURCEMAP: "false"
         run: |
           set -euo pipefail
