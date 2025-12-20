@@ -28,7 +28,9 @@ jobs:
           printf "%s" "${{ secrets.EC2_SSH_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-      # ✅ 프론트는 Actions에서 빌드 (EC2에서 node 안 돌림)
+      # =====================
+      # ✅ FRONTEND (그대로)
+      # =====================
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -46,7 +48,6 @@ jobs:
           npm ci --no-audit --progress=false
           npm run build
 
-      # ✅ build/ 산출물만 EC2로 전송
       - name: Sync frontend build to EC2
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
@@ -58,7 +59,38 @@ jobs:
             apps/frontend/build/ \
             "$EC2_USER@$EC2_HOST:/var/www/calendarbox/"
 
-      # ✅ 나머지(백엔드/ML)는 서버에서 기존대로 처리
+      # =====================
+      # ✅ BACKEND (추가)
+      # =====================
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Build backend jar
+        working-directory: apps/backend
+        run: |
+          chmod +x gradlew
+          ./gradlew clean bootJar --no-daemon
+
+      - name: Copy backend jar to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          set -euo pipefail
+          scp \
+            -i ~/.ssh/id_rsa \
+            -o StrictHostKeyChecking=accept-new \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            apps/backend/build/libs/*.jar \
+            "$EC2_USER@$EC2_HOST:/srv/app/CalendarBox/apps/backend/build/libs/calendarbox.jar"
+
+      # =====================
+      # ✅ DEPLOY (restart + ML)
+      # =====================
       - name: Run deploy.sh on EC2
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
