@@ -73,6 +73,21 @@ public class PgVectorSimilarScheduleFinder {
         }, rs -> rs.next() ? rs.getDouble("dist") : null);
 
         log.info("[debug] dist_to_id5 = {}", qdist);
+        List<Long> plainTop = jdbcTemplate.queryForList("""
+    SELECT schedule_id
+    FROM schedule_embedding
+    LIMIT 5
+""", Long.class);
+        log.info("[debug] plainTop(no order, no param) = {}", plainTop);
+
+        List<Long> selfOrderTop = jdbcTemplate.queryForList("""
+    SELECT schedule_id
+    FROM schedule_embedding
+    ORDER BY (embedding <=> embedding)
+    LIMIT 5
+""", Long.class);
+        log.info("[debug] selfOrderTop(order self) = {}", selfOrderTop);
+
 
         // (선택) sanity check: ORDER BY가 이제 정상으로 5개 나오는지
         List<Long> queryTopNoExists = jdbcTemplate.query(con -> {
