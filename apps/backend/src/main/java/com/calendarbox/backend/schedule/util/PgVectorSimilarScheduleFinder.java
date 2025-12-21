@@ -21,6 +21,11 @@ public class PgVectorSimilarScheduleFinder {
     public record SimilarSchedule(Long scheduleId, double similarity) {}
 
     public List<SimilarSchedule> findSimilar(PlaceRecommendRequest request, int limit) {
+        Double self = jdbcTemplate.queryForObject(
+                "SELECT embedding <=> embedding FROM schedule_embedding LIMIT 1",
+                Double.class
+        );
+        log.info("[similar][self-dist] {}", self);
         var dbInfo = jdbcTemplate.queryForMap("""
     SELECT
       current_database()   AS db,
