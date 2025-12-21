@@ -91,6 +91,7 @@ public class PgVectorSimilarScheduleFinder {
 // ✅ ambiguous 방지: sampleRows를 문자열로 확정해서 찍기
         log.info("[similar][debug] sampleRows={}", String.valueOf(sampleRows));
 
+        jdbcTemplate.execute("SET enable_indexscan = off");
 
         String sqlMainDebug = """
     SELECT se.schedule_id,
