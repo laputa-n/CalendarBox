@@ -2,14 +2,14 @@ name: CD
 
 on:
   push:
-    branches: [ main ]   # main에 푸시될 때마다 실행
+    branches: [ main ]
 
 jobs:
   deploy:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Checkout repository (옵션)
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Validate required secrets
@@ -25,17 +25,78 @@ jobs:
           set -euo pipefail
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          # GitHub Secret에 넣어둔 개인키를 파일로 저장
           printf "%s" "${{ secrets.EC2_SSH_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
+      # =====================
+      # ✅ FRONTEND (그대로)
+      # =====================
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: apps/frontend/package-lock.json
+
+      - name: Build frontend on GitHub Actions
+        working-directory: apps/frontend
+        env:
+          CI: "false"
+          GENERATE_SOURCEMAP: "false"
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --progress=false
+          npm run build
+
+      - name: Sync frontend build to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          set -euo pipefail
+          rsync -avz --delete \
+            -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=~/.ssh/known_hosts -o ConnectTimeout=30" \
+            apps/frontend/build/ \
+            "$EC2_USER@$EC2_HOST:/var/www/calendarbox/"
+
+      # =====================
+      # ✅ BACKEND (추가)
+      # =====================
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Build backend jar
+        working-directory: apps/backend
+        run: |
+          chmod +x gradlew
+          ./gradlew clean bootJar --no-daemon
+
+      - name: Copy backend jar to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          set -euo pipefail
+          scp \
+            -i ~/.ssh/id_rsa \
+            -o StrictHostKeyChecking=accept-new \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            apps/backend/build/libs/*.jar \
+            "$EC2_USER@$EC2_HOST:/srv/app/CalendarBox/apps/backend/build/libs/calendarbox.jar"
+
+      # =====================
+      # ✅ DEPLOY (restart + ML)
+      # =====================
       - name: Run deploy.sh on EC2
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
         run: |
           set -euo pipefail
-
           ssh \
             -i ~/.ssh/id_rsa \
             -o StrictHostKeyChecking=accept-new \
@@ -44,6 +105,5 @@ jobs:
             "$EC2_USER@$EC2_HOST" \
             'bash -lc "
               set -euo pipefail
-              # 여기서 실제 배포 스크립트 실행
               /srv/calendarbox/deploy.sh
             "'
