@@ -21,6 +21,30 @@ public class PgVectorSimilarScheduleFinder {
     public record SimilarSchedule(Long scheduleId, double similarity) {}
 
     public List<SimilarSchedule> findSimilar(PlaceRecommendRequest request, int limit) {
+        var dbInfo = jdbcTemplate.queryForMap("""
+    SELECT
+      current_database()   AS db,
+      current_user         AS usr,
+      inet_server_addr()   AS addr,
+      inet_server_port()   AS port,
+      current_schema()     AS schema
+""");
+        log.info("[similar][dbinfo] {}", dbInfo);
+
+        Integer embCount = jdbcTemplate.queryForObject("SELECT count(*) FROM schedule_embedding", Integer.class);
+        Integer withPlace = jdbcTemplate.queryForObject("""
+    SELECT count(*)
+    FROM schedule_embedding se
+    WHERE EXISTS (
+      SELECT 1
+      FROM schedule_place sp
+      WHERE sp.schedule_id = se.schedule_id
+        AND sp.place_id IS NOT NULL
+    )
+""", Integer.class);
+
+        log.info("[similar][baseline] embCount={}, withPlace={}", embCount, withPlace);
+
 
         log.info("[similar] start findSimilar, limit={}, title={}, memo={}",
                 limit, request.title(), request.memo());
