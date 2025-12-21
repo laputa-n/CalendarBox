@@ -3,7 +3,6 @@ package com.calendarbox.backend.schedule.util;
 import com.calendarbox.backend.place.dto.request.PlaceRecommendRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.postgresql.util.PGobject;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
@@ -32,81 +31,43 @@ public class PgVectorSimilarScheduleFinder {
               WHERE sp.schedule_id = se.schedule_id
                 AND sp.place_id IS NOT NULL
             )
-            """, Integer.class);
-
+        """, Integer.class);
         log.info("[similar][baseline] embCount={}, withPlace={}", embCount, withPlace);
-        log.info("[similar] start findSimilar, limit={}, title={}, memo={}",
-                limit, request.title(), request.memo());
 
         // 1) 검색용 임베딩 생성
         float[] queryEmbedding = scheduleEmbeddingService.embedScheduleForSearch(request);
-        log.info("[similar] embedding dimension = {}, first3 = [{}, {}, {}]",
+        String vectorLiteral = toVectorLiteral(queryEmbedding);
+        log.info("[similar] embedding dimension = {}, prefix = {}",
                 queryEmbedding.length,
-                queryEmbedding.length > 0 ? queryEmbedding[0] : null,
-                queryEmbedding.length > 1 ? queryEmbedding[1] : null,
-                queryEmbedding.length > 2 ? queryEmbedding[2] : null
+                vectorLiteral.substring(0, Math.min(120, vectorLiteral.length()))
         );
 
-        // 2) float[] -> vector literal string
-        String vectorLiteral = toVectorLiteral(queryEmbedding);
-        log.info("[similar] vector literal prefix = {}",
-                vectorLiteral.substring(0, Math.min(120, vectorLiteral.length())));
+        // 2) 파싱 체크
+        Integer parsed = jdbcTemplate.queryForObject("SELECT 1 WHERE (?::vector) IS NOT NULL", Integer.class, vectorLiteral);
+        log.info("[debug] vectorLiteral parse test = {}", parsed);
 
-        // 3) ✅ 핵심: PGobject(type="vector")로 바인딩 (가장 안정적)
-        PGobject vecParam = new PGobject();
-        try {
-            vecParam.setType("vector");
-            vecParam.setValue(vectorLiteral);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to build PGobject(vector)", e);
-        }
+        // 3) sanity: 테이블 row 확인
+        List<Long> plainTop = jdbcTemplate.queryForList("SELECT schedule_id FROM schedule_embedding LIMIT 5", Long.class);
+        log.info("[debug] plainTop = {}", plainTop);
 
-        // (선택) sanity check: 파라미터로 거리 계산이 되는지
-        Double qdist = jdbcTemplate.query(con -> {
-            var ps = con.prepareStatement("""
-                SELECT embedding <=> ? AS dist
-                FROM schedule_embedding
-                WHERE schedule_id = 5
-            """);
-            ps.setObject(1, vecParam);
-            return ps;
-        }, rs -> rs.next() ? rs.getDouble("dist") : null);
+        // 4) ★ 핵심: SELECT에서도 ?::vector 로 강제 캐스팅 (PGobject/Types.OTHER 금지)
+        List<Long> queryTop = jdbcTemplate.queryForList("""
+            SELECT se.schedule_id
+            FROM schedule_embedding se
+            WHERE EXISTS (
+              SELECT 1 FROM schedule_place sp
+              WHERE sp.schedule_id = se.schedule_id
+                AND sp.place_id IS NOT NULL
+            )
+            ORDER BY se.embedding <=> (?::vector)
+            LIMIT 5
+        """, Long.class, vectorLiteral);
 
-        log.info("[debug] dist_to_id5 = {}", qdist);
-        List<Long> plainTop = jdbcTemplate.queryForList("""
-    SELECT schedule_id
-    FROM schedule_embedding
-    LIMIT 5
-""", Long.class);
-        log.info("[debug] plainTop(no order, no param) = {}", plainTop);
+        log.info("[debug] queryTop(?::vector) = {}", queryTop);
 
-        List<Long> selfOrderTop = jdbcTemplate.queryForList("""
-    SELECT schedule_id
-    FROM schedule_embedding
-    ORDER BY (embedding <=> embedding)
-    LIMIT 5
-""", Long.class);
-        log.info("[debug] selfOrderTop(order self) = {}", selfOrderTop);
-
-
-        // (선택) sanity check: ORDER BY가 이제 정상으로 5개 나오는지
-        List<Long> queryTopNoExists = jdbcTemplate.query(con -> {
-            var ps = con.prepareStatement("""
-                SELECT se.schedule_id
-                FROM schedule_embedding se
-                ORDER BY se.embedding <=> ?
-                LIMIT 5
-            """);
-            ps.setObject(1, vecParam);
-            return ps;
-        }, (rs, rowNum) -> rs.getLong(1));
-
-        log.info("[debug] queryTopNoExists(PGobject) = {}", queryTopNoExists);
-
-        // 4) 실제 similar query
         String sql = """
             SELECT se.schedule_id,
-                   1 - (se.embedding <=> ?) AS similarity
+                   1 - (se.embedding <=> (?::vector)) AS similarity
             FROM schedule_embedding se
             WHERE EXISTS (
                 SELECT 1
@@ -114,20 +75,20 @@ public class PgVectorSimilarScheduleFinder {
                 WHERE sp.schedule_id = se.schedule_id
                   AND sp.place_id IS NOT NULL
             )
-            ORDER BY (se.embedding <=> ?) ASC
+            ORDER BY se.embedding <=> (?::vector) ASC
             LIMIT ?
-            """;
+        """;
 
-        List<SimilarSchedule> result = jdbcTemplate.query(con -> {
-            var ps = con.prepareStatement(sql);
-            ps.setObject(1, vecParam);
-            ps.setObject(2, vecParam);
-            ps.setInt(3, limit);
-            return ps;
-        }, (rs, rowNum) -> new SimilarSchedule(
-                rs.getLong("schedule_id"),
-                rs.getDouble("similarity")
-        ));
+        List<SimilarSchedule> result = jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> new SimilarSchedule(
+                        rs.getLong("schedule_id"),
+                        rs.getDouble("similarity")
+                ),
+                vectorLiteral,
+                vectorLiteral,
+                limit
+        );
 
         log.info("[similar] result size = {}", result.size());
         log.info("[similar] scheduleIds = {}", result.stream().map(SimilarSchedule::scheduleId).toList());
@@ -136,6 +97,7 @@ public class PgVectorSimilarScheduleFinder {
         return result;
     }
 
+    // float -> vector literal, 과학표기 방지
     private String toVectorLiteral(float[] embedding) {
         StringBuilder sb = new StringBuilder(embedding.length * 12 + 2);
         sb.append('[');
