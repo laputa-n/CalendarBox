@@ -20,7 +20,35 @@ public class PgVectorSimilarScheduleFinder {
     public record SimilarSchedule(Long scheduleId, double similarity) {}
 
     public List<SimilarSchedule> findSimilar(PlaceRecommendRequest request, int limit) {
-
+        var info = jdbcTemplate.queryForMap("""
+SELECT
+  current_database() AS db,
+  current_user AS usr,
+  current_schema() AS schema,
+  current_setting('search_path') AS search_path
+""");
+        log.info("[dbinfo] {}", info);
+        var tables = jdbcTemplate.queryForList("""
+SELECT n.nspname AS schema, c.relname AS table_name
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE c.relname IN ('schedule_embedding', 'schedule_place')
+ORDER BY c.relname, n.nspname
+""");
+        log.info("[dbtables] {}", tables);
+        var row = jdbcTemplate.queryForMap("""
+SELECT
+  count(*) AS with_place_cnt,
+  array_agg(se.schedule_id ORDER BY se.schedule_id) AS ids
+FROM schedule_embedding se
+WHERE EXISTS (
+  SELECT 1
+  FROM schedule_place sp
+  WHERE sp.schedule_id = se.schedule_id
+    AND sp.place_id IS NOT NULL
+)
+""");
+        log.info("[withPlace] {}", row);
         Integer embCount = jdbcTemplate.queryForObject("SELECT count(*) FROM schedule_embedding", Integer.class);
         Integer withPlace = jdbcTemplate.queryForObject("""
             SELECT count(*)
