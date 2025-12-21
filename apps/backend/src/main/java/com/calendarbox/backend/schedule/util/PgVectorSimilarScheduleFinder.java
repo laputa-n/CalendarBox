@@ -31,6 +31,14 @@ public class PgVectorSimilarScheduleFinder {
             );
 
     public List<SimilarSchedule> findSimilar(PlaceRecommendRequest request, int limit) {
+        var dbinfo = jdbcTemplate.queryForMap("""
+    SELECT current_database() AS db,
+           current_user AS usr,
+           current_schema() AS schema,
+           current_setting('search_path') AS search_path
+""");
+        log.info("[similar][debug] dbinfo={}", dbinfo);
+
         log.info("[similar] start findSimilar, limit={}, title={}, memo={}",
                 limit, request.title(), request.memo());
 
@@ -84,7 +92,31 @@ public class PgVectorSimilarScheduleFinder {
         log.info("[similar][debug] sampleRows={}", String.valueOf(sampleRows));
 
 
+        String sqlMainDebug = """
+    SELECT se.schedule_id,
+           (se.embedding <=> ?) AS dist,
+           1 - (se.embedding <=> ?) AS similarity
+    FROM schedule_embedding se
+    WHERE EXISTS (
+        SELECT 1
+        FROM schedule_place sp
+        WHERE sp.schedule_id = se.schedule_id
+          AND sp.place_id IS NOT NULL
+    )
+    ORDER BY (se.embedding <=> ?) ASC
+    LIMIT ?
+    """;
 
+        List<Map<String, Object>> mainDebugRows = jdbcTemplate.query(conn -> {
+            var ps = conn.prepareStatement(sqlMainDebug);
+            ps.setObject(1, qvec, Types.OTHER);
+            ps.setObject(2, qvec, Types.OTHER);
+            ps.setObject(3, qvec, Types.OTHER);
+            ps.setInt(4, limit);
+            return ps;
+        }, new ColumnMapRowMapper());
+
+        log.info("[similar][debug] mainDebugRows={}", String.valueOf(mainDebugRows));
 
         // 3) 실제 유사 스케줄 조회 (cast 절대 쓰지 말 것)
         String sql = """
