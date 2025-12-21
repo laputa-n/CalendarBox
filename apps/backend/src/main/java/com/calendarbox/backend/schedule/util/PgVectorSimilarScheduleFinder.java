@@ -98,7 +98,7 @@ public class PgVectorSimilarScheduleFinder {
 
         return result;
     }
-    
+
     private String toVectorLiteral(float[] embedding) {
         StringBuilder sb = new StringBuilder(embedding.length * 8);
         sb.append('[');
