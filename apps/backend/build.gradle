@@ -57,6 +57,10 @@ dependencies {
 	//hash 문자열 사용
 	implementation 'commons-codec:commons-codec:1.16.0'
 
+	//pgvector 사용
+	implementation "com.pgvector:pgvector:0.1.6"
+
+
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	runtimeOnly 'org.postgresql:postgresql'
