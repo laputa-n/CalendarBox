@@ -116,6 +116,26 @@ public class PgVectorSimilarScheduleFinder {
         }, (rs, rowNum) -> rs.getLong(1));
         log.info("[debug] queryTop(literal) = {}", queryTop);
 
+        List<Long> queryTopNoExists = jdbcTemplate.query(conn -> {
+            var ps = conn.prepareStatement("""
+        SELECT se.schedule_id
+        FROM schedule_embedding se
+        ORDER BY se.embedding <=> (CAST(? AS text)::vector)
+        LIMIT 5
+    """);
+            ps.setString(1, vectorLiteral);
+            return ps;
+        }, (rs, rowNum) -> rs.getLong(1));
+
+        log.info("[debug] queryTopNoExists(literal) = {}", queryTopNoExists);
+
+        Integer countNoExists = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM schedule_embedding se WHERE (se.embedding <=> (CAST(? AS text)::vector)) IS NOT NULL",
+                Integer.class,
+                vectorLiteral
+        );
+        log.info("[debug] countNoExists(dist not null) = {}", countNoExists);
+
         // 7) main query
         String sql = """
             SELECT se.schedule_id,
