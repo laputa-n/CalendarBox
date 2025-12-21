@@ -11,6 +11,8 @@ import org.springframework.stereotype.Component;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.List;
+import org.springframework.jdbc.core.ColumnMapRowMapper;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -55,6 +57,34 @@ public class PgVectorSimilarScheduleFinder {
                 qvec
         );
         log.info("[similar][debug] count(dist is not null) = {}", notNullCnt);
+
+        // [STEP1] ORDER BY 없이 dist/similarity 샘플 5개 찍기
+        String sqlSample = """
+    SELECT se.schedule_id,
+           (se.embedding <=> ?) AS dist,
+           1 - (se.embedding <=> ?) AS similarity,
+           EXISTS (
+               SELECT 1
+               FROM schedule_place sp
+               WHERE sp.schedule_id = se.schedule_id
+                 AND sp.place_id IS NOT NULL
+           ) AS has_place
+    FROM schedule_embedding se
+    LIMIT 5
+    """;
+
+        List<Map<String, Object>> sampleRows = jdbcTemplate.query(conn -> {
+            var ps = conn.prepareStatement(sqlSample);
+            ps.setObject(1, qvec, Types.OTHER);
+            ps.setObject(2, qvec, Types.OTHER);
+            return ps;
+        }, new ColumnMapRowMapper());
+
+// ✅ ambiguous 방지: sampleRows를 문자열로 확정해서 찍기
+        log.info("[similar][debug] sampleRows={}", String.valueOf(sampleRows));
+
+
+
 
         // 3) 실제 유사 스케줄 조회 (cast 절대 쓰지 말 것)
         String sql = """
