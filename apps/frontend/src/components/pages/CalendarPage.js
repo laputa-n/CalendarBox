@@ -7,7 +7,7 @@ import { LoadingSpinner } from '../common/LoadingSpinner';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
-
+import { useParams , useNavigate } from 'react-router-dom';
 import  ScheduleModal  from '../ScheduleModal/ScheduleModal';
 
 export const CalendarPage = () => {
@@ -24,7 +24,7 @@ export const CalendarPage = () => {
 } = useCalendars();
 
   const { schedules, fetchSchedules, fetchAllSchedules } = useSchedules();
-
+  const { calendarId } = useParams();
   const [showForm, setShowForm] = useState(false);
   const [editingCalendar, setEditingCalendar] = useState(null);
   const [formData, setFormData] = useState({
@@ -37,7 +37,24 @@ export const CalendarPage = () => {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const navigate = useNavigate();
+  const handleSelectCalendar = (calendar) => {
+  navigate(`/calendar/${calendar.id}`);
+};
 
+// 1️⃣ URL → currentCalendar
+useEffect(() => {
+  if (!calendarId || calendars.length === 0) return;
+
+  const id = Number(calendarId);
+  const target = calendars.find((cal) => cal.id === id);
+
+  if (target && currentCalendar?.id !== target.id) {
+    setCurrentCalendar(target);
+  }
+}, [calendarId, calendars]);
+
+// 2️⃣ currentCalendar → occurrences fetch
 useEffect(() => {
   if (!currentCalendar) return;
 
@@ -47,14 +64,10 @@ useEffect(() => {
   const view = api.view;
   handleDatesSet({
     start: view.currentStart,
-    end: view.currentEnd
+    end: view.currentEnd,
   });
 }, [currentCalendar]);
 
-  // ✅ 캘린더 선택 핸들러
-  const handleSelectCalendar = (calendar) => {
-    setCurrentCalendar(calendar);
-  };
 
   /** =========================
    *  캘린더 CRUD

@@ -221,40 +221,39 @@ export const CalendarProvider = ({ children }) => {
     }
   };
 
-  const fetchCalendarMembers = async (calendarId, page = 1, size = 10) => {
-    try {
-      const response = await ApiService.getCalendarMembers(
-        calendarId,
-        page,
-        size
-      );
-      const memberList = Array.isArray(response)
-        ? response
-        : response.content || [];
-      setCalendarMembers(memberList);
-      return memberList;
-    } catch (error) {
-      console.error('Failed to fetch calendar members:', error);
-      return [];
-    }
-  };
+  const fetchCalendarMembers = async (calendarId, { page = 0, size = 10, status, sort } = {}) => {
+  try {
+    const res = await ApiService.getCalendarMembers(calendarId, { page, size, status, sort });
 
-  const inviteCalendarMembers = async (calendarId, memberIds) => {
-    try {
-      setLoading(true);
-      const response = await ApiService.inviteCalendarMembers(
-        calendarId,
-        memberIds
-      );
-      await fetchCalendarMembers(calendarId);
-      return response;
-    } catch (error) {
-      handleApiError(error, '멤버 초대에 실패했습니다.');
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
+    const root = res?.data ?? res;
+    const data = root?.data ?? root;
+
+    const content = data?.content ?? [];
+    setCalendarMembers(content);
+    return content;
+  } catch (error) {
+    console.error('Failed to fetch calendar members:', error);
+    return [];
+  }
+};
+
+const inviteCalendarMembers = async (calendarId, memberIds) => {
+  try {
+    setLoading(true);
+    const res = await ApiService.inviteCalendarMembers(calendarId, memberIds);
+
+    // 초대 후 멤버 목록 갱신(선택)
+    await fetchCalendarMembers(calendarId, { page: 0, size: 10 });
+
+    return res;
+  } catch (error) {
+    handleApiError(error, '멤버 초대에 실패했습니다.');
+    throw error;
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const respondToCalendarInvite = async (calendarMemberId, status) => {
     try {

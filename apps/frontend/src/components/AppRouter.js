@@ -14,7 +14,7 @@ import { StatisticsPage } from "./pages/StatisticsPage";
 import { SearchPage } from "./pages/SearchPage";
 import { CalendarPage } from "./pages/CalendarPage";
 import { CalendarBoardPage } from "./pages/CalendarBoardPage";
-
+import { CalendarDetailPage } from "./pages/CalendarDetailPage";
 
 export const AppRouter = () => {
   const { isAuthenticated, loading } = useAuth();
@@ -77,14 +77,35 @@ export const AppRouter = () => {
       <Sidebar />
       <div style={contentStyle}>
         {location.pathname === "/dashboard" && <Dashboard />}
-        {location.pathname === "/calendar" && <CalendarPage />}
         {location.pathname === "/schedules" && <SchedulesPage />}
         {location.pathname === "/friends" && <FriendsPage />}
         {location.pathname === "/notifications" && <NotificationsPage />}
         {location.pathname === "/statistics" && <StatisticsPage />}
         {location.pathname === "/search" && <SearchPage />}
         {location.pathname === "/" && <Dashboard />}
-        {location.pathname === "/calendar/board" && <CalendarBoardPage />}
+      {/* /calendar → 보드로 리다이렉트 */}
+{location.pathname === "/calendar" && (
+  <Navigate to="/calendar/board" replace />
+)}
+
+{/* 캘린더 보드 */}
+{location.pathname === "/calendar/board" && <CalendarBoardPage />}
+
+{/* 캘린더 상세 */}
+{location.pathname.startsWith("/calendar/") &&
+ location.pathname.endsWith("/detail") && (
+  <CalendarDetailPage />
+)}
+
+{/* 실제 캘린더 화면 (/calendar/:id) */}
+{location.pathname.startsWith("/calendar/") &&
+ !location.pathname.endsWith("/board") &&
+ !location.pathname.endsWith("/detail") && (
+  <CalendarPage />
+)}
+
+
+
       </div>
     </div>
   );

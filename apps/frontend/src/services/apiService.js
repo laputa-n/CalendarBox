@@ -211,26 +211,25 @@ static async deleteCalendar(calendarId) {
 }
 
 // === 캘린더 멤버 관련 API ===
-static async inviteCalendarMembers(calendarId, members) {
+static async inviteCalendarMembers(calendarId, memberIds) {
   return this.request(`/calendars/${calendarId}/members`, {
     method: 'POST',
-    body: JSON.stringify({ members }),
+    body: JSON.stringify({ members: memberIds }), // ✅ 명세 핵심
   });
 }
 
-static async getCalendarMembers(
-  calendarId,
-  { status, sort = 'NAME_ASC', page = 0, size = 10 } = {}
-) {
-  const params = new URLSearchParams();
-  if (status) params.append('status', status);
-  if (sort) params.append('sort', sort);
-  params.append('page', page);
-  params.append('size', size);
+static async getCalendarMembers(calendarId, params = {}) {
+  const qs = new URLSearchParams();
 
-  return this.request(
-    `/calendars/${calendarId}/members?${params.toString()}`
-  );
+  if (params.status) qs.append('status', params.status);
+  if (params.sort) qs.append('sort', params.sort);
+  if (params.page !== undefined) qs.append('page', params.page);
+  if (params.size !== undefined) qs.append('size', params.size);
+
+  const query = qs.toString();
+  return this.request(`/calendars/${calendarId}/members${query ? `?${query}` : ''}`, {
+    method: 'GET',
+  });
 }
 
 static async respondToCalendarInvite(calendarMemberId, action) {
