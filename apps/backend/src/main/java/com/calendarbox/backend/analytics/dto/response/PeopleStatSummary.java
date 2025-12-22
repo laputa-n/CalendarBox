@@ -5,8 +5,6 @@ import java.util.List;
 
 public record PeopleStatSummary(
         LocalDateTime month,
-        Integer totalMeetCount,
-        Long totalDurationMin,
         List<PeopleStatItem> top3
 ) {
 }

@@ -56,7 +56,6 @@ public class AnalyticsService {
         LocalDateTime start = yearMonth.atDay(1).atStartOfDay();
         LocalDateTime end = yearMonth.plusMonths(1).atDay(1).atStartOfDay();
 
-        // 1) 방문/체류 통계(월 전체)
         List<Object[]> scheduleMonthlySummary = analyticsRepository.findPlaceMonthlyStats(userId, start, end);
 
         List<PlaceMonthlyScheduleSummary> scheduleStats = scheduleMonthlySummary.stream()
@@ -69,18 +68,17 @@ public class AnalyticsService {
                 ))
                 .toList();
 
-        int totalVisitCount = scheduleStats.stream().mapToInt(PlaceMonthlyScheduleSummary::visitCount).sum();
-        long totalStayMin = scheduleStats.stream().mapToLong(PlaceMonthlyScheduleSummary::totalStayTime).sum();
-
-        // 2) Top3(방문수/체류시간 기준) 먼저 뽑기
         List<PlaceMonthlyScheduleSummary> top3Base = scheduleStats.stream()
                 .sorted(Comparator
                         .comparingInt(PlaceMonthlyScheduleSummary::visitCount).reversed()
-                        .thenComparingLong(PlaceMonthlyScheduleSummary::totalStayTime).reversed())
+                        .thenComparingLong(PlaceMonthlyScheduleSummary::totalStayTime).reversed()
+                        .thenComparing((PlaceMonthlyScheduleSummary s) -> s.placeId() == null ? 1 : 0)
+                        .thenComparing(s -> s.placeId() == null ? Long.MAX_VALUE : s.placeId())
+                        .thenComparing(PlaceMonthlyScheduleSummary::placeName, Comparator.nullsLast(String::compareTo))
+                )
                 .limit(3)
                 .toList();
 
-        // 3) Top3 대상만 IN으로 expense 집계 조회
         List<Long> placeIds = top3Base.stream()
                 .map(PlaceMonthlyScheduleSummary::placeId)
                 .filter(id -> id != null)
@@ -110,7 +108,6 @@ public class AnalyticsService {
                         (a, b) -> a
                 ));
 
-        // 4) Top3 응답 생성
         List<PlaceStatItem> top3 = top3Base.stream()
                 .map(s -> {
                     String key = (s.placeId() != null ? "ID-" + s.placeId() : "NAME-" + s.placeName());
@@ -135,8 +132,10 @@ public class AnalyticsService {
                 })
                 .toList();
 
-        return new PlaceStatSummary(start, totalVisitCount, totalStayMin, top3);
+        // DTO에서 totalVisitCount / totalStayMin 뺐다면 여기도 제거
+        return new PlaceStatSummary(start, top3);
     }
+
 
 
 
@@ -312,8 +311,8 @@ public class AnalyticsService {
         LocalDateTime start = yearMonth.atDay(1).atStartOfDay();
         LocalDateTime end = yearMonth.plusMonths(1).atDay(1).atStartOfDay();
 
-        // 1) 만남 통계(월 전체)
-        List<Object[]> scheduleMonthlySummary = analyticsRepository.findPersonMonthlyScheduleStats(userId, start, end);
+        List<Object[]> scheduleMonthlySummary =
+                analyticsRepository.findPersonMonthlyScheduleStats(userId, start, end);
 
         List<PersonMonthlyScheduleSummary> scheduleStats = scheduleMonthlySummary.stream()
                 .map(row -> new PersonMonthlyScheduleSummary(
@@ -325,17 +324,18 @@ public class AnalyticsService {
                 ))
                 .toList();
 
-        int totalMeetCount = scheduleStats.stream().mapToInt(PersonMonthlyScheduleSummary::meetCount).sum();
-        long totalDurationMin = scheduleStats.stream().mapToLong(PersonMonthlyScheduleSummary::totalDurationMin).sum();
-
-        // 2) Top3 먼저 결정 (만남 기준)
+        // Top3: meetCount desc -> duration desc -> (id/name)로 안정화
         List<PersonMonthlyScheduleSummary> top3Base = scheduleStats.stream()
-                .sorted(Comparator.comparingInt(PersonMonthlyScheduleSummary::meetCount).reversed()
-                        .thenComparingLong(PersonMonthlyScheduleSummary::totalDurationMin).reversed())
+                .sorted(Comparator
+                        .comparingInt(PersonMonthlyScheduleSummary::meetCount).reversed()
+                        .thenComparingLong(PersonMonthlyScheduleSummary::totalDurationMin).reversed()
+                        .thenComparing((PersonMonthlyScheduleSummary s) -> s.personId() == null ? 1 : 0) // null은 뒤로
+                        .thenComparing(s -> s.personId() == null ? Long.MAX_VALUE : s.personId())
+                        .thenComparing(PersonMonthlyScheduleSummary::personName, Comparator.nullsLast(String::compareTo))
+                )
                 .limit(3)
                 .toList();
 
-        // 3) Top3 대상만 IN으로 expense 집계
         List<Long> personIds = top3Base.stream()
                 .map(PersonMonthlyScheduleSummary::personId)
                 .filter(id -> id != null)
@@ -366,7 +366,6 @@ public class AnalyticsService {
                         (a, b) -> a
                 ));
 
-        // 4) Top3 응답 생성
         List<PeopleStatItem> top3 = top3Base.stream()
                 .map(s -> {
                     String key = (s.personId() != null ? "ID-" + s.personId() : "NAME-" + s.personName());
@@ -393,6 +392,8 @@ public class AnalyticsService {
                 })
                 .toList();
 
-        return new PeopleStatSummary(start, totalMeetCount, totalDurationMin, top3);
+        // DTO에서 totalMeetCount / totalDurationMin 뺐다면 여기도 제거
+        return new PeopleStatSummary(start, top3);
     }
+
 }

@@ -28,7 +28,7 @@ WITH my_schedules AS (
 expanded AS (
     SELECT 
         ms.schedule_id,
-        date_trunc('month', gs) AS month
+        date_trunc('month', gs)::timestamp AS month
     FROM my_schedules ms,
          generate_series(
              date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
@@ -72,8 +72,8 @@ SELECT
     COUNT(DISTINCT ps.schedule_id) AS meet_count,
     SUM(ps.duration_min)           AS total_duration_min
 FROM person_schedules ps
-WHERE ps.month >= :startMonth
-  AND ps.month <  :endMonth
+WHERE ps.month >= date_trunc('month', (:startMonth)::timestamp)
+  AND ps.month <  date_trunc('month', (:endMonth)::timestamp)
 GROUP BY ps.month, ps.person_id, ps.person_name
 ORDER BY ps.month, meet_count DESC NULLS LAST, total_duration_min DESC
 """, nativeQuery = true)
@@ -98,7 +98,7 @@ WITH my_schedules AS (
 expanded AS (
     SELECT 
         ms.schedule_id,
-        date_trunc('month', gs) AS month
+        date_trunc('month', gs)::timestamp AS month
     FROM my_schedules ms,
          generate_series(
              date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
@@ -142,8 +142,8 @@ SELECT
     COUNT(DISTINCT ps.schedule_id) AS meet_count,
     SUM(ps.duration_min)           AS total_duration_min
 FROM person_schedules ps
-WHERE ps.month >= :startMonth
-  AND ps.month <  :endMonth
+WHERE ps.month >= date_trunc('month', (:startMonth)::timestamp)
+  AND ps.month <  date_trunc('month', (:endMonth)::timestamp)
 GROUP BY ps.month, ps.person_id, ps.person_name
 ORDER BY
     ps.month,
@@ -176,7 +176,7 @@ WITH my_schedules AS (
 expanded AS (
     SELECT
         ms.schedule_id,
-        date_trunc('month', gs) AS month
+        date_trunc('month', gs)::timestamp AS month
     FROM my_schedules ms,
          generate_series(
              date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
@@ -209,8 +209,8 @@ person_schedules AS (
 )
 SELECT COUNT(DISTINCT COALESCE(ps.person_id::text, ps.person_name))
 FROM person_schedules ps
-WHERE ps.month >= :startMonth
-  AND ps.month <  :endMonth
+WHERE ps.month >= date_trunc('month', (:startMonth)::timestamp)
+  AND ps.month <  date_trunc('month', (:endMonth)::timestamp)
 """, nativeQuery = true)
     long countPersonMonthlyScheduleStats(
             @Param("memberId") Long memberId,
@@ -234,7 +234,7 @@ WITH my_schedules AS (
 expanded AS (
     SELECT 
         ms.schedule_id AS schedule_id,
-        date_trunc('month', gs) AS month
+        date_trunc('month', gs)::timestamp AS month
     FROM my_schedules ms,
          generate_series(
              date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
@@ -261,8 +261,8 @@ SELECT
     COUNT(DISTINCT ps.schedule_id) AS visit_count,
     SUM(ps.duration_min) AS total_duration_min
 FROM place_schedules ps
-WHERE ps.month >= :startMonth
-  AND ps.month < :endMonth
+WHERE ps.month >= date_trunc('month', (:startMonth)::timestamp)
+  AND ps.month <  date_trunc('month', (:endMonth)::timestamp)
 GROUP BY ps.month, ps.place_id, ps.place_name
 ORDER BY ps.month, visit_count DESC NULLS LAST, total_duration_min DESC
 """, nativeQuery = true)
@@ -287,7 +287,7 @@ WITH my_schedules AS (
 expanded AS (
     SELECT 
         ms.schedule_id AS schedule_id,
-        date_trunc('month', gs) AS month
+        date_trunc('month', gs)::timestamp AS month
     FROM my_schedules ms,
          generate_series(
              date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
@@ -314,8 +314,8 @@ SELECT
     COUNT(DISTINCT ps.schedule_id) AS visit_count,
     SUM(ps.duration_min) AS total_duration_min
 FROM place_schedules ps
-WHERE ps.month >= :startMonth
-  AND ps.month < :endMonth
+WHERE ps.month >= date_trunc('month', (:startMonth)::timestamp)
+  AND ps.month <  date_trunc('month', (:endMonth)::timestamp)
 GROUP BY ps.month, ps.place_id, ps.place_name
 ORDER BY
     ps.month,
@@ -348,7 +348,7 @@ WITH my_schedules AS (
 expanded AS (
     SELECT 
         ms.schedule_id AS schedule_id,
-        date_trunc('month', gs) AS month
+        date_trunc('month', gs)::timestamp AS month
     FROM my_schedules ms,
          generate_series(
              date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
@@ -371,8 +371,8 @@ place_schedules AS (
 SELECT
     COUNT(DISTINCT COALESCE(ps.place_id::text, ps.place_name))
 FROM place_schedules ps
-WHERE ps.month >= :startMonth
-  AND ps.month < :endMonth
+WHERE ps.month >= date_trunc('month', (:startMonth)::timestamp)
+  AND ps.month <  date_trunc('month', (:endMonth)::timestamp)
 """, nativeQuery = true)
     long countPlaceMonthlyStats(
             @Param("memberId") Long memberId,
@@ -435,7 +435,7 @@ WHERE ps.month >= :startMonth
     expanded AS (
         SELECT 
             ms.schedule_id AS schedule_id,
-            date_trunc('month', gs) AS month
+            date_trunc('month', gs)::timestamp AS month
         FROM my_schedules ms,
              generate_series(
                  date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
@@ -469,7 +469,7 @@ WITH my_schedules AS (
 expanded AS (
     SELECT 
         ms.schedule_id AS schedule_id,
-        date_trunc('month', gs) AS month
+        date_trunc('month', gs)::timestamp AS month
     FROM my_schedules ms,
          generate_series(
              date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
@@ -505,8 +505,8 @@ SELECT
     SUM(pe.total_amount) AS total_amount,
     AVG(pe.total_amount) AS avg_amount
 FROM place_expenses pe
-WHERE pe.month >= :startMonth
-  AND pe.month <  :endMonth
+WHERE pe.month >= date_trunc('month', (:startMonth)::timestamp)
+  AND pe.month <  date_trunc('month', (:endMonth)::timestamp)
   AND (
         (pe.place_id IS NOT NULL AND pe.place_id IN (:placeIds))
      OR (pe.place_id IS NULL AND pe.place_name IN (:placeNames))
@@ -536,7 +536,7 @@ WITH my_schedules AS (
 expanded AS (
     SELECT 
         ms.schedule_id,
-        date_trunc('month', gs) AS month
+        date_trunc('month', gs)::timestamp AS month
     FROM my_schedules ms,
          generate_series(
              date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
@@ -587,8 +587,8 @@ SELECT
     SUM(ps.schedule_total_amount)  AS total_amount,
     AVG(ps.schedule_total_amount)  AS avg_amount
 FROM person_schedules ps
-WHERE ps.month >= :startMonth
-  AND ps.month <  :endMonth
+WHERE ps.month >= date_trunc('month', (:startMonth)::timestamp)
+  AND ps.month <  date_trunc('month', (:endMonth)::timestamp)
   AND (
         (ps.person_id IS NOT NULL AND ps.person_id IN (:personIds))
      OR (ps.person_id IS NULL AND ps.person_name IN (:personNames))

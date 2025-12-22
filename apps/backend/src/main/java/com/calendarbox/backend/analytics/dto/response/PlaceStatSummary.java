@@ -5,8 +5,6 @@ import java.util.List;
 
 public record PlaceStatSummary(
         LocalDateTime month,
-        Integer totalVisitCount,
-        Long totalStayMin,
         List<PlaceStatItem> top3
 ) {
 }
