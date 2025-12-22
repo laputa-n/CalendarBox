@@ -41,13 +41,9 @@ public class AnalyticsController {
             @AuthenticationPrincipal(expression = "id") Long userId,
             @RequestParam String yearMonth
             ){
-        log.info("[yearMonth]={}", yearMonth);
-        System.out.println("[yearMonth] = " + yearMonth);
         YearMonth ym;
         try{
             ym = YearMonth.parse(yearMonth, DateTimeFormatter.ofPattern("yyyy-MM"));
-            log.info("[parsedYm]={}", String.valueOf(ym));
-            System.out.println("[parsedYm] = " + String.valueOf(ym));
         } catch (DateTimeParseException e) {
             throw new BusinessException(ErrorCode.DATETIME_FORMAT_FAIL);
         }
@@ -71,9 +67,15 @@ public class AnalyticsController {
     @GetMapping("/place/summary")
     public ResponseEntity<ApiResponse<PlaceStatSummary>> getPlaceSummary(
             @AuthenticationPrincipal(expression = "id") Long userId,
-            @RequestParam @DateTimeFormat(pattern = "yyyy-MM") YearMonth yearMonth
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM") String yearMonth
     ){
-        var data = analyticsService.getPlaceSummary(userId,yearMonth);
+        YearMonth ym;
+        try{
+            ym = YearMonth.parse(yearMonth, DateTimeFormatter.ofPattern("yyyy-MM"));
+        } catch (DateTimeParseException e) {
+            throw new BusinessException(ErrorCode.DATETIME_FORMAT_FAIL);
+        }
+        var data = analyticsService.getPlaceSummary(userId,ym);
 
         return ResponseEntity.ok(ApiResponse.ok("장소 통계 요약 성공", data));
     }
