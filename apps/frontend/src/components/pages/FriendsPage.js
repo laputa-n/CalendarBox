@@ -102,9 +102,14 @@ export const FriendsPage = () => {
     border: '1px solid #e5e7eb'
   };
   
-  const handleAccept = async (id) => {
+ const handleAccept = async (id) => {
   await acceptFriendRequest(id);
-  setActiveTab('friends'); // 혹은 'received'
+  setActiveTab('friends');
+};
+
+const handleReject = async (id) => {
+  await rejectFriendRequest(id);
+
 };
 
   const buttonStyle = (bgColor = '#2563eb', textColor = 'white') => ({
@@ -276,7 +281,7 @@ export const FriendsPage = () => {
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <button
-                      onClick={() => acceptFriendship(friendship.id)}
+                      onClick={() => handleAccept(friendship.id)}
                       style={buttonStyle('#10b981')}
                       disabled={loading}
                     >
@@ -490,13 +495,13 @@ export const FriendsPage = () => {
                 {request.status === 'PENDING' && (
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <button
-                      onClick={() => acceptFriendRequest(request.friendshipId)}
-                      style={buttonStyle('#10b981')}
-                      disabled={loading}
-                    >
-                      <CheckCircle style={{ width: '1rem', height: '1rem' }} />
-                      수락
-                    </button>
+  onClick={() => handleAccept(request.friendshipId)}
+  style={buttonStyle('#10b981')}
+  disabled={loading}
+>
+  <CheckCircle style={{ width: '1rem', height: '1rem' }} />
+  수락
+</button>
                     <button
                       onClick={() => rejectFriendRequest(request.friendshipId)}
                       style={buttonStyle('#dc2626')}
