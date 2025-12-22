@@ -9,6 +9,8 @@ export const StatisticsPage = () => {
     const [selectedWeekday, setSelectedWeekday] = useState('1'); // 월요일 기본값
     const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth()); // 기본값은 이번 달
     const [yearlyData, setYearlyData] = useState([]); // 1년 동안의 월별 데이터를 저장
+    const [peopleList, setPeopleList] = useState([]);
+    const [placeList, setPlaceList] = useState([]);
     const weekdays = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
     // 현재 월을 "yyyy-MM" 형식으로 반환하는 함수
     function getCurrentMonth() {
@@ -40,32 +42,40 @@ export const StatisticsPage = () => {
 
 
     // 선택된 월에 해당하는 통계를 가져오는 함수
- const fetchStatistics = async () => {
-        try {
-            setLoading(true);
-            console.log('Fetching statistics...');
-            const yearMonth = new Date().toISOString().slice(0, 7); // 현재 날짜를 "yyyy-MM" 형식으로 변환
-            const peopleSummaryResponse = await ApiService.getPeopleSummary(yearMonth);  // month 파라미터로 "yyyy-MM" 형식 전달
-            console.log('People summary:', peopleSummaryResponse);
-            const placeSummaryResponse = await ApiService.getPlaceSummary(yearMonth); // 마찬가지로 "yyyy-MM"
-            console.log('Place summary:', placeSummaryResponse);
-            const scheduleDayHourResponse = await ApiService.getScheduleDayHourDistribution();
-            console.log('Schedule day hour:', scheduleDayHourResponse);
-            const monthlyTrendResponse = await ApiService.getMonthlyScheduleTrend();
-            console.log('Monthly trend:', monthlyTrendResponse);
+const fetchStatistics = async () => {
+  try {
+    setLoading(true);
+    const yearMonth = selectedMonth; // 🔴 이미 state 있음
 
-            setStatistics({
-                peopleSummary: peopleSummaryResponse.data,
-                placeSummary: placeSummaryResponse.data,
-                scheduleDayHour: scheduleDayHourResponse.data,
-                monthlyTrend: monthlyTrendResponse.data,
-            });
-        } catch (error) {
-            console.error('Failed to fetch statistics:', error);
-        } finally {
-            setLoading(false);
-        }
-    };  
+    // ✅ summary
+    const peopleSummaryResponse = await ApiService.getPeopleSummary(yearMonth);
+    const placeSummaryResponse = await ApiService.getPlaceSummary(yearMonth);
+
+    // ✅ list (추가!)
+    const peopleListResponse = await ApiService.getPeopleList(yearMonth, 1, 20);
+    const placeListResponse = await ApiService.getPlaceList(yearMonth, 1, 20);
+
+    const scheduleDayHourResponse = await ApiService.getScheduleDayHourDistribution();
+    const monthlyTrendResponse = await ApiService.getMonthlyScheduleTrend();
+
+    setStatistics({
+      peopleSummary: peopleSummaryResponse.data,
+      placeSummary: placeSummaryResponse.data,
+      scheduleDayHour: scheduleDayHourResponse.data,
+      monthlyTrend: monthlyTrendResponse.data,
+    });
+
+    // ✅ 여기만 추가
+    setPeopleList(peopleListResponse.data?.content || []);
+    setPlaceList(placeListResponse.data?.content || []);
+
+  } catch (error) {
+    console.error('Failed to fetch statistics:', error);
+  } finally {
+    setLoading(false);
+  }
+};
+ 
 
     // 월별 데이터를 업데이트 할 때마다 fetch
     useEffect(() => {
@@ -299,17 +309,17 @@ const renderHourlyDistribution = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {statistics?.peopleSummary?.restOfTheList?.map((person, index) => (
-                            <tr key={index} style={{ backgroundColor: index % 2 === 0 ? '#f9f9f9' : '#fff' }}>
-                                <td>{person.name}</td>
-                                <td>{person.meetCount}</td>
-                                <td>{person.totalDurationMin}</td>
-                                <td>{person.avgDurationMin}</td>
-                                <td>{person.totalAmount}</td>
-                                <td>{person.avgAmount}</td>
-                            </tr>
-                        ))}
-                    </tbody>
+  {peopleList.map((person, index) => (
+    <tr key={person.id ?? index} style={{ backgroundColor: index % 2 === 0 ? '#f9f9f9' : '#fff' }}>
+      <td>{person.name}</td>
+      <td>{person.meetCount}</td>
+      <td>{person.totalDurationMin}</td>
+      <td>{person.avgDurationMin}</td>
+      <td>{person.totalAmount}</td>
+      <td>{person.avgAmount}</td>
+    </tr>
+  ))}
+</tbody>
                 </table>
             </div>
         </div>
@@ -354,17 +364,17 @@ const renderHourlyDistribution = () => {
                             <th>방문당 평균 지출 금액</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        {statistics?.placeSummary?.restOfTheList?.map((place, index) => (
-                            <tr key={index} style={{ backgroundColor: index % 2 === 0 ? '#f9f9f9' : '#fff' }}>
-                                <td>{place.placeName}</td>
-                                <td>{place.visitCount}</td>
-                                <td>{place.totalStayMin}</td>
-                                <td>{place.avgStayMin}</td>
-                                <td>{place.avgAmount}</td>
-                            </tr>
-                        ))}
-                    </tbody>
+                   <tbody>
+  {placeList.map((place, index) => (
+    <tr key={place.id ?? index} style={{ backgroundColor: index % 2 === 0 ? '#f9f9f9' : '#fff' }}>
+      <td>{place.placeName}</td>
+      <td>{place.visitCount}</td>
+      <td>{place.totalStayMin}</td>
+      <td>{place.avgStayMin}</td>
+      <td>{place.avgAmount}</td>
+    </tr>
+  ))}
+</tbody>
                 </table>
             </div>
         </div>
