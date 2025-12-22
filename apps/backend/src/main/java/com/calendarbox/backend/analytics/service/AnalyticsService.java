@@ -311,30 +311,24 @@ public class AnalyticsService {
         LocalDateTime start = yearMonth.atDay(1).atStartOfDay();
         LocalDateTime end = yearMonth.plusMonths(1).atDay(1).atStartOfDay();
 
-        List<Object[]> scheduleMonthlySummary =
-                analyticsRepository.findPersonMonthlyScheduleStats(userId, start, end);
+        List<Object[]> top3Rows =
+                analyticsRepository.findPersonMonthlyScheduleStatsPaged(userId, start, end, 3, 0);
 
-        List<PersonMonthlyScheduleSummary> scheduleStats = scheduleMonthlySummary.stream()
-                .map(row -> new PersonMonthlyScheduleSummary(
-                        ((Timestamp) row[0]).toLocalDateTime(),
-                        row[1] != null ? ((Number) row[1]).longValue() : null,
-                        (String) row[2],
-                        ((Number) row[3]).intValue(),
-                        row[4] != null ? ((Number) row[4]).longValue() : 0L
+        List<PersonMonthlyScheduleSummary> top3Base = top3Rows.stream()
+                .map(r -> new PersonMonthlyScheduleSummary(
+                        ((Timestamp) r[0]).toLocalDateTime(),
+                        r[1] != null ? ((Number) r[1]).longValue() : null,
+                        (String) r[2],
+                        ((Number) r[3]).intValue(),
+                        r[4] != null ? ((Number) r[4]).longValue() : 0L
                 ))
                 .toList();
 
+        if (top3Base.isEmpty()) {
+            return new PeopleStatSummary(start, List.of());
+        }
+
         // Top3: meetCount desc -> duration desc -> (id/name)로 안정화
-        List<PersonMonthlyScheduleSummary> top3Base = scheduleStats.stream()
-                .sorted(Comparator
-                        .comparingInt(PersonMonthlyScheduleSummary::meetCount).reversed()
-                        .thenComparingLong(PersonMonthlyScheduleSummary::totalDurationMin).reversed()
-                        .thenComparing((PersonMonthlyScheduleSummary s) -> s.personId() == null ? 1 : 0) // null은 뒤로
-                        .thenComparing(s -> s.personId() == null ? Long.MAX_VALUE : s.personId())
-                        .thenComparing(PersonMonthlyScheduleSummary::personName, Comparator.nullsLast(String::compareTo))
-                )
-                .limit(3)
-                .toList();
 
         List<Long> personIds = top3Base.stream()
                 .map(PersonMonthlyScheduleSummary::personId)
@@ -372,9 +366,7 @@ public class AnalyticsService {
                     PersonExpenseAgg exp = expenseMap.get(key);
 
                     long totalAmount = exp != null ? exp.totalAmount() : 0L;
-                    double avgAmount = (exp != null && exp.sharedScheduleCount() > 0)
-                            ? Math.round((double) totalAmount / exp.sharedScheduleCount())
-                            : 0.0;
+                    double avgAmount = exp != null ? exp.avgAmount() : 0.0;
 
                     double avgDurationMin = s.meetCount() > 0
                             ? Math.round((double) s.totalDurationMin() / s.meetCount())
