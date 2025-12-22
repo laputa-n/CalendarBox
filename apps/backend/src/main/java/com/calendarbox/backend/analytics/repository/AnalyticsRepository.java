@@ -72,8 +72,8 @@ SELECT
     COUNT(DISTINCT ps.schedule_id) AS meet_count,
     SUM(ps.duration_min)           AS total_duration_min
 FROM person_schedules ps
-WHERE ps.month >= date_trunc('month', :startMonth)
-  AND ps.month <  date_trunc('month', :endMonth)
+WHERE ps.month >= :startMonth
+  AND ps.month <  :endMonth
 GROUP BY ps.month, ps.person_id, ps.person_name
 ORDER BY ps.month, meet_count DESC NULLS LAST
 """, nativeQuery = true)
@@ -142,8 +142,8 @@ SELECT
     COUNT(DISTINCT ps.schedule_id) AS meet_count,
     SUM(ps.duration_min)           AS total_duration_min
 FROM person_schedules ps
-WHERE ps.month >= date_trunc('month', :startMonth)
-  AND ps.month <  date_trunc('month', :endMonth)
+WHERE ps.month >= :startMonth
+  AND ps.month <  :endMonth
 GROUP BY ps.month, ps.person_id, ps.person_name
 ORDER BY
     ps.month,
@@ -208,8 +208,8 @@ person_schedules AS (
 )
 SELECT COUNT(DISTINCT COALESCE(ps.person_id::text, ps.person_name))
 FROM person_schedules ps
-WHERE ps.month >= date_trunc('month', :startMonth)
-  AND ps.month <  date_trunc('month', :endMonth)
+WHERE ps.month >= :startMonth
+  AND ps.month <  :endMonth
 """, nativeQuery = true)
     long countPersonMonthlyScheduleStats(
             @Param("memberId") Long memberId,
@@ -283,8 +283,8 @@ SELECT
     SUM(ps.schedule_total_amount)  AS total_amount,
     AVG(ps.schedule_total_amount)  AS avg_amount
 FROM person_schedules ps
-WHERE ps.month >= date_trunc('month', :startMonth)
-  AND ps.month <  date_trunc('month', :endMonth)
+WHERE ps.month >= :startMonth
+  AND ps.month <  :endMonth
 GROUP BY ps.month, ps.person_id, ps.person_name
 ORDER BY ps.month, total_amount DESC NULLS LAST
 """, nativeQuery = true)
@@ -360,8 +360,8 @@ person_schedules AS (
         SUM(ps.schedule_total_amount)  AS total_amount,
         AVG(ps.schedule_total_amount)  AS avg_amount
     FROM person_schedules ps
-    WHERE ps.month >= date_trunc('month', :startMonth)
-      AND ps.month <  date_trunc('month', :endMonth)
+    WHERE ps.month >= :startMonth
+      AND ps.month <  :endMonth
     GROUP BY ps.month, ps.person_id, ps.person_name
     ORDER BY
         ps.month,
@@ -437,8 +437,8 @@ person_schedules AS (
 )
 SELECT COUNT(DISTINCT COALESCE(ps.person_id::text, ps.person_name))
 FROM person_schedules ps
-WHERE ps.month >= date_trunc('month', :startMonth)
-  AND ps.month <  date_trunc('month', :endMonth)
+WHERE ps.month >= :startMonth
+  AND ps.month <  :endMonth
 """, nativeQuery = true)
     long countPersonMonthlyExpenseStats(
             @Param("memberId") Long memberId,
@@ -493,8 +493,8 @@ SELECT
     COUNT(DISTINCT ps.schedule_id) AS visit_count,
     SUM(ps.duration_min) AS total_duration_min
 FROM place_schedules ps
-WHERE ps.month >= date_trunc('month', :startMonth)
-  AND ps.month < date_trunc('month', :endMonth)
+WHERE ps.month >= :startMonth
+  AND ps.month < :endMonth
 GROUP BY ps.month, ps.place_id, ps.place_name
 ORDER BY ps.month, visit_count DESC NULLS LAST
 """, nativeQuery = true)
@@ -546,8 +546,8 @@ SELECT
     COUNT(DISTINCT ps.schedule_id) AS visit_count,
     SUM(ps.duration_min) AS total_duration_min
 FROM place_schedules ps
-WHERE ps.month >= date_trunc('month', :startMonth)
-  AND ps.month < date_trunc('month', :endMonth)
+WHERE ps.month >= :startMonth
+  AND ps.month < :endMonth
 GROUP BY ps.month, ps.place_id, ps.place_name
 ORDER BY
     ps.month,
@@ -602,8 +602,8 @@ place_schedules AS (
 SELECT
     COUNT(DISTINCT COALESCE(ps.place_id::text, ps.place_name))
 FROM place_schedules ps
-WHERE ps.month >= date_trunc('month', :startMonth)
-  AND ps.month < date_trunc('month', :endMonth)
+WHERE ps.month >= :startMonth
+  AND ps.month < :endMonth
 """, nativeQuery = true)
     long countPlaceMonthlyStats(
             @Param("memberId") Long memberId,
@@ -669,8 +669,8 @@ SELECT
     SUM(pe.total_amount) AS total_amount,
     AVG(pe.total_amount) AS avg_amount
 FROM place_expenses pe
-WHERE pe.month >= date_trunc('month', :startMonth)
-  AND pe.month < date_trunc('month', :endMonth)
+WHERE pe.month >= :startMonth
+  AND pe.month < :endMonth
 GROUP BY pe.month, pe.place_id, pe.place_name
 ORDER BY pe.month, total_amount DESC NULLS LAST, avg_amount DESC NULLS LAST
 """, nativeQuery = true)
@@ -737,8 +737,8 @@ SELECT
     SUM(pe.total_amount) AS total_amount,
     AVG(pe.total_amount) AS avg_amount
 FROM place_expenses pe
-WHERE pe.month >= date_trunc('month', :startMonth)
-  AND pe.month < date_trunc('month', :endMonth)
+WHERE pe.month >= :startMonth
+  AND pe.month < :endMonth
 GROUP BY pe.month, pe.place_id, pe.place_name
 ORDER BY
     pe.month,
@@ -806,8 +806,8 @@ place_expenses AS (
 SELECT 
     COUNT(DISTINCT COALESCE(pe.place_id::text, pe.place_name))
 FROM place_expenses pe
-WHERE pe.month >= date_trunc('month', :startMonth)
-  AND pe.month < date_trunc('month', :endMonth)
+WHERE pe.month >= :startMonth
+  AND pe.month < :endMonth
 """, nativeQuery = true)
     long countPlaceMonthlyExpenseStats(
             @Param("memberId") Long memberId,
@@ -940,8 +940,8 @@ SELECT
     SUM(pe.total_amount) AS total_amount,
     AVG(pe.total_amount) AS avg_amount
 FROM place_expenses pe
-WHERE pe.month >= date_trunc('month', :startMonth)
-  AND pe.month <  date_trunc('month', :endMonth)
+WHERE pe.month >= :startMonth
+  AND pe.month <  :endMonth
   AND (
         (pe.place_id IS NOT NULL AND pe.place_id IN (:placeIds))
      OR (pe.place_id IS NULL AND pe.place_name IN (:placeNames))
@@ -1022,8 +1022,8 @@ SELECT
     SUM(ps.schedule_total_amount)  AS total_amount,
     AVG(ps.schedule_total_amount)  AS avg_amount
 FROM person_schedules ps
-WHERE ps.month >= date_trunc('month', :startMonth)
-  AND ps.month <  date_trunc('month', :endMonth)
+WHERE ps.month >= :startMonth
+  AND ps.month <  :endMonth
   AND (
         (ps.person_id IS NOT NULL AND ps.person_id IN (:personIds))
      OR (ps.person_id IS NULL AND ps.person_name IN (:personNames))
