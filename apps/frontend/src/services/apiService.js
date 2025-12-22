@@ -211,26 +211,33 @@ static async deleteCalendar(calendarId) {
 }
 
 // === 캘린더 멤버 관련 API ===
-static async inviteCalendarMembers(calendarId, memberIds) {
-  const response = await this.request(`/calendars/${calendarId}/members`, {
+static async inviteCalendarMembers(calendarId, members) {
+  return this.request(`/calendars/${calendarId}/members`, {
     method: 'POST',
-    body: JSON.stringify({ memberIds }),
+    body: JSON.stringify({ members }),
   });
-  return response;
 }
 
-static async getCalendarMembers(calendarId, page = 1, size = 10) {
-  const endpoint = `/calendars/${calendarId}/members?page=${page}&size=${size}`;
-  const response = await this.request(endpoint);
-  return response;
+static async getCalendarMembers(
+  calendarId,
+  { status, sort = 'NAME_ASC', page = 0, size = 10 } = {}
+) {
+  const params = new URLSearchParams();
+  if (status) params.append('status', status);
+  if (sort) params.append('sort', sort);
+  params.append('page', page);
+  params.append('size', size);
+
+  return this.request(
+    `/calendars/${calendarId}/members?${params.toString()}`
+  );
 }
 
-static async respondToCalendarInvite(calendarMemberId, status) {
-  const response = await this.request(`/calendar-members/${calendarMemberId}`, {
-    method: 'PUT',
-    body: JSON.stringify({ status }),
+static async respondToCalendarInvite(calendarMemberId, action) {
+  return this.request(`/calendar-members/${calendarMemberId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ action }), // ACCEPT / REJECT
   });
-  return response;
 }
 
 static async removeCalendarMember(calendarMemberId) {
@@ -294,15 +301,46 @@ static async deleteSchedule(scheduleId) {
     );
   }
 
-  static async respondToScheduleInvite(scheduleId, participantId, action) {
-    return this.request(
-      `/schedules/${scheduleId}/participants/${participantId}`,
-      {
-        method: 'PUT',
-        body: JSON.stringify({ action }),
-      }
-    );
+static async respondToScheduleInvite(scheduleId, participantId, action) {
+  return this.request(
+    `/schedules/${scheduleId}/participants/${participantId}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ action }), // 🔥 필수
+    }
+  );
+}
+
+  // 🔍 일정 검색
+static async searchSchedules({ query, calendarId }) {
+  const params = new URLSearchParams();
+
+  if (query) params.append('query', query);
+
+  if (calendarId) {
+    // 여러 개 가능
+    if (Array.isArray(calendarId)) {
+      calendarId.forEach(id => params.append('calendarId', id));
+    } else {
+      params.append('calendarId', calendarId);
+    }
   }
+
+  return this.request(`/schedules/search?${params.toString()}`, {
+    method: 'GET',
+  });
+}
+
+// 📋 일정 복제
+static async cloneSchedule(calendarId, sourceScheduleId, targetDate) {
+  return this.request(`/calendars/${calendarId}/schedules`, {
+    method: 'POST',
+    body: JSON.stringify({
+      sourceScheduleId,
+      targetDate,
+    }),
+  });
+}
 
   // === 장소 관련 ===
   static async searchPlaces(query) {

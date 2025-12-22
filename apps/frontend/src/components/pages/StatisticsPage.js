@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Legend } from 'recharts';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Legend , Cell } from 'recharts';
 import { ApiService } from '../../services/apiService';
 
 export const StatisticsPage = () => {
@@ -155,19 +155,22 @@ const renderWeekdayDistribution = () => {
         <div>
             <h3>요일별 스케줄</h3>
             <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                    <Pie
-                        data={chartData}
-                        dataKey="scheduleCount"
-                        nameKey="dayOfWeek"
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={100}
-                        fill={(entry) => entry.color}  // 색상 동적 지정
-                    />
-                    <Tooltip />
-                    <Legend />
-                </PieChart>
+               <PieChart>
+  <Pie
+    data={chartData}
+    dataKey="scheduleCount"
+    nameKey="dayOfWeek"
+    cx="50%"
+    cy="50%"
+    outerRadius={100}
+  >
+    {chartData.map((entry, index) => (
+      <Cell key={`cell-${index}`} fill={entry.color} />
+    ))}
+  </Pie>
+  <Tooltip />
+  <Legend />
+</PieChart>
             </ResponsiveContainer>
             {/* 요일과 카운트 표시 */}
             <div style={{ textAlign: 'center' }}>
