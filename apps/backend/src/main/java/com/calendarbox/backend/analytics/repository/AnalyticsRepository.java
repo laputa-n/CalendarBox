@@ -1,8 +1,6 @@
 package com.calendarbox.backend.analytics.repository;
 
-import com.calendarbox.backend.analytics.dto.request.PlaceSummary;
 import com.calendarbox.backend.schedule.domain.Schedule;
-import org.springframework.cglib.core.Local;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,128 +12,76 @@ import java.util.List;
 @Repository
 public interface AnalyticsRepository extends JpaRepository<Schedule, Long> {
 
-//    @Query(value = """
-//        SELECT
-//            s.schedule_id AS scheduleId,
-//            s.title AS title,
-//            p.title AS placeName,
-//            EXTRACT(HOUR FROM s.start_at) AS hour,
-//            EXTRACT(EPOCH FROM (s.end_at - s.start_at))/60 AS durationMin,
-//            COALESCE(e.amount, 0) AS amount
-//        FROM schedule s
-//        LEFT JOIN schedule_place sp ON s.schedule_id = sp.schedule_id
-//        LEFT JOIN place p ON sp.place_id = p.place_id
-//        LEFT JOIN expense e ON e.schedule_id = s.schedule_id
-//        WHERE s.created_by = :memberId
-//        """,
-//            nativeQuery = true)
-//    List<Object[]> findScheduleSummaries(Long memberId);
-//
-//    @Query(value = """
-//        SELECT
-//            p.title AS placeName, COUNT(*) AS visitCount
-//        FROM schedule_place sp
-//        JOIN place p ON sp.place_id = p.place_id
-//        JOIN schedule s ON s.schedule_id = sp.schedule_id
-//        WHERE s.created_by = :memberId
-//        GROUP BY p.title
-//        """,
-//            nativeQuery = true)
-//    List<Object[]> findPlaceStats(Long memberId);
-//
-//    @Query(value = """
-//        SELECT
-//            date_trunc('month', s.start_at) AS month, COUNT(*) AS count
-//        FROM schedule s
-//        WHERE s.created_by = :memberId
-//        GROUP BY date_trunc('month', s.start_at)
-//        ORDER BY date_trunc('month', s.start_at)
-//        """,
-//            nativeQuery = true)
-//    List<Object[]> findMonthlyTrend(Long memberId);
-//
-//    @Query("""
-//    SELECT new com.calendarbox.backend.analytics.dto.request.PlaceSummary(
-//        p.title,
-//        date_trunc('month', s.startAt),
-//        COUNT(*)
-//    )
-//    FROM SchedulePlace sp
-//    JOIN Place p ON sp.place.id = p.id
-//    JOIN Schedule s ON s.id = sp.schedule.id
-//    WHERE s.createdBy.id = :memberId
-//    GROUP BY p.title, date_trunc('month', s.startAt)
-//    ORDER BY date_trunc('month', s.startAt)
-//""")
-//    List<PlaceSummary> findMonthlyPlaceStats(Long memberId);
-
-    //================================================================================
-
     // 월별 친구 통계
     @Query(value = """
-    WITH my_schedules AS (
-        SELECT s.schedule_id, s.start_at, s.end_at, s.created_by
-        FROM schedule s
-        WHERE s.created_by = :memberId
-        UNION
-        SELECT s.schedule_id, s.start_at, s.end_at, s.created_by
-        FROM schedule_participant sp
-        JOIN schedule s ON sp.schedule_id = s.schedule_id
-        WHERE sp.member_id = :memberId
-          AND sp.status = 'ACCEPTED'
-    ),
-    expanded AS (
-        SELECT 
-            ms.schedule_id AS schedule_id,
-            date_trunc('month', gs) AS month
-        FROM my_schedules ms,
-             generate_series(
-                 date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
-                 date_trunc('month', ms.end_at AT TIME ZONE 'Asia/Seoul'),
-                 interval '1 month'
-             ) AS gs
-    ),
-    person_schedules AS (
-     -- A. 나 말고, ACCEPTED 된 참여자들
-     SELECT DISTINCT
-         e.month,
-         s.schedule_id,
-         sp.member_id AS person_id,
-         sp.name      AS person_name,
-         EXTRACT(EPOCH FROM (s.end_at - s.start_at)) / 60 AS duration_min
-     FROM expanded e
-     JOIN schedule s ON s.schedule_id = e.schedule_id
-     JOIN schedule_participant sp ON s.schedule_id = sp.schedule_id
-     WHERE sp.status = 'ACCEPTED'
-       AND (sp.member_id IS NULL OR sp.member_id <> :memberId)
- 
-     UNION
- 
-     -- B. 일정 만든 사람(creator)이 나가 아닌 경우
-     SELECT DISTINCT
-         e.month,
-         s.schedule_id,
-         s.created_by     AS person_id,
-         creator.name     AS person_name,
-         EXTRACT(EPOCH FROM (s.end_at - s.start_at)) / 60 AS duration_min
-     FROM expanded e
-     JOIN schedule s ON s.schedule_id = e.schedule_id
-     LEFT JOIN member creator ON creator.member_id = s.created_by
-     WHERE s.created_by <> :memberId
- )
+WITH my_schedules AS (
+    SELECT s.schedule_id, s.start_at, s.end_at, s.created_by
+    FROM schedule s
+    WHERE s.created_by = :memberId
+    UNION
+    SELECT s.schedule_id, s.start_at, s.end_at, s.created_by
+    FROM schedule_participant sp
+    JOIN schedule s ON sp.schedule_id = s.schedule_id
+    WHERE sp.member_id = :memberId
+      AND sp.status = 'ACCEPTED'
+),
+expanded AS (
+    SELECT 
+        ms.schedule_id,
+        date_trunc('month', gs) AS month
+    FROM my_schedules ms,
+         generate_series(
+             date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
+             date_trunc('month', ms.end_at   AT TIME ZONE 'Asia/Seoul'),
+             interval '1 month'
+         ) AS gs
+),
+person_schedules AS (
+    -- A. 나 말고 ACCEPTED 참여자
+    SELECT DISTINCT
+        e.month,
+        s.schedule_id,
+        sp.member_id AS person_id,
+        COALESCE(m.name, sp.name) AS person_name,
+        EXTRACT(EPOCH FROM (s.end_at - s.start_at))/60 AS duration_min
+    FROM expanded e
+    JOIN schedule s ON s.schedule_id = e.schedule_id
+    JOIN schedule_participant sp ON sp.schedule_id = s.schedule_id
+    LEFT JOIN member m ON m.member_id = sp.member_id
+    WHERE sp.status = 'ACCEPTED'
+      AND (sp.member_id IS NULL OR sp.member_id <> :memberId)
+
+    UNION
+
+    -- B. creator가 나가 아닌 경우
+    SELECT DISTINCT
+        e.month,
+        s.schedule_id,
+        s.created_by AS person_id,
+        creator.name AS person_name,
+        EXTRACT(EPOCH FROM (s.end_at - s.start_at))/60 AS duration_min
+    FROM expanded e
+    JOIN schedule s ON s.schedule_id = e.schedule_id
+    LEFT JOIN member creator ON creator.member_id = s.created_by
+    WHERE s.created_by <> :memberId
+)
 SELECT
     ps.month,
     ps.person_id,
     ps.person_name,
     COUNT(DISTINCT ps.schedule_id) AS meet_count,
-    SUM(ps.duration_min) AS total_duration_min
+    SUM(ps.duration_min)           AS total_duration_min
 FROM person_schedules ps
-WHERE ps.month >= :startMonth
-  AND ps.month < :endMonth
+WHERE ps.month >= date_trunc('month', :startMonth)
+  AND ps.month <  date_trunc('month', :endMonth)
 GROUP BY ps.month, ps.person_id, ps.person_name
 ORDER BY ps.month, meet_count DESC NULLS LAST
 """, nativeQuery = true)
-    List<Object[]> findPersonMonthlyScheduleStats(@Param("memberId") Long memberId, @Param("startMonth") LocalDateTime startMonth, @Param("endMonth") LocalDateTime endMonth);
+    List<Object[]> findPersonMonthlyScheduleStats(
+            @Param("memberId") Long memberId,
+            @Param("startMonth") LocalDateTime startMonth,
+            @Param("endMonth") LocalDateTime endMonth
+    );
 
     @Query(value = """
 WITH my_schedules AS (
@@ -151,54 +97,59 @@ WITH my_schedules AS (
 ),
 expanded AS (
     SELECT 
-        ms.schedule_id AS schedule_id,
+        ms.schedule_id,
         date_trunc('month', gs) AS month
     FROM my_schedules ms,
          generate_series(
              date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
-             date_trunc('month', ms.end_at AT TIME ZONE 'Asia/Seoul'),
+             date_trunc('month', ms.end_at   AT TIME ZONE 'Asia/Seoul'),
              interval '1 month'
          ) AS gs
 ),
-            person_schedules AS (
-     -- A. 나 말고, ACCEPTED 된 참여자들
-     SELECT DISTINCT
-         e.month,
-         s.schedule_id,
-         sp.member_id AS person_id,
-         sp.name      AS person_name,
-         EXTRACT(EPOCH FROM (s.end_at - s.start_at)) / 60 AS duration_min
-     FROM expanded e
-     JOIN schedule s ON s.schedule_id = e.schedule_id
-     JOIN schedule_participant sp ON s.schedule_id = sp.schedule_id
-     WHERE sp.status = 'ACCEPTED'
-       AND (sp.member_id IS NULL OR sp.member_id <> :memberId)
- 
-     UNION
- 
-     -- B. 일정 만든 사람(creator)이 나가 아닌 경우
-     SELECT DISTINCT
-         e.month,
-         s.schedule_id,
-         s.created_by     AS person_id,
-         creator.name     AS person_name,
-         EXTRACT(EPOCH FROM (s.end_at - s.start_at)) / 60 AS duration_min
-     FROM expanded e
-     JOIN schedule s ON s.schedule_id = e.schedule_id
-     LEFT JOIN member creator ON creator.member_id = s.created_by
-     WHERE s.created_by <> :memberId
- )
+person_schedules AS (
+    -- A. 나 말고 ACCEPTED 참여자
+    SELECT DISTINCT
+        e.month,
+        s.schedule_id,
+        sp.member_id AS person_id,
+        COALESCE(m.name, sp.name) AS person_name,
+        EXTRACT(EPOCH FROM (s.end_at - s.start_at))/60 AS duration_min
+    FROM expanded e
+    JOIN schedule s ON s.schedule_id = e.schedule_id
+    JOIN schedule_participant sp ON sp.schedule_id = s.schedule_id
+    LEFT JOIN member m ON m.member_id = sp.member_id
+    WHERE sp.status = 'ACCEPTED'
+      AND (sp.member_id IS NULL OR sp.member_id <> :memberId)
+
+    UNION
+
+    -- B. creator가 나가 아닌 경우
+    SELECT DISTINCT
+        e.month,
+        s.schedule_id,
+        s.created_by AS person_id,
+        creator.name AS person_name,
+        EXTRACT(EPOCH FROM (s.end_at - s.start_at))/60 AS duration_min
+    FROM expanded e
+    JOIN schedule s ON s.schedule_id = e.schedule_id
+    LEFT JOIN member creator ON creator.member_id = s.created_by
+    WHERE s.created_by <> :memberId
+)
 SELECT
     ps.month,
     ps.person_id,
     ps.person_name,
     COUNT(DISTINCT ps.schedule_id) AS meet_count,
-    SUM(ps.duration_min) AS total_duration_min
+    SUM(ps.duration_min)           AS total_duration_min
 FROM person_schedules ps
-WHERE ps.month >= :startMonth
-  AND ps.month < :endMonth
+WHERE ps.month >= date_trunc('month', :startMonth)
+  AND ps.month <  date_trunc('month', :endMonth)
 GROUP BY ps.month, ps.person_id, ps.person_name
-ORDER BY ps.month, meet_count DESC NULLS LAST
+ORDER BY
+    ps.month,
+    meet_count DESC NULLS LAST,
+    ps.person_id NULLS LAST,
+    ps.person_name
 LIMIT :size OFFSET :offset
 """, nativeQuery = true)
     List<Object[]> findPersonMonthlyScheduleStatsPaged(
@@ -222,48 +173,43 @@ WITH my_schedules AS (
       AND sp.status = 'ACCEPTED'
 ),
 expanded AS (
-    SELECT 
-        ms.schedule_id AS schedule_id,
+    SELECT
+        ms.schedule_id,
         date_trunc('month', gs) AS month
     FROM my_schedules ms,
          generate_series(
              date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
-             date_trunc('month', ms.end_at AT TIME ZONE 'Asia/Seoul'),
+             date_trunc('month', ms.end_at   AT TIME ZONE 'Asia/Seoul'),
              interval '1 month'
-         ) AS gs
+         ) gs
 ),
-            person_schedules AS (
-     -- A. 나 말고, ACCEPTED 된 참여자들
-     SELECT DISTINCT
-         e.month,
-         s.schedule_id,
-         sp.member_id AS person_id,
-         sp.name      AS person_name,
-         EXTRACT(EPOCH FROM (s.end_at - s.start_at)) / 60 AS duration_min
-     FROM expanded e
-     JOIN schedule s ON s.schedule_id = e.schedule_id
-     JOIN schedule_participant sp ON s.schedule_id = sp.schedule_id
-     WHERE sp.status = 'ACCEPTED'
-       AND (sp.member_id IS NULL OR sp.member_id <> :memberId)
- 
-     UNION
- 
-     -- B. 일정 만든 사람(creator)이 나가 아닌 경우
-     SELECT DISTINCT
-         e.month,
-         s.schedule_id,
-         s.created_by     AS person_id,
-         creator.name     AS person_name,
-         EXTRACT(EPOCH FROM (s.end_at - s.start_at)) / 60 AS duration_min
-     FROM expanded e
-     JOIN schedule s ON s.schedule_id = e.schedule_id
-     LEFT JOIN member creator ON creator.member_id = s.created_by
-     WHERE s.created_by <> :memberId
- )
+person_schedules AS (
+    SELECT DISTINCT
+        e.month,
+        sp.member_id AS person_id,
+        COALESCE(m.name, sp.name) AS person_name
+    FROM expanded e
+    JOIN schedule s ON s.schedule_id = e.schedule_id
+    JOIN schedule_participant sp ON sp.schedule_id = s.schedule_id
+    LEFT JOIN member m ON m.member_id = sp.member_id
+    WHERE sp.status = 'ACCEPTED'
+      AND (sp.member_id IS NULL OR sp.member_id <> :memberId)
+
+    UNION
+
+    SELECT DISTINCT
+        e.month,
+        s.created_by AS person_id,
+        creator.name AS person_name
+    FROM expanded e
+    JOIN schedule s ON s.schedule_id = e.schedule_id
+    LEFT JOIN member creator ON creator.member_id = s.created_by
+    WHERE s.created_by <> :memberId
+)
 SELECT COUNT(DISTINCT COALESCE(ps.person_id::text, ps.person_name))
 FROM person_schedules ps
-WHERE ps.month >= :startMonth
-  AND ps.month < :endMonth
+WHERE ps.month >= date_trunc('month', :startMonth)
+  AND ps.month <  date_trunc('month', :endMonth)
 """, nativeQuery = true)
     long countPersonMonthlyScheduleStats(
             @Param("memberId") Long memberId,
@@ -286,57 +232,61 @@ WITH my_schedules AS (
 ),
 expanded AS (
     SELECT 
-        ms.schedule_id AS schedule_id,
+        ms.schedule_id,
         date_trunc('month', gs) AS month
     FROM my_schedules ms,
          generate_series(
              date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
-             date_trunc('month', ms.end_at AT TIME ZONE 'Asia/Seoul'),
+             date_trunc('month', ms.end_at   AT TIME ZONE 'Asia/Seoul'),
              interval '1 month'
          ) AS gs
 ),
-            person_schedules AS (
-     -- A. 나 말고, ACCEPTED 된 참여자들
-     SELECT DISTINCT
-         e.month,
-         s.schedule_id,
-         sp.member_id AS person_id,
-         sp.name      AS person_name,
-         e2.amount    AS amount
-     FROM expanded e
-     JOIN schedule s ON s.schedule_id = e.schedule_id
-     JOIN schedule_participant sp ON s.schedule_id = sp.schedule_id
-     LEFT JOIN expense e2 ON e2.schedule_id = s.schedule_id
-     WHERE sp.status = 'ACCEPTED'
-       AND (sp.member_id IS NULL OR sp.member_id <> :memberId)
- 
-     UNION
- 
-     -- B. 일정 만든 사람(creator)이 나가 아닌 경우
-     SELECT DISTINCT
-         e.month,
-         s.schedule_id,
-         s.created_by   AS person_id,
-         creator.name   AS person_name,
-         e2.amount      AS amount
-     FROM expanded e
-     JOIN schedule s ON s.schedule_id = e.schedule_id
-     LEFT JOIN member creator ON creator.member_id = s.created_by
-     LEFT JOIN expense e2 ON e2.schedule_id = s.schedule_id
-     WHERE s.created_by <> :memberId
- )
-SELECT 
+schedule_expense AS (
+    SELECT schedule_id, SUM(amount) AS schedule_total_amount
+    FROM expense
+    GROUP BY schedule_id
+),
+person_schedules AS (
+    SELECT DISTINCT
+        e.month,
+        s.schedule_id,
+        sp.member_id AS person_id,
+        COALESCE(m.name, sp.name) AS person_name,
+        COALESCE(se.schedule_total_amount, 0) AS schedule_total_amount
+    FROM expanded e
+    JOIN schedule s ON s.schedule_id = e.schedule_id
+    JOIN schedule_participant sp ON sp.schedule_id = s.schedule_id
+    LEFT JOIN member m ON m.member_id = sp.member_id
+    LEFT JOIN schedule_expense se ON se.schedule_id = s.schedule_id
+    WHERE sp.status = 'ACCEPTED'
+      AND (sp.member_id IS NULL OR sp.member_id <> :memberId)
+
+    UNION
+
+    SELECT DISTINCT
+        e.month,
+        s.schedule_id,
+        s.created_by AS person_id,
+        creator.name AS person_name,
+        COALESCE(se.schedule_total_amount, 0)
+    FROM expanded e
+    JOIN schedule s ON s.schedule_id = e.schedule_id
+    LEFT JOIN member creator ON creator.member_id = s.created_by
+    LEFT JOIN schedule_expense se ON se.schedule_id = s.schedule_id
+    WHERE s.created_by <> :memberId
+)
+SELECT
     ps.month,
     ps.person_id,
     ps.person_name,
     COUNT(DISTINCT ps.schedule_id) AS shared_schedule_count,
-    SUM(ps.amount) AS total_amount,
-    AVG(ps.amount) AS avg_amount
+    SUM(ps.schedule_total_amount)  AS total_amount,
+    AVG(ps.schedule_total_amount)  AS avg_amount
 FROM person_schedules ps
-WHERE ps.month >= :startMonth
-  AND ps.month < :endMonth
+WHERE ps.month >= date_trunc('month', :startMonth)
+  AND ps.month <  date_trunc('month', :endMonth)
 GROUP BY ps.month, ps.person_id, ps.person_name
-ORDER BY ps.month, total_amount DESC NULLS LAST, avg_amount DESC NULLS LAST
+ORDER BY ps.month, total_amount DESC NULLS LAST
 """, nativeQuery = true)
     List<Object[]> findPersonMonthlyExpenseStats(
             @Param("memberId") Long memberId,
@@ -359,58 +309,66 @@ WITH my_schedules AS (
 ),
 expanded AS (
     SELECT 
-        ms.schedule_id AS schedule_id,
+        ms.schedule_id,
         date_trunc('month', gs) AS month
     FROM my_schedules ms,
          generate_series(
              date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
-             date_trunc('month', ms.end_at AT TIME ZONE 'Asia/Seoul'),
+             date_trunc('month', ms.end_at   AT TIME ZONE 'Asia/Seoul'),
              interval '1 month'
          ) AS gs
 ),
-            person_schedules AS (
-     -- A. 나 말고, ACCEPTED 된 참여자들
-     SELECT DISTINCT
-         e.month,
-         s.schedule_id,
-         sp.member_id AS person_id,
-         sp.name      AS person_name,
-         e2.amount    AS amount
-     FROM expanded e
-     JOIN schedule s ON s.schedule_id = e.schedule_id
-     JOIN schedule_participant sp ON s.schedule_id = sp.schedule_id
-     LEFT JOIN expense e2 ON e2.schedule_id = s.schedule_id
-     WHERE sp.status = 'ACCEPTED'
-       AND (sp.member_id IS NULL OR sp.member_id <> :memberId)
- 
-     UNION
- 
-     -- B. 일정 만든 사람(creator)이 나가 아닌 경우
-     SELECT DISTINCT
-         e.month,
-         s.schedule_id,
-         s.created_by   AS person_id,
-         creator.name   AS person_name,
-         e2.amount      AS amount
-     FROM expanded e
-     JOIN schedule s ON s.schedule_id = e.schedule_id
-     LEFT JOIN member creator ON creator.member_id = s.created_by
-     LEFT JOIN expense e2 ON e2.schedule_id = s.schedule_id
-     WHERE s.created_by <> :memberId
- )
-SELECT 
-    ps.month,
-    ps.person_id,
-    ps.person_name,
-    COUNT(DISTINCT ps.schedule_id) AS shared_schedule_count,
-    SUM(ps.amount) AS total_amount,
-    AVG(ps.amount) AS avg_amount
-FROM person_schedules ps
-WHERE ps.month >= :startMonth
-  AND ps.month < :endMonth
-GROUP BY ps.month, ps.person_id, ps.person_name
-ORDER BY ps.month, total_amount DESC NULLS LAST, avg_amount DESC NULLS LAST
-LIMIT :size OFFSET :offset
+schedule_expense AS (
+    SELECT schedule_id, SUM(amount) AS schedule_total_amount
+    FROM expense
+    GROUP BY schedule_id
+),
+person_schedules AS (
+    SELECT DISTINCT
+        e.month,
+        s.schedule_id,
+        sp.member_id AS person_id,
+        COALESCE(m.name, sp.name) AS person_name,
+        COALESCE(se.schedule_total_amount, 0) AS schedule_total_amount
+    FROM expanded e
+    JOIN schedule s ON s.schedule_id = e.schedule_id
+    JOIN schedule_participant sp ON sp.schedule_id = s.schedule_id
+    LEFT JOIN member m ON m.member_id = sp.member_id
+    LEFT JOIN schedule_expense se ON se.schedule_id = s.schedule_id
+    WHERE sp.status = 'ACCEPTED'
+      AND (sp.member_id IS NULL OR sp.member_id <> :memberId)
+
+    UNION
+
+    SELECT DISTINCT
+        e.month,
+        s.schedule_id,
+        s.created_by AS person_id,
+        creator.name AS person_name,
+        COALESCE(se.schedule_total_amount, 0)
+    FROM expanded e
+    JOIN schedule s ON s.schedule_id = e.schedule_id
+    LEFT JOIN member creator ON creator.member_id = s.created_by
+    LEFT JOIN schedule_expense se ON se.schedule_id = s.schedule_id
+    WHERE s.created_by <> :memberId
+)
+    SELECT
+        ps.month,
+        ps.person_id,
+        ps.person_name,
+        COUNT(DISTINCT ps.schedule_id) AS shared_schedule_count,
+        SUM(ps.schedule_total_amount)  AS total_amount,
+        AVG(ps.schedule_total_amount)  AS avg_amount
+    FROM person_schedules ps
+    WHERE ps.month >= date_trunc('month', :startMonth)
+      AND ps.month <  date_trunc('month', :endMonth)
+    GROUP BY ps.month, ps.person_id, ps.person_name
+    ORDER BY
+        ps.month,
+        total_amount DESC NULLS LAST,
+        ps.person_id NULLS LAST,
+        ps.person_name
+    LIMIT :size OFFSET :offset
 """, nativeQuery = true)
     List<Object[]> findPersonMonthlyExpenseStatsPaged(
             @Param("memberId") Long memberId,
@@ -434,51 +392,60 @@ WITH my_schedules AS (
 ),
 expanded AS (
     SELECT 
-        ms.schedule_id AS schedule_id,
+        ms.schedule_id,
         date_trunc('month', gs) AS month
     FROM my_schedules ms,
          generate_series(
              date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
-             date_trunc('month', ms.end_at AT TIME ZONE 'Asia/Seoul'),
+             date_trunc('month', ms.end_at   AT TIME ZONE 'Asia/Seoul'),
              interval '1 month'
          ) AS gs
 ),
-            person_schedules AS (
-     -- A. 나 말고, ACCEPTED 된 참여자들
-     SELECT DISTINCT
-         e.month,
-         sp.member_id AS person_id,
-         sp.name      AS person_name
-     FROM expanded e
-     JOIN schedule s ON s.schedule_id = e.schedule_id
-     JOIN schedule_participant sp ON s.schedule_id = sp.schedule_id
-     LEFT JOIN expense e2 ON e2.schedule_id = s.schedule_id
-     WHERE sp.status = 'ACCEPTED'
-       AND (sp.member_id IS NULL OR sp.member_id <> :memberId)
- 
-     UNION
- 
-     -- B. 일정 만든 사람(creator)이 나가 아닌 경우
-     SELECT DISTINCT
-         e.month,
-         s.created_by   AS person_id,
-         creator.name   AS person_name
-     FROM expanded e
-     JOIN schedule s ON s.schedule_id = e.schedule_id
-     LEFT JOIN member creator ON creator.member_id = s.created_by
-     LEFT JOIN expense e2 ON e2.schedule_id = s.schedule_id
-     WHERE s.created_by <> :memberId
- )
+schedule_expense AS (
+    SELECT schedule_id, SUM(amount) AS schedule_total_amount
+    FROM expense
+    GROUP BY schedule_id
+),
+person_schedules AS (
+    SELECT DISTINCT
+        e.month,
+        s.schedule_id,
+        sp.member_id AS person_id,
+        COALESCE(m.name, sp.name) AS person_name,
+        COALESCE(se.schedule_total_amount, 0) AS schedule_total_amount
+    FROM expanded e
+    JOIN schedule s ON s.schedule_id = e.schedule_id
+    JOIN schedule_participant sp ON sp.schedule_id = s.schedule_id
+    LEFT JOIN member m ON m.member_id = sp.member_id
+    LEFT JOIN schedule_expense se ON se.schedule_id = s.schedule_id
+    WHERE sp.status = 'ACCEPTED'
+      AND (sp.member_id IS NULL OR sp.member_id <> :memberId)
+
+    UNION
+
+    SELECT DISTINCT
+        e.month,
+        s.schedule_id,
+        s.created_by AS person_id,
+        creator.name AS person_name,
+        COALESCE(se.schedule_total_amount, 0)
+    FROM expanded e
+    JOIN schedule s ON s.schedule_id = e.schedule_id
+    LEFT JOIN member creator ON creator.member_id = s.created_by
+    LEFT JOIN schedule_expense se ON se.schedule_id = s.schedule_id
+    WHERE s.created_by <> :memberId
+)
 SELECT COUNT(DISTINCT COALESCE(ps.person_id::text, ps.person_name))
 FROM person_schedules ps
-WHERE ps.month >= :startMonth
-  AND ps.month < :endMonth
+WHERE ps.month >= date_trunc('month', :startMonth)
+  AND ps.month <  date_trunc('month', :endMonth)
 """, nativeQuery = true)
     long countPersonMonthlyExpenseStats(
             @Param("memberId") Long memberId,
             @Param("startMonth") LocalDateTime startMonth,
             @Param("endMonth") LocalDateTime endMonth
     );
+
 
 
 
@@ -526,8 +493,8 @@ SELECT
     COUNT(DISTINCT ps.schedule_id) AS visit_count,
     SUM(ps.duration_min) AS total_duration_min
 FROM place_schedules ps
-WHERE ps.month >= :startMonth
-  AND ps.month < :endMonth
+WHERE ps.month >= date_trunc('month', :startMonth)
+  AND ps.month < date_trunc('month', :endMonth)
 GROUP BY ps.month, ps.place_id, ps.place_name
 ORDER BY ps.month, visit_count DESC NULLS LAST
 """, nativeQuery = true)
@@ -579,10 +546,14 @@ SELECT
     COUNT(DISTINCT ps.schedule_id) AS visit_count,
     SUM(ps.duration_min) AS total_duration_min
 FROM place_schedules ps
-WHERE ps.month >= :startMonth
-  AND ps.month < :endMonth
+WHERE ps.month >= date_trunc('month', :startMonth)
+  AND ps.month < date_trunc('month', :endMonth)
 GROUP BY ps.month, ps.place_id, ps.place_name
-ORDER BY ps.month, visit_count DESC NULLS LAST
+ORDER BY
+    ps.month,
+    visit_count DESC NULLS LAST,
+    ps.place_id NULLS LAST,
+    ps.place_name
 LIMIT :size OFFSET :offset
 """, nativeQuery = true)
     List<Object[]> findPlaceMonthlyStatsPaged(
@@ -631,8 +602,8 @@ place_schedules AS (
 SELECT
     COUNT(DISTINCT COALESCE(ps.place_id::text, ps.place_name))
 FROM place_schedules ps
-WHERE ps.month >= :startMonth
-  AND ps.month < :endMonth
+WHERE ps.month >= date_trunc('month', :startMonth)
+  AND ps.month < date_trunc('month', :endMonth)
 """, nativeQuery = true)
     long countPlaceMonthlyStats(
             @Param("memberId") Long memberId,
@@ -698,8 +669,8 @@ SELECT
     SUM(pe.total_amount) AS total_amount,
     AVG(pe.total_amount) AS avg_amount
 FROM place_expenses pe
-WHERE pe.month >= :startMonth
-  AND pe.month < :endMonth
+WHERE pe.month >= date_trunc('month', :startMonth)
+  AND pe.month < date_trunc('month', :endMonth)
 GROUP BY pe.month, pe.place_id, pe.place_name
 ORDER BY pe.month, total_amount DESC NULLS LAST, avg_amount DESC NULLS LAST
 """, nativeQuery = true)
@@ -766,10 +737,15 @@ SELECT
     SUM(pe.total_amount) AS total_amount,
     AVG(pe.total_amount) AS avg_amount
 FROM place_expenses pe
-WHERE pe.month >= :startMonth
-  AND pe.month < :endMonth
+WHERE pe.month >= date_trunc('month', :startMonth)
+  AND pe.month < date_trunc('month', :endMonth)
 GROUP BY pe.month, pe.place_id, pe.place_name
-ORDER BY pe.month, total_amount DESC NULLS LAST, avg_amount DESC NULLS LAST
+ORDER BY
+    pe.month,
+    total_amount DESC NULLS LAST,
+    avg_amount DESC NULLS LAST,
+    pe.place_id NULLS LAST,
+    pe.place_name
 LIMIT :size OFFSET :offset
 """, nativeQuery = true)
     List<Object[]> findPlaceMonthlyExpenseStatsPaged(
@@ -830,8 +806,8 @@ place_expenses AS (
 SELECT 
     COUNT(DISTINCT COALESCE(pe.place_id::text, pe.place_name))
 FROM place_expenses pe
-WHERE pe.month >= :startMonth
-  AND pe.month < :endMonth
+WHERE pe.month >= date_trunc('month', :startMonth)
+  AND pe.month < date_trunc('month', :endMonth)
 """, nativeQuery = true)
     long countPlaceMonthlyExpenseStats(
             @Param("memberId") Long memberId,
@@ -912,4 +888,154 @@ WHERE pe.month >= :startMonth
     List<Object[]> findMonthlyScheduleTrend(
             @Param("memberId") Long memberId
     );
+
+    @Query(value = """
+WITH my_schedules AS (
+    SELECT s.schedule_id, s.start_at, s.end_at
+    FROM schedule s
+    WHERE s.created_by = :memberId
+    UNION
+    SELECT s.schedule_id, s.start_at, s.end_at
+    FROM schedule_participant sp
+    JOIN schedule s ON sp.schedule_id = s.schedule_id
+    WHERE sp.member_id = :memberId
+      AND sp.status = 'ACCEPTED'
+),
+expanded AS (
+    SELECT 
+        ms.schedule_id AS schedule_id,
+        date_trunc('month', gs) AS month
+    FROM my_schedules ms,
+         generate_series(
+             date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
+             date_trunc('month', ms.end_at   AT TIME ZONE 'Asia/Seoul'),
+             interval '1 month'
+         ) AS gs
+),
+place_schedules AS (
+    SELECT DISTINCT
+        e.month,
+        s.schedule_id AS schedule_id,
+        p.place_id AS place_id,
+        COALESCE(p.title, sp2.name) AS place_name
+    FROM expanded e
+    JOIN schedule s ON s.schedule_id = e.schedule_id
+    JOIN schedule_place sp2 ON s.schedule_id = sp2.schedule_id
+    LEFT JOIN place p ON sp2.place_id = p.place_id
+),
+place_expenses AS (
+    SELECT
+        ps.month,
+        ps.place_id,
+        ps.place_name,
+        ps.schedule_id,
+        COALESCE(SUM(e2.amount), 0) AS total_amount
+    FROM place_schedules ps
+    LEFT JOIN expense e2 ON e2.schedule_id = ps.schedule_id
+    GROUP BY ps.month, ps.place_id, ps.place_name, ps.schedule_id
+)
+SELECT
+    pe.place_id,
+    pe.place_name,
+    SUM(pe.total_amount) AS total_amount,
+    AVG(pe.total_amount) AS avg_amount
+FROM place_expenses pe
+WHERE pe.month >= date_trunc('month', :startMonth)
+  AND pe.month <  date_trunc('month', :endMonth)
+  AND (
+        (pe.place_id IS NOT NULL AND pe.place_id IN (:placeIds))
+     OR (pe.place_id IS NULL AND pe.place_name IN (:placeNames))
+  )
+GROUP BY pe.place_id, pe.place_name
+""", nativeQuery = true)
+    List<Object[]> findPlaceMonthlyExpenseAggForPlaces(
+            @Param("memberId") Long memberId,
+            @Param("startMonth") LocalDateTime startMonth,
+            @Param("endMonth") LocalDateTime endMonth,
+            @Param("placeIds") List<Long> placeIds,
+            @Param("placeNames") List<String> placeNames
+    );
+
+    @Query(value = """
+WITH my_schedules AS (
+    SELECT s.schedule_id, s.start_at, s.end_at, s.created_by
+    FROM schedule s
+    WHERE s.created_by = :memberId
+    UNION
+    SELECT s.schedule_id, s.start_at, s.end_at, s.created_by
+    FROM schedule_participant sp
+    JOIN schedule s ON sp.schedule_id = s.schedule_id
+    WHERE sp.member_id = :memberId
+      AND sp.status = 'ACCEPTED'
+),
+expanded AS (
+    SELECT 
+        ms.schedule_id,
+        date_trunc('month', gs) AS month
+    FROM my_schedules ms,
+         generate_series(
+             date_trunc('month', ms.start_at AT TIME ZONE 'Asia/Seoul'),
+             date_trunc('month', ms.end_at   AT TIME ZONE 'Asia/Seoul'),
+             interval '1 month'
+         ) AS gs
+),
+schedule_expense AS (
+    SELECT schedule_id, SUM(amount) AS schedule_total_amount
+    FROM expense
+    GROUP BY schedule_id
+),
+person_schedules AS (
+    -- A) 나 말고 ACCEPTED 참여자
+    SELECT DISTINCT
+        e.month,
+        s.schedule_id,
+        sp.member_id AS person_id,
+        COALESCE(m.name, sp.name) AS person_name,
+        COALESCE(se.schedule_total_amount, 0) AS schedule_total_amount
+    FROM expanded e
+    JOIN schedule s ON s.schedule_id = e.schedule_id
+    JOIN schedule_participant sp ON sp.schedule_id = s.schedule_id
+    LEFT JOIN member m ON m.member_id = sp.member_id
+    LEFT JOIN schedule_expense se ON se.schedule_id = s.schedule_id
+    WHERE sp.status = 'ACCEPTED'
+      AND (sp.member_id IS NULL OR sp.member_id <> :memberId)
+
+    UNION
+
+    -- B) creator가 나가 아닌 경우
+    SELECT DISTINCT
+        e.month,
+        s.schedule_id,
+        s.created_by AS person_id,
+        creator.name AS person_name,
+        COALESCE(se.schedule_total_amount, 0) AS schedule_total_amount
+    FROM expanded e
+    JOIN schedule s ON s.schedule_id = e.schedule_id
+    LEFT JOIN member creator ON creator.member_id = s.created_by
+    LEFT JOIN schedule_expense se ON se.schedule_id = s.schedule_id
+    WHERE s.created_by <> :memberId
+)
+SELECT
+    ps.person_id,
+    ps.person_name,
+    COUNT(DISTINCT ps.schedule_id) AS shared_schedule_count,
+    SUM(ps.schedule_total_amount)  AS total_amount,
+    AVG(ps.schedule_total_amount)  AS avg_amount
+FROM person_schedules ps
+WHERE ps.month >= date_trunc('month', :startMonth)
+  AND ps.month <  date_trunc('month', :endMonth)
+  AND (
+        (ps.person_id IS NOT NULL AND ps.person_id IN (:personIds))
+     OR (ps.person_id IS NULL AND ps.person_name IN (:personNames))
+  )
+GROUP BY ps.person_id, ps.person_name
+""", nativeQuery = true)
+    List<Object[]> findPersonMonthlyExpenseAggForPeople(
+            @Param("memberId") Long memberId,
+            @Param("startMonth") LocalDateTime startMonth,
+            @Param("endMonth") LocalDateTime endMonth,
+            @Param("personIds") List<Long> personIds,
+            @Param("personNames") List<String> personNames
+    );
+
 }

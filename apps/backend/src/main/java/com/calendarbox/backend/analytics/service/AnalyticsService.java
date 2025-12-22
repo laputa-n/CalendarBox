@@ -1,8 +1,5 @@
 package com.calendarbox.backend.analytics.service;
 
-import com.calendarbox.backend.analytics.dto.request.MonthlyTrend;
-import com.calendarbox.backend.analytics.dto.request.PlaceSummary;
-import com.calendarbox.backend.analytics.dto.request.ScheduleSummary;
 import com.calendarbox.backend.analytics.dto.response.*;
 import com.calendarbox.backend.analytics.repository.AnalyticsRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +23,6 @@ import java.util.stream.Collectors;
 public class AnalyticsService {
 
     private final AnalyticsRepository analyticsRepository;
-//    private final AiPredictService aiPredictService;
 
     @Transactional(readOnly = true)
     public List<MonthlyScheduleTrend> getMonthlyScheduleTrend(Long userId) {
@@ -52,13 +48,16 @@ public class AnalyticsService {
         ).toList();
     }
 
+    private record PlaceExpenseAgg(long totalAmount, double avgAmount) {}
+    private record ExpenseAgg(long totalAmount, double avgAmount) {} // (people에도 재사용해도 됨)
+
     @Transactional(readOnly = true)
     public PlaceStatSummary getPlaceSummary(Long userId, YearMonth yearMonth) {
         LocalDateTime start = yearMonth.atDay(1).atStartOfDay();
         LocalDateTime end = yearMonth.plusMonths(1).atDay(1).atStartOfDay();
 
+        // 1) 방문/체류 통계(월 전체)
         List<Object[]> scheduleMonthlySummary = analyticsRepository.findPlaceMonthlyStats(userId, start, end);
-        List<Object[]> expenseMonthlySummary = analyticsRepository.findPlaceMonthlyExpenseStats(userId, start, end);
 
         List<PlaceMonthlyScheduleSummary> scheduleStats = scheduleMonthlySummary.stream()
                 .map(row -> new PlaceMonthlyScheduleSummary(
@@ -70,39 +69,60 @@ public class AnalyticsService {
                 ))
                 .toList();
 
-        List<PlaceMonthlyExpenseSummary> expenseStats = expenseMonthlySummary.stream()
-                .map(row -> new PlaceMonthlyExpenseSummary(
-                        ((Timestamp) row[0]).toLocalDateTime(),
-                        row[1] != null ? ((Number) row[1]).longValue() : null,
-                        (String) row[2],
-                        row[3] != null ? ((Number) row[3]).intValue() : 0,
-                        row[4] != null ? ((Number) row[4]).longValue() : 0L,
-                        row[5] != null ? ((Number) row[5]).longValue() : 0L,
-                        row[6] != null ? ((Number) row[6]).doubleValue() : 0.0
-                ))
-                .toList();
-
-        Map<String, PlaceMonthlyExpenseSummary> expenseMap = expenseStats.stream()
-                .collect(Collectors.toMap(
-                        e -> (e.placeId() != null ? "ID-" + e.placeId() : "NAME-" + e.placeName()),
-                        e -> e,
-                        (a,b)->a
-                ));
-
         int totalVisitCount = scheduleStats.stream().mapToInt(PlaceMonthlyScheduleSummary::visitCount).sum();
         long totalStayMin = scheduleStats.stream().mapToLong(PlaceMonthlyScheduleSummary::totalStayTime).sum();
 
-        List<PlaceStatItem> top3 = scheduleStats.stream()
+        // 2) Top3(방문수/체류시간 기준) 먼저 뽑기
+        List<PlaceMonthlyScheduleSummary> top3Base = scheduleStats.stream()
                 .sorted(Comparator
                         .comparingInt(PlaceMonthlyScheduleSummary::visitCount).reversed()
                         .thenComparingLong(PlaceMonthlyScheduleSummary::totalStayTime).reversed())
                 .limit(3)
+                .toList();
+
+        // 3) Top3 대상만 IN으로 expense 집계 조회
+        List<Long> placeIds = top3Base.stream()
+                .map(PlaceMonthlyScheduleSummary::placeId)
+                .filter(id -> id != null)
+                .distinct()
+                .toList();
+
+        List<String> placeNames = top3Base.stream()
+                .filter(s -> s.placeId() == null)
+                .map(PlaceMonthlyScheduleSummary::placeName)
+                .filter(n -> n != null && !n.isBlank())
+                .distinct()
+                .toList();
+
+        List<Long> safePlaceIds = placeIds.isEmpty() ? List.of(-1L) : placeIds;
+        List<String> safePlaceNames = placeNames.isEmpty() ? List.of("__NO_MATCH__") : placeNames;
+
+        List<Object[]> expenseAggRows =
+                analyticsRepository.findPlaceMonthlyExpenseAggForPlaces(userId, start, end, safePlaceIds, safePlaceNames);
+
+        Map<String, PlaceExpenseAgg> expenseMap = expenseAggRows.stream()
+                .collect(Collectors.toMap(
+                        r -> (r[0] != null ? "ID-" + ((Number) r[0]).longValue() : "NAME-" + (String) r[1]),
+                        r -> new PlaceExpenseAgg(
+                                r[2] != null ? ((Number) r[2]).longValue() : 0L,
+                                r[3] != null ? ((Number) r[3]).doubleValue() : 0.0
+                        ),
+                        (a, b) -> a
+                ));
+
+        // 4) Top3 응답 생성
+        List<PlaceStatItem> top3 = top3Base.stream()
                 .map(s -> {
-                    var key = (s.placeId() != null ? "ID-" + s.placeId() : "NAME-" + s.placeName());
-                    var exp = expenseMap.get(key);
+                    String key = (s.placeId() != null ? "ID-" + s.placeId() : "NAME-" + s.placeName());
+                    PlaceExpenseAgg exp = expenseMap.get(key);
+
                     long totalAmount = exp != null ? exp.totalAmount() : 0L;
                     double avgAmount = exp != null ? exp.avgAmount() : 0.0;
-                    double avgStayMin = s.visitCount() > 0 ? Math.round((double) s.totalStayTime() / s.visitCount()) : 0.0;
+
+                    double avgStayMin = s.visitCount() > 0
+                            ? Math.round((double) s.totalStayTime() / s.visitCount())
+                            : 0.0;
+
                     return new PlaceStatItem(
                             s.placeId(),
                             s.placeName(),
@@ -119,6 +139,7 @@ public class AnalyticsService {
     }
 
 
+
     @Transactional(readOnly = true)
     public Page<PlaceStatItem> getPlaceStatList(Long userId, YearMonth yearMonth, int page, int size){
         LocalDateTime start = yearMonth.atDay(1).atStartOfDay();
@@ -126,62 +147,79 @@ public class AnalyticsService {
 
         int offset = page * size;
 
-        List<Object[]> scheduleMonthlySummary = analyticsRepository.findPlaceMonthlyStatsPaged(userId, start, end, size, offset);
-        List<Object[]> expenseMonthlySummary = analyticsRepository.findPlaceMonthlyExpenseStatsPaged(userId, start, end, size, offset);
-
-        long total =
-                Math.max(
-                        analyticsRepository.countPlaceMonthlyStats(userId, start, end),
-                        analyticsRepository.countPlaceMonthlyExpenseStats(userId, start, end)
-                );
+        List<Object[]> scheduleMonthlySummary =
+                analyticsRepository.findPlaceMonthlyStatsPaged(userId, start, end, size, offset);
 
         List<PlaceMonthlyScheduleSummary> scheduleStats = scheduleMonthlySummary.stream()
                 .map(row -> new PlaceMonthlyScheduleSummary(
                         ((Timestamp) row[0]).toLocalDateTime(),
-                        row[1] != null ? ((Number) row[1]).longValue() : null,
-                        (String) row[2],
-                        row[3] != null ? ((Number) row[3]).intValue() : 0,
-                        row[4] != null ? ((Number) row[4]).longValue() : 0L
+                        row[1] != null ? ((Number) row[1]).longValue() : null, // place_id
+                        (String) row[2],                                       // place_name
+                        row[3] != null ? ((Number) row[3]).intValue() : 0,     // visit_count
+                        row[4] != null ? ((Number) row[4]).longValue() : 0L    // total_duration_min
                 ))
                 .toList();
 
-        List<PlaceMonthlyExpenseSummary> expenseStats = expenseMonthlySummary.stream()
-                .map(row -> new PlaceMonthlyExpenseSummary(
-                        ((Timestamp) row[0]).toLocalDateTime(),
-                        row[1] != null ? ((Number) row[1]).longValue() : null,
-                        (String) row[2],
-                        row[3] != null ? ((Number) row[3]).intValue() : 0,
-                        row[4] != null ? ((Number) row[4]).longValue() : 0L,
-                        row[5] != null ? ((Number) row[5]).longValue() : 0L,
-                        row[6] != null ? ((Number) row[6]).doubleValue() : 0.0
-                ))
+        List<Long> placeIds = scheduleStats.stream()
+                .map(PlaceMonthlyScheduleSummary::placeId)
+                .filter(id -> id != null)
+                .distinct()
                 .toList();
 
-        Map<String, PlaceMonthlyExpenseSummary> expenseMap = expenseStats.stream()
+        List<String> placeNames = scheduleStats.stream()
+                .filter(s -> s.placeId() == null)
+                .map(PlaceMonthlyScheduleSummary::placeName)
+                .filter(n -> n != null && !n.isBlank())
+                .distinct()
+                .toList();
+
+        List<Long> safePlaceIds = placeIds.isEmpty() ? List.of(-1L) : placeIds;
+        List<String> safePlaceNames = placeNames.isEmpty() ? List.of("__NO_MATCH__") : placeNames;
+
+        List<Object[]> expenseRows =
+                analyticsRepository.findPlaceMonthlyExpenseAggForPlaces(userId, start, end, safePlaceIds, safePlaceNames);
+
+        Map<String, ExpenseAgg> expenseMap = expenseRows.stream()
                 .collect(Collectors.toMap(
-                        e -> (e.placeId() != null ? "ID-" + e.placeId() : "NAME-" + e.placeName()),
-                        e -> e,
-                        (a,b)->a
+                        r -> (r[0] != null ? "ID-" + ((Number) r[0]).longValue() : "NAME-" + (String) r[1]),
+                        r -> new ExpenseAgg(
+                                r[2] != null ? ((Number) r[2]).longValue() : 0L,
+                                r[3] != null ? ((Number) r[3]).doubleValue() : 0.0
+                        ),
+                        (a,b) -> a
                 ));
 
+        // 5) 최종 items 생성 (방문수/체류시간은 schedule 기준, 지출은 expenseMap에서 붙이기)
         List<PlaceStatItem> items = scheduleStats.stream()
                 .map(s -> {
-                    var key = s.placeId() != null ? "ID-" + s.placeId() : "NAME-" + s.placeName();
-                    var exp = expenseMap.get(key);
+                    String key = (s.placeId() != null) ? "ID-" + s.placeId() : "NAME-" + s.placeName();
+                    ExpenseAgg exp = expenseMap.get(key);
+
+                    long totalAmount = (exp != null) ? exp.totalAmount() : 0L;
+                    double avgAmount = (exp != null) ? exp.avgAmount() : 0.0;
+
+                    double avgStayMin = s.visitCount() > 0
+                            ? Math.round((double) s.totalStayTime() / s.visitCount())
+                            : 0.0;
+
                     return new PlaceStatItem(
                             s.placeId(),
                             s.placeName(),
                             s.visitCount(),
                             s.totalStayTime(),
-                            s.visitCount() > 0 ? Math.round((double)s.totalStayTime()/s.visitCount()) : 0.0,
-                            exp!=null ? exp.totalAmount() : 0L,
-                            (exp!=null && exp.totalAmount() > 0) ? exp.avgAmount() : 0.0
+                            avgStayMin,
+                            totalAmount,
+                            avgAmount
                     );
-                }).toList();
+                })
+                .toList();
 
+        long total = analyticsRepository.countPlaceMonthlyStats(userId, start, end);
         Pageable pageable = PageRequest.of(page, size);
         return new PageImpl<>(items, pageable, total);
     }
+
+    private record PersonExpenseAgg(long sharedScheduleCount, long totalAmount, double avgAmount) {}
 
     @Transactional(readOnly = true)
     public Page<PeopleStatItem> getPeopleStatList(Long userId, YearMonth yearMonth, int page, int size) {
@@ -190,16 +228,9 @@ public class AnalyticsService {
 
         int offset = page * size;
 
+        // 1) 만남(기준) 페이지 조회
         List<Object[]> scheduleSummary =
                 analyticsRepository.findPersonMonthlyScheduleStatsPaged(userId, start, end, size, offset);
-        List<Object[]> expenseSummary =
-                analyticsRepository.findPersonMonthlyExpenseStatsPaged(userId, start, end, size, offset);
-
-        long total =
-                Math.max(
-                        analyticsRepository.countPersonMonthlyScheduleStats(userId, start, end),
-                        analyticsRepository.countPersonMonthlyExpenseStats(userId, start, end)
-                );
 
         List<PersonMonthlyScheduleSummary> scheduleStats = scheduleSummary.stream()
                 .map(r -> new PersonMonthlyScheduleSummary(
@@ -211,147 +242,157 @@ public class AnalyticsService {
                 ))
                 .toList();
 
-        List<PersonMonthlyExpenseSummary> expenseStats = expenseSummary.stream()
-                .map(r -> new PersonMonthlyExpenseSummary(
-                        ((Timestamp) r[0]).toLocalDateTime(),
-                        r[1] != null ? ((Number) r[1]).longValue() : null,
-                        (String) r[2],
-                        r[3] != null ? ((Number) r[3]).longValue() : 0L,
-                        r[4] != null ? ((Number) r[4]).doubleValue() : 0.0,
-                        r[5] != null ? ((Number) r[5]).intValue() : 0
-                ))
+        // 2) 이 페이지에 포함된 사람들만 추출
+        List<Long> personIds = scheduleStats.stream()
+                .map(PersonMonthlyScheduleSummary::personId)
+                .filter(id -> id != null)
+                .distinct()
                 .toList();
 
-        Map<String,PersonMonthlyExpenseSummary> expenseMap = expenseStats.stream()
+        List<String> personNames = scheduleStats.stream()
+                .filter(s -> s.personId() == null)
+                .map(PersonMonthlyScheduleSummary::personName)
+                .filter(n -> n != null && !n.isBlank())
+                .distinct()
+                .toList();
+
+        List<Long> safePersonIds = personIds.isEmpty() ? List.of(-1L) : personIds;
+        List<String> safePersonNames = personNames.isEmpty() ? List.of("__NO_MATCH__") : personNames;
+
+        // 3) 이 페이지 사람들만 expense 집계 조회
+        List<Object[]> expenseAggRows =
+                analyticsRepository.findPersonMonthlyExpenseAggForPeople(userId, start, end, safePersonIds, safePersonNames);
+
+        Map<String, PersonExpenseAgg> expenseMap = expenseAggRows.stream()
                 .collect(Collectors.toMap(
-                                (e -> e.personId() != null ? "ID-" + e.personId() : "NAME-" + e.personName()),
-                        e->e,
-                        (a,b)->a
+                        r -> (r[0] != null ? "ID-" + ((Number) r[0]).longValue() : "NAME-" + (String) r[1]),
+                        r -> new PersonExpenseAgg(
+                                r[2] != null ? ((Number) r[2]).longValue() : 0L, // shared_schedule_count
+                                r[3] != null ? ((Number) r[3]).longValue() : 0L, // total_amount
+                                r[4] != null ? ((Number) r[4]).doubleValue() : 0.0 // avg_amount
+                        ),
+                        (a, b) -> a
                 ));
 
+        // 4) 응답 items 생성
         List<PeopleStatItem> items = scheduleStats.stream()
                 .map(s -> {
-                    var key = s.personId() != null ? "ID-" + s.personId() : "NAME-" + s.personName();
-                    var exp = expenseMap.get(key);
+                    String key = (s.personId() != null ? "ID-" + s.personId() : "NAME-" + s.personName());
+                    PersonExpenseAgg exp = expenseMap.get(key);
+
+                    long totalAmount = exp != null ? exp.totalAmount() : 0L;
+                    double avgAmount = (exp != null && exp.sharedScheduleCount() > 0)
+                            ? Math.round((double) totalAmount / exp.sharedScheduleCount())
+                            : 0.0;
+
+                    double avgDurationMin = s.meetCount() > 0
+                            ? Math.round((double) s.totalDurationMin() / s.meetCount())
+                            : 0.0;
+
                     return new PeopleStatItem(
                             s.personId(),
                             s.personName(),
                             s.meetCount(),
                             s.totalDurationMin(),
-                            s.meetCount() > 0 ? Math.round((double)s.totalDurationMin() / s.meetCount()) : 0.0,
-                            exp != null ? exp.totalAmount() : 0L,
-                            (exp != null && exp.sharedScheduleCount() > 0)
-                                    ? Math.round((double) exp.totalAmount() / exp.sharedScheduleCount())
-                                    : 0.0
+                            avgDurationMin,
+                            totalAmount,
+                            avgAmount
                     );
-                }).toList();
+                })
+                .toList();
 
+        long total = analyticsRepository.countPersonMonthlyScheduleStats(userId, start, end);
         Pageable pageable = PageRequest.of(page, size);
         return new PageImpl<>(items, pageable, total);
     }
+
 
     @Transactional(readOnly = true)
     public PeopleStatSummary getPeopleSummary(Long userId, YearMonth yearMonth){
         LocalDateTime start = yearMonth.atDay(1).atStartOfDay();
         LocalDateTime end = yearMonth.plusMonths(1).atDay(1).atStartOfDay();
 
+        // 1) 만남 통계(월 전체)
         List<Object[]> scheduleMonthlySummary = analyticsRepository.findPersonMonthlyScheduleStats(userId, start, end);
-        List<Object[]> expenseMonthlySummary = analyticsRepository.findPersonMonthlyExpenseStats(userId, start, end);
 
-        List<PersonMonthlyScheduleSummary> scheduleStats = scheduleMonthlySummary.stream().map(
-                row -> new PersonMonthlyScheduleSummary(
+        List<PersonMonthlyScheduleSummary> scheduleStats = scheduleMonthlySummary.stream()
+                .map(row -> new PersonMonthlyScheduleSummary(
                         ((Timestamp) row[0]).toLocalDateTime(),
                         row[1] != null ? ((Number) row[1]).longValue() : null,
                         (String) row[2],
                         ((Number) row[3]).intValue(),
                         row[4] != null ? ((Number) row[4]).longValue() : 0L
-                )).toList();
-
-        List<PersonMonthlyExpenseSummary> expenseStats = expenseMonthlySummary.stream().map(
-                row -> new PersonMonthlyExpenseSummary(
-                        ((Timestamp) row[0]).toLocalDateTime(),
-                        row[1] != null ? ((Number) row[1]).longValue() : null,
-                        (String) row[2],
-                        row[3] != null ? ((Number) row[3]).longValue() : 0L,  // totalAmount
-                        row[4] != null ? ((Number) row[4]).doubleValue() : 0.0,  // avgAmount
-                        row[5] != null ? ((Number) row[5]).intValue() : 0
-                )).toList();
+                ))
+                .toList();
 
         int totalMeetCount = scheduleStats.stream().mapToInt(PersonMonthlyScheduleSummary::meetCount).sum();
         long totalDurationMin = scheduleStats.stream().mapToLong(PersonMonthlyScheduleSummary::totalDurationMin).sum();
 
-        Map<String,PersonMonthlyExpenseSummary> expenseMap = expenseStats.stream().collect(
-                Collectors.toMap(
-                        e -> e.personId() != null ? "ID-" + e.personId() : "NAME-"+e.personName(),
-                        e->e,
-                        (a,b)->a
-                )
-        );
-        List<PeopleStatItem> top3 = scheduleStats.stream()
-                .sorted(Comparator.comparingLong(PersonMonthlyScheduleSummary::meetCount).reversed())
+        // 2) Top3 먼저 결정 (만남 기준)
+        List<PersonMonthlyScheduleSummary> top3Base = scheduleStats.stream()
+                .sorted(Comparator.comparingInt(PersonMonthlyScheduleSummary::meetCount).reversed()
+                        .thenComparingLong(PersonMonthlyScheduleSummary::totalDurationMin).reversed())
                 .limit(3)
-                .map(s ->{
-                    var key = s.personId() != null ? "ID-" + s.personId() : "NAME-" + s.personName();
-                    var exp = expenseMap.get(key);
+                .toList();
+
+        // 3) Top3 대상만 IN으로 expense 집계
+        List<Long> personIds = top3Base.stream()
+                .map(PersonMonthlyScheduleSummary::personId)
+                .filter(id -> id != null)
+                .distinct()
+                .toList();
+
+        List<String> personNames = top3Base.stream()
+                .filter(s -> s.personId() == null)
+                .map(PersonMonthlyScheduleSummary::personName)
+                .filter(n -> n != null && !n.isBlank())
+                .distinct()
+                .toList();
+
+        List<Long> safePersonIds = personIds.isEmpty() ? List.of(-1L) : personIds;
+        List<String> safePersonNames = personNames.isEmpty() ? List.of("__NO_MATCH__") : personNames;
+
+        List<Object[]> expenseAggRows =
+                analyticsRepository.findPersonMonthlyExpenseAggForPeople(userId, start, end, safePersonIds, safePersonNames);
+
+        Map<String, PersonExpenseAgg> expenseMap = expenseAggRows.stream()
+                .collect(Collectors.toMap(
+                        r -> (r[0] != null ? "ID-" + ((Number) r[0]).longValue() : "NAME-" + (String) r[1]),
+                        r -> new PersonExpenseAgg(
+                                r[2] != null ? ((Number) r[2]).longValue() : 0L,
+                                r[3] != null ? ((Number) r[3]).longValue() : 0L,
+                                r[4] != null ? ((Number) r[4]).doubleValue() : 0.0
+                        ),
+                        (a, b) -> a
+                ));
+
+        // 4) Top3 응답 생성
+        List<PeopleStatItem> top3 = top3Base.stream()
+                .map(s -> {
+                    String key = (s.personId() != null ? "ID-" + s.personId() : "NAME-" + s.personName());
+                    PersonExpenseAgg exp = expenseMap.get(key);
+
+                    long totalAmount = exp != null ? exp.totalAmount() : 0L;
+                    double avgAmount = (exp != null && exp.sharedScheduleCount() > 0)
+                            ? Math.round((double) totalAmount / exp.sharedScheduleCount())
+                            : 0.0;
+
+                    double avgDurationMin = s.meetCount() > 0
+                            ? Math.round((double) s.totalDurationMin() / s.meetCount())
+                            : 0.0;
+
                     return new PeopleStatItem(
                             s.personId(),
                             s.personName(),
                             s.meetCount(),
                             s.totalDurationMin(),
-                            s.meetCount() > 0 ? Math.round((double) s.totalDurationMin() / s.meetCount()) : 0.0,
-                            exp != null ? exp.totalAmount() : 0L,
-                            exp != null && exp.sharedScheduleCount() > 0
-                                    ? Math.round((double)exp.totalAmount() / exp.sharedScheduleCount())
-                                    : 0.0
+                            avgDurationMin,
+                            totalAmount,
+                            avgAmount
                     );
                 })
                 .toList();
 
-        return new PeopleStatSummary(
-                start,                   // month
-                totalMeetCount,
-                totalDurationMin,
-                top3
-        );
+        return new PeopleStatSummary(start, totalMeetCount, totalDurationMin, top3);
     }
-
-//    public InsightResponse buildInsight(Long memberId) {
-//
-//        // 1️⃣ DB 조회 (nativeQuery 결과는 Object[] 배열)
-//        List<Object[]> scheduleRows = analyticsRepository.findScheduleSummaries(memberId);
-//        List<Object[]> placeRows = analyticsRepository.findPlaceStats(memberId);
-//        List<Object[]> trendRows = analyticsRepository.findMonthlyTrend(memberId);
-//
-//        // 2️⃣ Object[] → record DTO 변환
-//        List<ScheduleSummary> schedules = scheduleRows.stream()
-//                .map(r -> new ScheduleSummary(
-//                        ((Number) r[0]).longValue(),       // scheduleId
-//                        (String) r[1],                     // title
-//                        (String) r[2],                     // placeName
-//                        ((Number) r[3]).doubleValue(),     // hour
-//                        ((Number) r[4]).doubleValue(),     // durationMin
-//                        ((Number) r[5]).doubleValue()      // amount
-//                ))
-//                .toList();
-//
-//        List<PlaceSummary> places = placeRows.stream()
-//                .map(r -> new PlaceSummary(
-//                        (String) r[0],
-//                        ((Number) r[1]).longValue()
-//                ))
-//                .toList();
-//
-//        List<MonthlyTrend> monthlyTrends = trendRows.stream()
-//                .map(r -> new MonthlyTrend(
-//                        ((java.sql.Timestamp) r[0]).toLocalDateTime(),
-//                        ((Number) r[1]).longValue()
-//                ))
-//                .toList();
-//
-//        // 3️⃣ AI 예측
-//        Map<Long, String> categoryMap = aiPredictService.predictCategories(schedules);
-//
-//        // 4️⃣ 통합 인사이트 응답 생성
-//        return InsightResponse.from(schedules, places, monthlyTrends, categoryMap);
-//    }
 }
