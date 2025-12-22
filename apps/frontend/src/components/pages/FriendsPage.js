@@ -101,6 +101,11 @@ export const FriendsPage = () => {
     boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
     border: '1px solid #e5e7eb'
   };
+  
+  const handleAccept = async (id) => {
+  await acceptFriendRequest(id);
+  setActiveTab('friends'); // 혹은 'received'
+};
 
   const buttonStyle = (bgColor = '#2563eb', textColor = 'white') => ({
     backgroundColor: bgColor,
@@ -559,10 +564,10 @@ export const FriendsPage = () => {
                   borderRadius: '1rem',
                   fontSize: '0.75rem',
                   fontWeight: '500',
-                  backgroundColor: request.status === 'accept' ? '#dcfce7' : '#fef3c7',
-                  color: request.status === 'accept' ? '#16a34a' : '#d97706'
+                  backgroundColor: request.status === 'ACCEPTED' ? '#dcfce7' : '#fef3c7',
+                  color: request.status === 'ACCEPTED' ? '#16a34a' : '#d97706'
                 }}>
-                  {request.status === 'accept' ? '수락됨' : '대기중'}
+                  {request.status === 'ACCEPTED' ? '수락됨' : '대기중'}
                 </div>
               </div>
             ))

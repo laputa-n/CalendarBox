@@ -1,5 +1,5 @@
 //FriendContext.js
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useMemo , useState, useEffect } from 'react';
 import { ApiService } from '../services/apiService';
 import { useAuth } from './AuthContext';
 import { useError } from './ErrorContext';
@@ -195,10 +195,10 @@ export const FriendProvider = ({ children }) => {
   };
 
   // 수락된 친구 목록 계산 (필터링)
-  const acceptedFriendships = [
-    ...receivedRequests.content.filter(f => f.status === 'ACCEPTED'),
-    ...sentRequests.content.filter(f => f.status === 'ACCEPTED')
-  ];
+  const acceptedFriendships = useMemo(() => [
+  ...receivedRequests.content.filter(f => f.status === 'ACCEPTED'),
+  ...sentRequests.content.filter(f => f.status === 'ACCEPTED')
+], [receivedRequests.content, sentRequests.content]);
 
   const contextValue = {
     // 상태
