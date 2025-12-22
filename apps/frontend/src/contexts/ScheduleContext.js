@@ -11,7 +11,8 @@ export const ScheduleProvider = ({ children }) => {
   const [schedules, setSchedules] = useState([]);
   const [currentSchedule, setCurrentSchedule] = useState(null);
   const [loading, setLoading] = useState(false);
-
+  const [participants, setParticipants] = useState([]);
+  const [participantsLoading, setParticipantsLoading] = useState(false);
   const { currentCalendar } = useCalendars();
   const { user } = useAuth();
   const { showError } = useError();
@@ -196,6 +197,38 @@ export const ScheduleProvider = ({ children }) => {
     }
   };
 
+const addScheduleParticipant = async (scheduleId, payload) => {
+  return ApiService.addScheduleParticipant(scheduleId, payload);
+};
+
+const removeScheduleParticipant = async (scheduleId, participantId) => {
+  return ApiService.removeScheduleParticipant(scheduleId, participantId);
+};
+
+const respondToScheduleInvite = async (scheduleId, participantId, action) => {
+  return ApiService.respondToScheduleInvite(scheduleId, participantId, action);
+};
+
+/** =========================
+ * 일정 참여자 목록 조회
+ * ========================= */
+const fetchScheduleParticipants = async (scheduleId) => {
+  if (!scheduleId) return;
+
+  try {
+    setParticipantsLoading(true);
+    const res = await ApiService.getScheduleParticipants(scheduleId);
+    const list = res.data?.content || [];
+    setParticipants(list);
+  } catch (error) {
+    console.error('❌ [fetchScheduleParticipants] 실패:', error);
+    showError(error.message || '일정 참여자 조회 실패');
+  } finally {
+    setParticipantsLoading(false);
+  }
+};
+
+
   /** =========================
    * 캘린더 변경 감지 → 자동 새로고침
    * ========================= */
@@ -218,6 +251,9 @@ export const ScheduleProvider = ({ children }) => {
     deleteSchedule,
     fetchSchedules,
     fetchAllSchedules,
+    participants,
+  participantsLoading,
+  fetchScheduleParticipants,
   };
 
   return (

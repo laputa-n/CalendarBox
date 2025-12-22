@@ -5,12 +5,23 @@ import { useSchedules } from '../../contexts/ScheduleContext';
 import { useCalendars } from '../../contexts/CalendarContext';
 import { formatDateTime } from '../../utils/dateUtils';
 import { validateSchedule } from '../../utils/validationUtils';
+import { ScheduleDetailModal } from './ScheduleDetailModal'
 
 export const SchedulesPage = () => {
-  const { schedules, createSchedule, updateSchedule, deleteSchedule, loading } = useSchedules();
+ const {
+  schedules,
+  createSchedule,
+  updateSchedule,
+  deleteSchedule,
+  loading,
+  fetchSchedules,
+  searchSchedules,
+} = useSchedules();
   const { currentCalendar } = useCalendars();
   const [showForm, setShowForm] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState(null);
+  const [selectedSchedule, setSelectedSchedule] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // 기본 폼 상태
   const initialFormState = {
@@ -65,6 +76,20 @@ export const SchedulesPage = () => {
       console.error('Failed to save schedule:', error);
     }
   };
+
+  const handleSearch = () => {
+  if (!searchQuery.trim()) {
+    // 검색어 없으면 원래 일정 복구
+    fetchSchedules();
+    return;
+  }
+
+  searchSchedules({
+    query: searchQuery,
+    calendarId: currentCalendar?.id,
+  });
+};
+
 
   /** =============================
    *  폼 초기화
@@ -162,12 +187,46 @@ export const SchedulesPage = () => {
               : '캘린더를 먼저 선택해주세요'}
           </p>
         </div>
-       {/*
-  <button onClick={() => setShowForm(true)} style={buttonStyle} disabled={loading}>
-    <Plus style={{ width: '1.25rem', height: '1.25rem' }} />
-    일정 추가
+        {/* 🔍 일정 검색 */}
+<div
+  style={{
+    marginBottom: '1.5rem',
+    display: 'flex',
+    gap: '0.5rem',
+  }}
+>
+  <input
+    type="text"
+    placeholder="일정 제목 검색"
+    value={searchQuery}
+    onChange={(e) => setSearchQuery(e.target.value)}
+    onKeyDown={(e) => {
+      if (e.key === 'Enter') handleSearch();
+    }}
+    style={{
+      flex: 1,
+      padding: '0.5rem 0.75rem',
+      border: '1px solid #d1d5db',
+      borderRadius: '0.5rem',
+      fontSize: '0.875rem',
+    }}
+  />
+  <button
+    onClick={handleSearch}
+    disabled={loading}
+    style={{
+      padding: '0.5rem 1rem',
+      backgroundColor: '#2563eb',
+      color: '#fff',
+      border: 'none',
+      borderRadius: '0.5rem',
+      fontSize: '0.875rem',
+      cursor: loading ? 'not-allowed' : 'pointer',
+    }}
+  >
+    검색
   </button>
-  */}
+</div>
   </div>
 
 
@@ -359,14 +418,18 @@ export const SchedulesPage = () => {
           </div>
         ) : schedules.length > 0 ? (
           schedules.map((schedule, index) => (
-            <div
-              key={schedule.id}
-              style={{
-                padding: '1.5rem',
-                borderBottom:
-                  index < schedules.length - 1 ? '1px solid #e5e7eb' : 'none',
-              }}
-            >
+  <div
+    key={schedule.id}
+    style={{
+      padding: '1.5rem',
+      borderBottom:
+        index < schedules.length - 1 ? '1px solid #e5e7eb' : 'none',
+      cursor: 'pointer', // ⭐ 추가
+    }}
+    onClick={() => setSelectedSchedule(schedule)} // ⭐ 추가
+  >
+
+    
               <div
                 style={{
                   display: 'flex',
@@ -469,33 +532,42 @@ export const SchedulesPage = () => {
                 </div>
 
                 {/* 수정/삭제 버튼 */}
+
+                
                 <div style={{ display: 'flex', gap: '0.5rem', marginLeft: '1rem' }}>
                   <button
-                    onClick={() => handleEdit(schedule)}
-                    style={{
-                      padding: '0.5rem',
-                      color: '#2563eb',
-                      backgroundColor: 'transparent',
-                      border: 'none',
-                      borderRadius: '0.5rem',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <Edit style={{ width: '1rem', height: '1rem' }} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(schedule.id)}
-                    style={{
-                      padding: '0.5rem',
-                      color: '#dc2626',
-                      backgroundColor: 'transparent',
-                      border: 'none',
-                      borderRadius: '0.5rem',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <Trash2 style={{ width: '1rem', height: '1rem' }} />
-                  </button>
+  onClick={(e) => {
+    e.stopPropagation();      // ⭐ 핵심
+    handleEdit(schedule);
+  }}
+  style={{
+    padding: '0.5rem',
+    color: '#2563eb',
+    backgroundColor: 'transparent',
+    border: 'none',
+    borderRadius: '0.5rem',
+    cursor: 'pointer',
+  }}
+>
+  <Edit style={{ width: '1rem', height: '1rem' }} />
+</button>
+                 <button
+  onClick={(e) => {
+    e.stopPropagation();      // ⭐ 핵심
+    handleDelete(schedule.id);
+  }}
+  style={{
+    padding: '0.5rem',
+    color: '#dc2626',
+    backgroundColor: 'transparent',
+    border: 'none',
+    borderRadius: '0.5rem',
+    cursor: 'pointer',
+  }}
+>
+  <Trash2 style={{ width: '1rem', height: '1rem' }} />
+</button>
+
                 </div>
               </div>
             </div>
@@ -517,6 +589,14 @@ export const SchedulesPage = () => {
           </div>
         )}
       </div>
+
+      {selectedSchedule && (
+  <ScheduleDetailModal
+    schedule={selectedSchedule}
+    onClose={() => setSelectedSchedule(null)}
+  />
+)}
+
     </div>
   );
 };
