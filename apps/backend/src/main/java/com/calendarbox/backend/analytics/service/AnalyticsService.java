@@ -261,7 +261,7 @@ public class AnalyticsService {
         List<PersonMonthlyScheduleSummary> scheduleStats = scheduleMonthlySummary.stream().map(
                 row -> new PersonMonthlyScheduleSummary(
                         ((Timestamp) row[0]).toLocalDateTime(),
-                        ((Number) row[1]).longValue(),
+                        row[1] != null ? ((Number) row[1]).longValue() : null,
                         (String) row[2],
                         ((Number) row[3]).intValue(),
                         row[4] != null ? ((Number) row[4]).longValue() : 0L
@@ -270,7 +270,7 @@ public class AnalyticsService {
         List<PersonMonthlyExpenseSummary> expenseStats = expenseMonthlySummary.stream().map(
                 row -> new PersonMonthlyExpenseSummary(
                         ((Timestamp) row[0]).toLocalDateTime(),
-                        ((Number) row[1]).longValue(),
+                        row[1] != null ? ((Number) row[1]).longValue() : null,
                         (String) row[2],
                         row[3] != null ? ((Number) row[3]).longValue() : 0L,  // totalAmount
                         row[4] != null ? ((Number) row[4]).doubleValue() : 0.0,  // avgAmount
