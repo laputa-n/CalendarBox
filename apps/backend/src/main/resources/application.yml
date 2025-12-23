@@ -7,6 +7,8 @@ spring:
   messages:
     basename: ValidationMessages
     encoding: UTF-8
+  main:
+    web-application-type: servlet
 
 
   jpa:
@@ -89,3 +91,12 @@ gemini:
 embedding:
   python:
     url: http://localhost:8000/embed
+
+springdoc:
+  api-docs:
+    path: /api/v3/api-docs
+  swagger-ui:
+    path: /api/docs
+    url: /api/v3/api-docs
+    disable-swagger-default-url: true
+  default-flat-param-object: true

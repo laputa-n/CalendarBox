@@ -1,11 +1,14 @@
 package com.calendarbox.backend.kakao.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.util.UriComponentsBuilder;
 
+@Tag(name = "Auth", description = "인증 및 권한")
 @Controller
 @RequestMapping("/api/auth/kakao")
 public class KakaoLoginPageController {
@@ -16,6 +19,10 @@ public class KakaoLoginPageController {
     @Value("${kakao.redirect_uri}")
     private String redirect_uri;
 
+    @Operation(
+            summary = "카카오 로그인",
+            description = "카카오 로그인"
+    )
     @GetMapping("/login")
     public String loginPage() {
         String location = UriComponentsBuilder.fromHttpUrl("https://kauth.kakao.com/oauth/authorize")

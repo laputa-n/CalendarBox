@@ -5,6 +5,8 @@ import com.calendarbox.backend.notification.dto.response.NotificationListRespons
 import com.calendarbox.backend.notification.enums.NotificationType;
 import com.calendarbox.backend.notification.service.NotificationQueryService;
 import com.calendarbox.backend.notification.service.NotificationService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Tag(name = "Notification", description = "알림")
 @Controller
 @RequestMapping("/api/notifications")
 @RequiredArgsConstructor
@@ -23,6 +26,10 @@ public class NotificationController {
     private final NotificationService notificationService;
     private final NotificationQueryService notificationQueryService;
 
+    @Operation(
+            summary = "알림 목록 조회",
+            description = "알림 목록을 조회합니다."
+    )
     @GetMapping
     public ResponseEntity<ApiResponse<NotificationListResponse>> getNotifications(
             @AuthenticationPrincipal(expression="id") Long userId,
@@ -37,6 +44,10 @@ public class NotificationController {
         return ResponseEntity.ok(ApiResponse.ok("알림 목록 조회 성공", data));
     }
 
+    @Operation(
+            summary = "알림 읽음",
+            description = "해당 알림을 읾음 처리합니다."
+    )
     @PatchMapping("/{notificationId}")
     public ResponseEntity<ApiResponse<Void>> readNotification(
             @AuthenticationPrincipal(expression = "id") Long userId,

@@ -11,6 +11,8 @@ import com.calendarbox.backend.friendship.service.FriendshipQueryService;
 import com.calendarbox.backend.friendship.service.FriendshipService;
 import com.calendarbox.backend.global.dto.ApiResponse;
 import com.calendarbox.backend.global.dto.PageResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -20,6 +22,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+@Tag(name = "Friendship", description = "친구")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/friendships")
@@ -27,6 +30,10 @@ public class FriendshipController {
     private final FriendshipService friendshipService;
     private final FriendshipQueryService friendshipQueryService;
 
+    @Operation(
+            summary = "친구 요청",
+            description = "친구 요청을 보냅니다."
+    )
     @PostMapping("/request")
     public ResponseEntity<ApiResponse<FriendRequestResponse>> requestFriend(
             @AuthenticationPrincipal(expression= "id") Long requesterId,
@@ -37,6 +44,10 @@ public class FriendshipController {
         return ResponseEntity.ok(ApiResponse.ok("친구 요청을 보냈습니다.", data));
     }
 
+    @Operation(
+            summary = "친구 요청 응답",
+            description = "친구 요청에 응답합니다."
+    )
     @PatchMapping("/{friendshipId}")
     public ResponseEntity<ApiResponse<FriendRespondResponse>> respond(
             @AuthenticationPrincipal(expression = "id") Long userId,
@@ -55,6 +66,10 @@ public class FriendshipController {
         return ResponseEntity.ok(ApiResponse.ok(msg, data));
     }
 
+    @Operation(
+            summary = "받은 친구 요청 조회",
+            description = "받은 친구 요청 목록을 조회합니다."
+    )
     @GetMapping("/received")
     public ResponseEntity<ApiResponse<PageResponse<ReceivedItemResponse>>> getReceived(
             @AuthenticationPrincipal(expression = "id") Long userId,
@@ -69,6 +84,10 @@ public class FriendshipController {
         return ResponseEntity.ok(ApiResponse.ok("받은 친구 요청 목록 조회 성공",data));
     }
 
+    @Operation(
+            summary = "보낸 친구 요청 조회",
+            description = "보낸 친구 요청 목록을 조회합니다."
+    )
     @GetMapping("/sent")
     public ResponseEntity<ApiResponse<PageResponse<SentItemResponse>>> getSent(
             @AuthenticationPrincipal(expression = "id") Long userId,
@@ -83,6 +102,10 @@ public class FriendshipController {
         return ResponseEntity.ok(ApiResponse.ok("보낸 친구 요청 목록 조회 성공", data));
     }
 
+    @Operation(
+            summary = "친구 삭제",
+            description = "해당 친구를 삭제합니다."
+    )
     @DeleteMapping("/{friendshipId}")
     public ResponseEntity<ApiResponse<Void>> delete(
             @AuthenticationPrincipal(expression="id")Long userId,

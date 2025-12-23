@@ -6,6 +6,8 @@ import com.calendarbox.backend.global.dto.ApiResponse;
 import com.calendarbox.backend.global.dto.PageResponse;
 import com.calendarbox.backend.global.error.BusinessException;
 import com.calendarbox.backend.global.error.ErrorCode;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -22,6 +24,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 
+@Tag(name = "Statistics", description = "통계")
 @Slf4j
 @RestController
 @RequestMapping("/api/analytics")
@@ -36,6 +39,10 @@ public class AnalyticsController {
 //        return ResponseEntity.ok(response);
 //    }
 
+    @Operation(
+            summary = "사람 통계",
+            description = "스케줄을 함께한 사람 통계 top3를 조회합니다."
+    )
     @GetMapping("/people/summary")
     public ResponseEntity<ApiResponse<PeopleStatSummary>> getPeopleSummary(
             @AuthenticationPrincipal(expression = "id") Long userId,
@@ -51,6 +58,10 @@ public class AnalyticsController {
         return ResponseEntity.ok(ApiResponse.ok("사람 통계 요약 성공", data));
     }
 
+    @Operation(
+            summary = "사람 통계",
+            description = "스케줄을 함께한 사람 통계 목록을 조회합니다."
+    )
     @GetMapping("/people")
     public ResponseEntity<ApiResponse<PageResponse<PeopleStatItem>>> getPeopleStatList(
             @AuthenticationPrincipal(expression = "id") Long userId,
@@ -64,6 +75,10 @@ public class AnalyticsController {
         return ResponseEntity.ok(ApiResponse.ok("사람 통계 목록 조회 성공", data));
     }
 
+    @Operation(
+            summary = "장소 통계",
+            description = "스케줄이 진행된 장소 통계 top3를 조회합니다."
+    )
     @GetMapping("/place/summary")
     public ResponseEntity<ApiResponse<PlaceStatSummary>> getPlaceSummary(
             @AuthenticationPrincipal(expression = "id") Long userId,
@@ -80,6 +95,10 @@ public class AnalyticsController {
         return ResponseEntity.ok(ApiResponse.ok("장소 통계 요약 성공", data));
     }
 
+    @Operation(
+            summary = "장소 통계",
+            description = "스케줄이 진행된 장소 통계 목록을 조회합니다."
+    )
     @GetMapping("/place")
     public ResponseEntity<ApiResponse<PageResponse<PlaceStatItem>>> getPlaceStatList(
             @AuthenticationPrincipal(expression="id") Long userId,
@@ -93,6 +112,10 @@ public class AnalyticsController {
         return ResponseEntity.ok(ApiResponse.ok("장소 통계 목록 조회 성공", data));
     }
 
+    @Operation(
+            summary = "스케줄 분포",
+            description = "요일-시간대 별 스케줄 분포를 조회합니다."
+    )
     @GetMapping("/schedule/day-hour")
     public ResponseEntity<ApiResponse<List<DayHourScheduleDistribution>>> getDayHourScheduleDistribution(
             @AuthenticationPrincipal(expression = "id") Long userId
@@ -102,6 +125,10 @@ public class AnalyticsController {
         return ResponseEntity.ok(ApiResponse.ok("요일-시간대 별 스케줄 분포 조회 성공", data));
     }
 
+    @Operation(
+            summary = "스케줄 추세",
+            description = "월별 스케줄 추세를 조회합니다."
+    )
     @GetMapping("/schedule/trend")
     public ResponseEntity<ApiResponse<List<MonthlyScheduleTrend>>> getMonthlyScheduleTrend(
             @AuthenticationPrincipal(expression = "id") Long userId

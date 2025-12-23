@@ -12,6 +12,8 @@ import com.calendarbox.backend.kakao.repository.KakaoAccountRepository;
 import com.calendarbox.backend.kakao.service.KakaoTempStore;
 import com.calendarbox.backend.member.domain.Member;
 import com.calendarbox.backend.member.repository.MemberRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -29,6 +31,7 @@ import java.util.Optional;
 
 import static com.calendarbox.backend.auth.util.AuthCookieUtil.*;
 
+@Tag(name = "Auth", description = "인증 및 권한")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/auth")
@@ -40,6 +43,10 @@ public class AuthController {
     private final KakaoTempStore kakaoTempStore;
     private final KakaoAccountRepository kakaoAccountRepository;
 
+    @Operation(
+            summary = "회원 정보 추가 작성",
+            description = "회원 가입을 위한 정보를 추가 작성합니다."
+    )
     @PostMapping("/signup/complete")
     public ResponseEntity<ApiResponse<MemberResponse>> completeProfile(
             HttpServletRequest request,
@@ -80,6 +87,10 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.ok("회원가입이 완료되었습니다", mr));
     }
 
+    @Operation(
+            summary = "토큰 재발급",
+            description = "access / refresh 토큰을 재발급 받습니다."
+    )
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<MemberResponse>> refresh(HttpServletRequest req,
                                                                HttpServletResponse resp) {
@@ -109,6 +120,10 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.ok("토큰 재발급 성공", mr));
     }
 
+    @Operation(
+            summary = "로그 아웃",
+            description = "로그 아웃을 합니다."
+    )
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(@AuthenticationPrincipal(expression = "id") Long memberId,
                                        HttpServletRequest req,
@@ -122,6 +137,10 @@ public class AuthController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(
+            summary = "내 정보 확인",
+            description = "내 정보를 확인합니다."
+    )
     @GetMapping("/me")
     public ResponseEntity<?> me(HttpServletRequest req) {
         // 1. 쿠키에서 access_token 읽기

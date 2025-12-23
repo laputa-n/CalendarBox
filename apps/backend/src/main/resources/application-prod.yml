@@ -4,10 +4,11 @@ spring:
     username: calendarbox_user
     password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
-
   messages:
     basename: ValidationMessages
     encoding: UTF-8
+  main:
+    web-application-type: servlet
 
   jpa:
     hibernate:
@@ -94,4 +95,13 @@ gemini:
 embedding:
   python:
     url: ${ML_URL}
+
+springdoc:
+  api-docs:
+    path: /api/v3/api-docs
+  swagger-ui:
+    path: /api/docs
+    url: /api/v3/api-docs
+    disable-swagger-default-url: true
+  default-flat-param-object: true
 

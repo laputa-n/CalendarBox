@@ -25,9 +25,14 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                                 .requestMatchers(
-                                        "/actuator/health","/docs/**", "/error"
-                                        ,"/api/auth/**", "/api/auth/kakao/**"
-//                                ,"/api/places/search" // 테스트 위해 -> 테스트 완료 후 삭제
+                                        "/actuator/health","/docs/**", "/error",
+                                        "/api/auth/**", "/api/auth/kakao/**",
+                                        // Swagger (추가)
+                                        "/api/docs/**",
+                                        "/api/v3/api-docs/**",
+                                        "/api/swagger-ui/**",
+                                        "/swagger-ui/**",
+                                        "/v3/api-docs/**"
                                 ).permitAll()
                                 .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                                 .requestMatchers("/api/**").authenticated()   // 보호가 필요한 경로

@@ -9,6 +9,8 @@ import com.calendarbox.backend.place.dto.response.PlacePreview;
 import com.calendarbox.backend.place.dto.response.PlaceResponseDto;
 import com.calendarbox.backend.place.service.PlaceRecommendService;
 import com.calendarbox.backend.place.service.PlaceSearchService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -20,6 +22,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.Map;
 
+@Tag(name = "Place", description = "장소")
 @RestController
 @RequestMapping("/api/places")
 @RequiredArgsConstructor
@@ -28,6 +31,10 @@ public class PlaceController {
     private final MemberRepository memberRepository;
     private final PlaceRecommendService placeRecommendService;
 
+    @Operation(
+            summary = "장소 검색",
+            description = "장소를 검색합니다.(네이버 장소 검색 API, 5개)"
+    )
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<Map<String, Object>>> search(
             @AuthenticationPrincipal(expression = "id") Long userId,
@@ -49,6 +56,10 @@ public class PlaceController {
         return ResponseEntity.ok(ApiResponse.ok("장소 검색 성공", data));
     }
 
+    @Operation(
+            summary = "장소 추천",
+            description = "해당 스케줄의 정보와 비슷한 스케줄들이 많이 갔던 장소 목록을 반환합니다."
+    )
     @PostMapping("/recommend")
     public ResponseEntity<ApiResponse<List<PlaceResponseDto>>> recommend(
             @AuthenticationPrincipal(expression="id") Long userId,

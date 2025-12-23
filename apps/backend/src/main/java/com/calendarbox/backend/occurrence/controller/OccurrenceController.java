@@ -5,6 +5,7 @@ import com.calendarbox.backend.global.error.BusinessException;
 import com.calendarbox.backend.global.error.ErrorCode;
 import com.calendarbox.backend.occurrence.dto.response.OccurrenceBucketResponse;
 import com.calendarbox.backend.occurrence.service.OccurrenceQueryService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
+@Tag(name = "Occurrence", description = "캘린더 뷰")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api")

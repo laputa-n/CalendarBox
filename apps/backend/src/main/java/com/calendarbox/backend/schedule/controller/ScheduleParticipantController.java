@@ -10,6 +10,8 @@ import com.calendarbox.backend.schedule.enums.AddParticipantMode;
 import com.calendarbox.backend.schedule.enums.ScheduleParticipantStatus;
 import com.calendarbox.backend.schedule.service.ScheduleParticipantQueryService;
 import com.calendarbox.backend.schedule.service.ScheduleParticipantService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Tag(name = "Schedule - Participant", description = "스케줄 참가자 관리")
 @RestController
 @RequestMapping("api/schedules/{scheduleId}/participants")
 @RequiredArgsConstructor
@@ -26,6 +29,10 @@ public class ScheduleParticipantController {
     private final ScheduleParticipantService scheduleParticipantService;
     private final ScheduleParticipantQueryService scheduleParticipantQueryService;
 
+    @Operation(
+            summary = "스케줄 참가자 목록 조회",
+            description = "스케줄 참가자 목록을 조회합니다."
+    )
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<ScheduleParticipantResponse>>> getList(
         @AuthenticationPrincipal(expression="id") Long userId,
@@ -37,6 +44,10 @@ public class ScheduleParticipantController {
         var data = PageResponse.of(page);
         return ResponseEntity.ok(ApiResponse.ok("일정 멤버 목록 조회 성공", data));
     }
+    @Operation(
+            summary = "스케줄 참가자 추가",
+            description = "스케줄 참가자를 초대/추가합니다."
+    )
     @PostMapping
     public ResponseEntity<ApiResponse<AddParticipantResponse>> addParticipant(
             @AuthenticationPrincipal(expression = "id")Long userId,
@@ -52,6 +63,10 @@ public class ScheduleParticipantController {
         return ResponseEntity.ok(ApiResponse.ok(message,data));
     }
 
+    @Operation(
+            summary = "스케줄 참가자 삭제",
+            description = "스케줄 탈퇴/추방합니다."
+    )
     @DeleteMapping("/{participantId}")
     public ResponseEntity<ApiResponse<Void>> removeParticipant(
             @AuthenticationPrincipal(expression = "id")Long userId,
@@ -62,6 +77,10 @@ public class ScheduleParticipantController {
         return ResponseEntity.ok(ApiResponse.ok("일정 멤버를 제거했습니다.", null));
     }
 
+    @Operation(
+            summary = "스케줄 초대 응답",
+            description = "스케줄 초대에 응답합니다."
+    )
     @PatchMapping("/{participantId}")
     public ResponseEntity<ApiResponse<ScheduleParticipantResponse>> respond(
             @AuthenticationPrincipal(expression = "id")Long userId,

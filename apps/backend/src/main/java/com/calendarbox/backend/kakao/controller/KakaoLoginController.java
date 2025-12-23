@@ -10,6 +10,8 @@ import com.calendarbox.backend.auth.service.JwtService;
 import com.calendarbox.backend.kakao.domain.KakaoAccount;
 import com.calendarbox.backend.kakao.repository.KakaoAccountRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -25,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Arrays;
 import java.util.Optional;
 
+@Tag(name = "Auth", description = "인증 및 권한")
 @Slf4j
 @RestController
 @RequiredArgsConstructor
@@ -38,6 +41,10 @@ public class KakaoLoginController {
     private final KakaoTempStore kakaoTempStore;
     private final ObjectMapper objectMapper;
 
+    @Operation(
+            summary = "카카오 로그인 콜백",
+            description = "카카오 로그인 콜백"
+    )
     @GetMapping("/callback")
     public ResponseEntity<?> callback(@RequestParam("code") String code,HttpServletRequest req, HttpServletResponse resp) {
         var token = kakaoService.exchangeToken(code);
@@ -78,6 +85,10 @@ public class KakaoLoginController {
                 .build();
     }
 
+    @Operation(
+            summary = "추가 정보 입력 전환",
+            description = "비회원일시 추가 정보 입력 페이지로 이동"
+    )
     @GetMapping("/next")
     public ResponseEntity<?> next(HttpServletRequest req) {
         // 1. 쿠키에서 signup_token 읽기

@@ -5,6 +5,8 @@ import com.calendarbox.backend.schedule.dto.request.RecurrenceUpsertRequest;
 import com.calendarbox.backend.schedule.dto.response.RecurrenceResponse;
 import com.calendarbox.backend.schedule.service.ScheduleRecurrenceQueryService;
 import com.calendarbox.backend.schedule.service.ScheduleRecurrenceService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Tag(name = "Schedule - Recurrence", description = "스케줄 반복 규칙 및 예외(EXDATE)")
 @RestController
 @RequestMapping("/api/schedules/{scheduleId}/recurrences")
 @RequiredArgsConstructor
@@ -24,6 +27,10 @@ public class ScheduleRecurrenceController {
     private final ScheduleRecurrenceService scheduleRecurrenceService;
 
     // 목록
+    @Operation(
+            summary = "스케줄 반복 목록 조회",
+            description = "스케줄 반복 목록을 조회합니다."
+    )
     @GetMapping
     public ResponseEntity<ApiResponse<List<RecurrenceResponse>>> list(
             @AuthenticationPrincipal(expression="id") Long userId,
@@ -34,6 +41,10 @@ public class ScheduleRecurrenceController {
     }
 
     // 생성
+    @Operation(
+            summary = "스케줄 반복 생성",
+            description = "스케줄 반복을 생성합니다."
+    )
     @PostMapping
     public ResponseEntity<ApiResponse<RecurrenceResponse>> create(
             @AuthenticationPrincipal(expression="id") Long userId,
@@ -45,6 +56,10 @@ public class ScheduleRecurrenceController {
     }
 
     // 단건 조회(옵션)
+    @Operation(
+            summary = "스케줄 반복 조회",
+            description = "스케줄 반복을 조회합니다."
+    )
     @GetMapping("/{recurrenceId}")
     public ResponseEntity<ApiResponse<RecurrenceResponse>> get(
             @AuthenticationPrincipal(expression="id") Long userId,
@@ -56,6 +71,10 @@ public class ScheduleRecurrenceController {
     }
 
     // 수정
+    @Operation(
+            summary = "스케줄 반복 수정",
+            description = "스케줄 반복을 수정합니다."
+    )
     @PutMapping("/{recurrenceId}")
     public ResponseEntity<ApiResponse<RecurrenceResponse>> update(
             @AuthenticationPrincipal(expression="id") Long userId,
@@ -68,6 +87,10 @@ public class ScheduleRecurrenceController {
     }
 
     // 삭제
+    @Operation(
+            summary = "스케줄 반복 삭제",
+            description = "스케줄 반복을 삭제합니다."
+    )
     @DeleteMapping("/{recurrenceId}")
     public ResponseEntity<ApiResponse<Void>> delete(
             @AuthenticationPrincipal(expression="id") Long userId,

@@ -1,6 +1,7 @@
 package com.calendarbox.backend.global.error;
 
 import com.calendarbox.backend.global.dto.ApiResponse;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import com.calendarbox.backend.global.error.ErrorBody;
 
 import java.text.MessageFormat;
 import java.time.Instant;
@@ -19,7 +21,6 @@ import java.time.Instant;
 @Slf4j
 public class GlobalExceptionHandler {
 
-    public record ErrorBody(String code, String message, Instant timestamp, String path) {}
 
     private static String fmt(String template, Object[] args) {
         return (args == null || args.length == 0) ? template : MessageFormat.format(template, args);
