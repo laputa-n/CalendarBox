@@ -1,0 +1,1 @@
+DROP INDEX ix_schedule_embedding_vector_cosine;

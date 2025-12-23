@@ -31,93 +31,14 @@ public class PgVectorSimilarScheduleFinder {
             );
 
     public List<SimilarSchedule> findSimilar(PlaceRecommendRequest request, int limit) {
-        var dbinfo = jdbcTemplate.queryForMap("""
-    SELECT current_database() AS db,
-           current_user AS usr,
-           current_schema() AS schema,
-           current_setting('search_path') AS search_path
-""");
-        log.info("[similar][debug] dbinfo={}", dbinfo);
-
-        log.info("[similar] start findSimilar, limit={}, title={}, memo={}",
-                limit, request.title(), request.memo());
 
         // 1) 검색용 임베딩 생성
         float[] queryEmbedding = scheduleEmbeddingService.embedScheduleForSearch(request);
-        log.info("[similar] embedding dimension={}, first3=[{}, {}, {}]",
-                queryEmbedding.length,
-                queryEmbedding.length > 0 ? queryEmbedding[0] : null,
-                queryEmbedding.length > 1 ? queryEmbedding[1] : null,
-                queryEmbedding.length > 2 ? queryEmbedding[2] : null
-        );
 
         // 2) query vector도 INSERT 때처럼 PGobject(vector)로 보냄
         PGobject qvec = toPgVectorObject(queryEmbedding);
-        log.info("[similar] qvec.type={}, prefix={}",
-                qvec.getType(),
-                qvec.getValue().substring(0, Math.min(120, qvec.getValue().length()))
-        );
 
-        // ✅ 이 한 줄이 “JDBC 파라미터가 vector로 먹었는지” 결론 내줌
-        Integer notNullCnt = jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM schedule_embedding se WHERE (se.embedding <=> ?) IS NOT NULL",
-                Integer.class,
-                qvec
-        );
-        log.info("[similar][debug] count(dist is not null) = {}", notNullCnt);
-
-        // [STEP1] ORDER BY 없이 dist/similarity 샘플 5개 찍기
-        String sqlSample = """
-    SELECT se.schedule_id,
-           (se.embedding <=> ?) AS dist,
-           1 - (se.embedding <=> ?) AS similarity,
-           EXISTS (
-               SELECT 1
-               FROM schedule_place sp
-               WHERE sp.schedule_id = se.schedule_id
-                 AND sp.place_id IS NOT NULL
-           ) AS has_place
-    FROM schedule_embedding se
-    LIMIT 5
-    """;
-
-        List<Map<String, Object>> sampleRows = jdbcTemplate.query(conn -> {
-            var ps = conn.prepareStatement(sqlSample);
-            ps.setObject(1, qvec, Types.OTHER);
-            ps.setObject(2, qvec, Types.OTHER);
-            return ps;
-        }, new ColumnMapRowMapper());
-
-// ✅ ambiguous 방지: sampleRows를 문자열로 확정해서 찍기
-        log.info("[similar][debug] sampleRows={}", String.valueOf(sampleRows));
-
-        jdbcTemplate.execute("SET enable_indexscan = off");
-
-        String sqlMainDebug = """
-    SELECT se.schedule_id,
-           (se.embedding <=> ?) AS dist,
-           1 - (se.embedding <=> ?) AS similarity
-    FROM schedule_embedding se
-    WHERE EXISTS (
-        SELECT 1
-        FROM schedule_place sp
-        WHERE sp.schedule_id = se.schedule_id
-          AND sp.place_id IS NOT NULL
-    )
-    ORDER BY (se.embedding <=> ?) ASC
-    LIMIT ?
-    """;
-
-        List<Map<String, Object>> mainDebugRows = jdbcTemplate.query(conn -> {
-            var ps = conn.prepareStatement(sqlMainDebug);
-            ps.setObject(1, qvec, Types.OTHER);
-            ps.setObject(2, qvec, Types.OTHER);
-            ps.setObject(3, qvec, Types.OTHER);
-            ps.setInt(4, limit);
-            return ps;
-        }, new ColumnMapRowMapper());
-
-        log.info("[similar][debug] mainDebugRows={}", String.valueOf(mainDebugRows));
+        jdbcTemplate.execute("SET enable_indexscan = on");
 
         // 3) 실제 유사 스케줄 조회 (cast 절대 쓰지 말 것)
         String sql = """
@@ -142,10 +63,6 @@ public class PgVectorSimilarScheduleFinder {
             return ps;
         }, rowMapper);
 
-        log.info("[similar] result size={}", result.size());
-        log.info("[similar] scheduleIds={}", result.stream().map(SimilarSchedule::scheduleId).toList());
-        log.info("[similar] similarities={}", result.stream().map(SimilarSchedule::similarity).toList());
-
         return result;
     }
 
@@ -154,7 +71,6 @@ public class PgVectorSimilarScheduleFinder {
         sb.append('[');
         for (int i = 0; i < embedding.length; i++) {
             if (i > 0) sb.append(',');
-            // float를 그대로 붙여도 되고, 네가 예전에 BigDecimal로 과학표기 막았던 버전 써도 됨
             sb.append(embedding[i]);
         }
         sb.append(']');
