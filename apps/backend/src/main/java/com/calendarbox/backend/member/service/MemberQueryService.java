@@ -30,12 +30,13 @@ public class MemberQueryService {
         String phoneToken = toPhonePrefixOrNull(raw);
         String nameToken = toNamePrefixOrNull(raw);
 
-        if (emailToken != null) emailToken = emailToken.toLowerCase(Locale.ROOT);
-        if (nameToken  != null) nameToken  = nameToken.toLowerCase(Locale.ROOT);
+        if (emailToken != null) emailToken = emailToken.toLowerCase(Locale.ROOT) + "%";
+        if (nameToken  != null) nameToken  = nameToken.toLowerCase(Locale.ROOT) + "%";
+        if (phoneToken != null) phoneToken = phoneToken + "%";
 
-        if (emailToken != null && emailToken.length() < 3) emailToken = null;
-        if (phoneToken != null && phoneToken.length() < 3) phoneToken = null;
-        if (nameToken  != null && nameToken.length()  < 3) nameToken  = null;
+        if (emailToken != null && emailToken.length() < 4) emailToken = null;
+        if (phoneToken != null && phoneToken.length() < 4) phoneToken = null;
+        if (nameToken  != null && nameToken.length()  < 4) nameToken  = null;
 
         if (emailToken == null && phoneToken == null && nameToken == null) {
             return Page.empty(pageable);

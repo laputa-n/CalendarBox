@@ -28,9 +28,9 @@ from Member m
 where m.deletedAt is null
   and m.id <> :viewerId
   and (
-       (:emailToken is not null and lower(m.email) like concat(:emailToken, '%'))
-    or (:phoneToken is not null and concat('', function('regexp_replace', coalesce(m.phoneNumber, ''), '[^0-9]', '', 'g')) like concat(:phoneToken, '%'))
-    or (:nameToken is not null and lower(m.name) like concat(:nameToken, '%'))
+       (:emailToken is not null and lower(m.email) like :emailToken)
+    or (:phoneToken is not null and function('regexp_replace', coalesce(m.phoneNumber, ''), '\\D', '', 'g') like :phoneToken)
+    or (:nameToken is not null and lower(m.name) like :nameToken)
   )
 """)
     Page<MemberSearchItem> searchByEmailOrPhoneOrName(
