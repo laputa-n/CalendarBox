@@ -28,7 +28,7 @@ public class MemberController {
     public ResponseEntity<ApiResponse<Page<MemberSearchItem>>> searchMembers(
             @AuthenticationPrincipal(expression = "id")Long userId,
             @RequestParam("q")String query,
-            @PageableDefault(size = 20, sort = "name") Pageable pageable
+            @PageableDefault(size = 20) Pageable pageable
     ){
         var data = memberQueryService.search(userId, query, pageable);
         return ResponseEntity.ok(ApiResponse.ok("멤버 검색 성공",data));

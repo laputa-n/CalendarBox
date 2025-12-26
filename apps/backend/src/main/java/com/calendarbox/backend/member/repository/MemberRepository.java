@@ -29,14 +29,20 @@ where m.deletedAt is null
   and m.id <> :viewerId
   and (
        (:emailToken is not null and lower(m.email) like :emailToken)
-    or (:phoneToken is not null and function('regexp_replace', coalesce(m.phoneNumber, ''), '\\D', '', 'g') like :phoneToken)
+    or (
+         :phoneToken is not null
+         and cast(function('regexp_replace', coalesce(m.phoneNumber, ''), '[^0-9]', '', 'g') as string) like :phoneToken
+       )
     or (:nameToken is not null and lower(m.name) like :nameToken)
   )
+order by m.name asc
 """)
     Page<MemberSearchItem> searchByEmailOrPhoneOrName(
             @Param("viewerId") Long viewerId,
             @Param("emailToken") String emailToken,
             @Param("phoneToken") String phoneToken,
             @Param("nameToken") String nameToken,
-            Pageable pageable);
+            Pageable pageable
+    );
+
 }
