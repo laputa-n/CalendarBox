@@ -99,7 +99,7 @@ public class FriendshipService {
         if(!f.getRequester().getId().equals(user.getId()) && !f.getAddressee().getId().equals(user.getId())){
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
         }
-        if(f.getStatus() != FriendshipStatus.ACCEPTED) throw new BusinessException(ErrorCode.FRIENDSHIP_INVALID_STATE);
+        if(f.getStatus() == FriendshipStatus.REJECTED) throw new BusinessException(ErrorCode.FRIENDSHIP_INVALID_STATE);
 
         friendshipRepository.delete(f);
     }
