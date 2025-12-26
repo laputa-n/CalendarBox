@@ -20,47 +20,57 @@ public class MemberQueryService {
     private final MemberRepository memberRepository;
 
     public Page<MemberSearchItem> search(Long userId, String query, Pageable pageable){
-        Member user = memberRepository.findById(userId).orElseThrow(() ->new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        Member user = memberRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
-        if(query == null) return Page.empty(pageable);
+        if (query == null) return Page.empty(pageable);
         String raw = query.trim();
-        if(raw.isEmpty()) return Page.empty(pageable);
+        if (raw.isEmpty()) return Page.empty(pageable);
 
-        String emailToken = toEmailPrefixOrNull(raw);
-        String phoneToken = toPhonePrefixOrNull(raw);
-        String nameToken = toNamePrefixOrNull(raw);
+        String nameToken  = toNameContainsOrNull(raw);
+        String emailToken = toEmailLocalContainsOrNull(raw); // @앞부분만
+        String phoneToken = toPhoneContainsOrNull(raw);      // 숫자만
 
-        if (emailToken != null) emailToken = emailToken.toLowerCase(Locale.ROOT) + "%";
-        if (nameToken  != null) nameToken  = nameToken.toLowerCase(Locale.ROOT) + "%";
-        if (phoneToken != null) phoneToken = phoneToken + "%";
+        // 최소 길이(원하는 기준으로 조절)
+        if (nameToken  != null && nameToken.length()  < 3) nameToken  = null;
+        if (emailToken != null && emailToken.length() < 3) emailToken = null;
+        if (phoneToken != null && phoneToken.length() < 3) phoneToken = null;
 
-        if (emailToken != null && emailToken.length() < 4) emailToken = null;
-        if (phoneToken != null && phoneToken.length() < 4) phoneToken = null;
-        if (nameToken  != null && nameToken.length()  < 4) nameToken  = null;
-
-        if (emailToken == null && phoneToken == null && nameToken == null) {
+        if (nameToken == null && emailToken == null && phoneToken == null) {
             return Page.empty(pageable);
         }
 
-        return memberRepository.searchByEmailOrPhoneOrName(
+        // LIKE 패턴으로 변환
+        if (nameToken  != null) nameToken  = "%" + nameToken.toLowerCase(Locale.ROOT) + "%";
+        if (emailToken != null) emailToken = "%" + emailToken.toLowerCase(Locale.ROOT) + "%";
+        if (phoneToken != null) phoneToken = "%" + phoneToken + "%";
+
+        return memberRepository.searchByEmailLocalOrPhoneOrNameContains(
                 user.getId(), emailToken, phoneToken, nameToken, pageable
         );
     }
 
-    private String toEmailPrefixOrNull(String raw) {
-        String s = raw.trim();
-        if (!s.contains("@")) return null;
+    private String toNameContainsOrNull(String raw) {
+        String s = raw.trim().replaceAll("\\s+", " ");
+        if (s.isEmpty() || s.matches("\\d+")) return null; // 숫자만이면 이름 후보 제외
         return s;
     }
 
-    private String toPhonePrefixOrNull(String raw) {
+    // 사용자가 "ma9611@naver.com" 입력하면 ma9611만 사용
+// 사용자가 "ma9611" 입력해도 이메일 local-part로 검색 허용
+    private String toEmailLocalContainsOrNull(String raw) {
+        String s = raw.trim();
+        if (s.isEmpty()) return null;
+        if (s.matches("\\d+")) return null; // 숫자만이면 이메일 후보 제외
+        int at = s.indexOf('@');
+        if (at >= 0) s = s.substring(0, at);
+        s = s.trim();
+        return s.isEmpty() ? null : s;
+    }
+
+    private String toPhoneContainsOrNull(String raw) {
         String digits = raw.replaceAll("\\D+", "");
         return digits.isEmpty() ? null : digits;
     }
 
-    private String toNamePrefixOrNull(String raw) {
-        String s = raw.trim().replaceAll("\\s+", " ");
-        if (s.isEmpty() || s.matches("\\d+")) return null;
-        return s;
-    }
 }

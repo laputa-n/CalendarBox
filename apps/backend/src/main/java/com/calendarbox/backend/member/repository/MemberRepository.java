@@ -28,21 +28,25 @@ from Member m
 where m.deletedAt is null
   and m.id <> :viewerId
   and (
-       (:emailToken is not null and lower(m.email) like :emailToken)
+       (:nameToken is not null and lower(m.name) like :nameToken)
+    or (
+         :emailToken is not null
+         and cast(function('split_part', lower(m.email), '@', 1) as string) like :emailToken
+       )
     or (
          :phoneToken is not null
          and cast(function('regexp_replace', coalesce(m.phoneNumber, ''), '[^0-9]', '', 'g') as string) like :phoneToken
        )
-    or (:nameToken is not null and lower(m.name) like :nameToken)
   )
 order by m.name asc
 """)
-    Page<MemberSearchItem> searchByEmailOrPhoneOrName(
+    Page<MemberSearchItem> searchByEmailLocalOrPhoneOrNameContains(
             @Param("viewerId") Long viewerId,
             @Param("emailToken") String emailToken,
             @Param("phoneToken") String phoneToken,
             @Param("nameToken") String nameToken,
             Pageable pageable
     );
+
 
 }
