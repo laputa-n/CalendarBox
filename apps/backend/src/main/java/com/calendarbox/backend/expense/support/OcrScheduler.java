@@ -11,8 +11,8 @@ import org.springframework.stereotype.Component;
 public class OcrScheduler {
     private final ExpenseOcrWorker expenseOcrWorker;
 
-    @Scheduled(fixedDelay = 30000) // 5초 간격 추천
-    @Async
+    //@Scheduled(fixedDelay = 30000) // 5초 간격 추천
+    //@Async
     public void tick() {
         expenseOcrWorker.processBatch(10);
     }
