@@ -15,7 +15,6 @@ import com.calendarbox.backend.calendar.enums.CalendarMemberStatus;
 import com.calendarbox.backend.calendar.repository.CalendarHistoryRepository;
 import com.calendarbox.backend.calendar.repository.CalendarMemberRepository;
 import com.calendarbox.backend.calendar.repository.CalendarRepository;
-import com.calendarbox.backend.expense.enums.OcrTaskStatus;
 import com.calendarbox.backend.expense.repository.ExpenseOcrTaskRepository;
 import com.calendarbox.backend.global.config.OcrMqConfig;
 import com.calendarbox.backend.global.error.BusinessException;
@@ -31,9 +30,10 @@ import com.calendarbox.backend.schedule.repository.ScheduleRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.FilenameUtils;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionSynchronization;
 
 import java.util.Map;
 import java.util.Optional;
@@ -106,10 +106,17 @@ public class UploadService {
         ));
         cache.remove(req.uploadId());
         if(ctx.isReceipt() || saved.getObjectKey().contains("/receipts/")){
-            ExpenseOcrTask task = expenseOcrTaskRepository.save(
+            ExpenseOcrTask task = expenseOcrTaskRepository.saveAndFlush(
                     ExpenseOcrTask.of(saved, schedule, HashUtil.sha256(saved.getObjectKey()))
             );
-            rabbitTemplate.convertAndSend(OcrMqConfig.EXCHANGE, OcrMqConfig.RK_RUN, task.getOcrTaskId());
+
+            Long taskId = task.getOcrTaskId();
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    rabbitTemplate.convertAndSend(OcrMqConfig.EXCHANGE, OcrMqConfig.RK_RUN, taskId);
+                }
+            });
         }
         CalendarHistory history = CalendarHistory.builder()
                 .calendar(calendar)
