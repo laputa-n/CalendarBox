@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -35,6 +36,7 @@ public class NaverOcrClient {
                             resp.bodyToMono(String.class).defaultIfEmpty("")
                                     .flatMap(b -> Mono.error(new RuntimeException(resp.statusCode() + " / " + b))))
                     .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                    .timeout(Duration.ofSeconds(30))
                     .block();
         } catch (RuntimeException e) {
             // 호출한 쪽에서 task.markFailed(e.getMessage())로 남길 수 있게
