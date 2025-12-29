@@ -28,6 +28,7 @@ import com.calendarbox.backend.schedule.enums.ScheduleParticipantStatus;
 import com.calendarbox.backend.schedule.repository.ScheduleParticipantRepository;
 import com.calendarbox.backend.schedule.repository.ScheduleRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
@@ -42,6 +43,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UploadService {
     private static final Set<String> ALLOW = Set.of(
             // 이미지
@@ -114,7 +116,12 @@ public class UploadService {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    rabbitTemplate.convertAndSend(OcrMqConfig.EXCHANGE, OcrMqConfig.RK_RUN, taskId);
+                    try {
+                        rabbitTemplate.convertAndSend(OcrMqConfig.EXCHANGE, OcrMqConfig.RK_RUN, taskId);
+                        log.info("[OCR-PUB] sent taskId={} ex={} rk={}", taskId, OcrMqConfig.EXCHANGE, OcrMqConfig.RK_RUN);
+                    } catch (Exception ex) {
+                        log.error("[OCR-PUB] send failed taskId={}", taskId, ex);
+                    }
                 }
             });
         }
