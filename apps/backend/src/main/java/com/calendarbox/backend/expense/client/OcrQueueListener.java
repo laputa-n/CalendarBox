@@ -23,36 +23,34 @@ public class OcrQueueListener {
     @RabbitListener(queues = OcrMqConfig.OCR_QUEUE)
     @Transactional
     public void handle(Long taskId, Message amqpMsg) {
-        int claimed = expenseOcrTaskRepository.markRunningIfQueued(taskId);
+        int beforeRetry = getRetry(amqpMsg);
+        log.info("[OCR-MQ] recv taskId={}, retry={}", taskId, beforeRetry);
 
+        int claimed = expenseOcrTaskRepository.markRunningIfQueued(taskId);
         if (claimed == 0) {
             log.info("[OCR-MQ] skip taskId={} (not QUEUED)", taskId);
             return;
         }
-
-        log.info("[OCR-MQ] claimed taskId={} (QUEUED -> RUNNING)", taskId);
+        log.info("[OCR-MQ] claimed taskId={}", taskId);
 
         try {
+            log.info("[OCR-MQ] start worker taskId={}", taskId);
             expenseOcrWorker.processOneByTaskId(taskId);
 
-            // 성공 처리
             var task = expenseOcrTaskRepository.findById(taskId).orElseThrow();
             task.markSuccess();
             expenseOcrTaskRepository.save(task);
             log.info("[OCR-MQ] success taskId={}", taskId);
 
         } catch (Exception e) {
-            int retry = getRetry(amqpMsg) + 1; // 첫 실패면 1
+            int retry = beforeRetry + 1;
+            boolean willRetry = retry <= 3;
 
-            boolean willRetry = retry <= 3; // 재시도 3회까지만(총 4번)
+            log.error("[OCR-MQ] failed taskId={}, retry={}", taskId, retry, e);
 
             var task = expenseOcrTaskRepository.findById(taskId).orElseThrow();
             task.markFailed(e);
-
-            if (willRetry) {
-                // 재시도 예정이면 QUEUED로 되돌려야 다음 메시지에서 다시 잡힘
-                task.markQueued();
-            }
+            if (willRetry) task.markQueued();
             expenseOcrTaskRepository.save(task);
 
             if (!willRetry) {
@@ -72,9 +70,8 @@ public class OcrQueueListener {
                 return m;
             });
         }
-
-
     }
+
 
     private int getRetry(Message amqpMsg) {
         Object v = amqpMsg.getMessageProperties().getHeaders().get(HDR_RETRY);
