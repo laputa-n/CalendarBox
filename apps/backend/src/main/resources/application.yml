@@ -30,6 +30,13 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: app
+    password: apppass
+
 management:
   endpoints:
     web:

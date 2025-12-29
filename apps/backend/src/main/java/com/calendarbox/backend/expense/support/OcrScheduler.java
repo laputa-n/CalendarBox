@@ -6,7 +6,8 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-@Component
+//RabbitMQ 도입으로 비활성화
+//@Component
 @RequiredArgsConstructor
 public class OcrScheduler {
     private final ExpenseOcrWorker expenseOcrWorker;

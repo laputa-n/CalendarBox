@@ -78,6 +78,7 @@ public class ExpenseOcrTask {
 
     public void markRunning() { this.status = OcrTaskStatus.RUNNING; }
     public void markSuccess() { this.status = OcrTaskStatus.SUCCESS; }
+    public void markQueued() { this.status = OcrTaskStatus.QUEUED; }
     // ExpenseOcrTask.java
     public void markFailed(Throwable t) {
         this.status = OcrTaskStatus.FAILED;
