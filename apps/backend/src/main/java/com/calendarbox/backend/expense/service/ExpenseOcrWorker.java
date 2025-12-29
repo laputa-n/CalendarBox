@@ -122,4 +122,70 @@ public class ExpenseOcrWorker {
         return s.length() <= max ? s : s.substring(0, max);
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void processOneByTaskId(Long taskId){
+        var task = expenseOcrTaskRepository.findById(taskId).orElseThrow();
+        log.info("[OCR] start taskId={}, attKey={}", task.getOcrTaskId(), task.getAttachment().getObjectKey());
+
+        var att = task.getAttachment();
+
+        // 1) S3
+        byte[] bytes = storageClient.getObjectBytes(att.getObjectKey());
+        log.info("[OCR] read s3 bytes: {}", (bytes == null ? 0 : bytes.length));
+
+        // 2) 확장자
+        String ext = Optional.ofNullable(att.getOriginalName())
+                .map(n -> n.substring(n.lastIndexOf('.')+1).toLowerCase())
+                .orElse("jpg");
+        if (ext.equals("jpeg")) ext = "jpg";
+        if (!List.of("jpg","png","pdf").contains(ext)) {
+            throw new IllegalArgumentException("Unsupported image format: " + ext);
+        }
+        log.info("[OCR] ext={}", ext);
+
+        // 3) 요청 바디
+        String b64 = java.util.Base64.getEncoder().encodeToString(bytes);
+        Map<String, Object> body = Map.of(
+                "version", "V2",
+                "requestId", "req-" + System.currentTimeMillis(),
+                "timestamp", System.currentTimeMillis(),
+                "images", List.of(Map.of(
+                        "format", ext,
+                        "name", "receipt",
+                        "data", b64
+                ))
+        );
+        log.info("[OCR] ready to call Naver OCR (len={})", b64.length());
+
+        // 4) 호출
+        Map<String,Object> raw = naverOcrClient.request(body);
+        if (raw == null || raw.isEmpty()) {
+            throw new IllegalStateException("OCR empty or null response");
+        }
+        log.info("[OCR] got response keys={}", raw.keySet());
+        task.updateRawResponse(raw); // ← 먼저 저장
+
+        // 5) 정규화
+        var norm = OcrNormalize.normalize(raw);
+        task.updateNormalized(norm.asMap());
+        log.info("[OCR] normalized total={}, items={}", norm.totalAmount(), norm.items().size());
+
+        // 6) 저장
+        var expense = expenseRepository.save(Expense.fromReceipt(
+                task.getSchedule(),
+                cut(norm.getMerchantNameOrDefault("영수증"),255),
+                norm.totalAmount(),
+                norm.paidAt(),
+                norm.asMap()
+        ));
+        var lines = norm.items().stream()
+                .map(i -> ExpenseLine.of(expense, cut(i.label(),255), i.qty(), i.unitAmount(), i.lineAmount()))
+                .toList();
+        expenseLineRepository.saveAll(lines);
+        expenseAttachmentRepository.save(ExpenseAttachment.of(expense, att));
+        task.linkExpense(expense);
+
+        log.info("[OCR] success taskId={}, expenseId={}", task.getOcrTaskId(), expense.getId());
+    }
+
 }

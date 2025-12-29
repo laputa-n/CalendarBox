@@ -17,6 +17,7 @@ import com.calendarbox.backend.calendar.repository.CalendarMemberRepository;
 import com.calendarbox.backend.calendar.repository.CalendarRepository;
 import com.calendarbox.backend.expense.enums.OcrTaskStatus;
 import com.calendarbox.backend.expense.repository.ExpenseOcrTaskRepository;
+import com.calendarbox.backend.global.config.OcrMqConfig;
 import com.calendarbox.backend.global.error.BusinessException;
 import com.calendarbox.backend.global.error.ErrorCode;
 import com.calendarbox.backend.global.infra.storage.StorageClient;
@@ -29,6 +30,7 @@ import com.calendarbox.backend.schedule.repository.ScheduleParticipantRepository
 import com.calendarbox.backend.schedule.repository.ScheduleRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.FilenameUtils;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,6 +66,7 @@ public class UploadService {
     private final CalendarRepository calendarRepository;
     private final CalendarHistoryRepository calendarHistoryRepository;
     private final ExpenseOcrTaskRepository expenseOcrTaskRepository;
+    private final RabbitTemplate rabbitTemplate;
     @Transactional(readOnly = true)
     public PresignResponse presign(Long userId, PresignRequest req) {
         Member user = memberRepository.findById(userId).orElseThrow(()->new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
@@ -103,9 +106,10 @@ public class UploadService {
         ));
         cache.remove(req.uploadId());
         if(ctx.isReceipt() || saved.getObjectKey().contains("/receipts/")){
-            expenseOcrTaskRepository.save(
+            ExpenseOcrTask task = expenseOcrTaskRepository.save(
                     ExpenseOcrTask.of(saved, schedule, HashUtil.sha256(saved.getObjectKey()))
             );
+            rabbitTemplate.convertAndSend(OcrMqConfig.EXCHANGE, OcrMqConfig.RK_RUN, task.getOcrTaskId());
         }
         CalendarHistory history = CalendarHistory.builder()
                 .calendar(calendar)

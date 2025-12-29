@@ -61,6 +61,9 @@ dependencies {
 	//pgvector 사용
 	implementation "com.pgvector:pgvector:0.1.6"
 
+	//RabbitMQ
+	implementation 'org.springframework.boot:spring-boot-starter-amqp'
+
 
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
