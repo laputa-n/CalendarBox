@@ -43,12 +43,24 @@ public class OcrQueueListener {
             log.info("[OCR-MQ] success taskId={}", taskId);
 
         } catch (Exception e) {
+            var task = expenseOcrTaskRepository.findById(taskId).orElseThrow();
+
+            boolean s3Missing = (e instanceof IllegalStateException)
+                    && e.getMessage() != null
+                    && e.getMessage().contains("S3 object not found");
+
+            if (s3Missing) {
+                task.markFailed(e);
+                expenseOcrTaskRepository.save(task);
+                rabbitTemplate.convertAndSend(OcrMqConfig.EXCHANGE, OcrMqConfig.RK_DLQ, taskId);
+                log.warn("[OCR-MQ] permanent fail (missing S3) taskId={}", taskId);
+                return;
+            }
             int retry = beforeRetry + 1;
             boolean willRetry = retry <= 3;
 
             log.error("[OCR-MQ] failed taskId={}, retry={}", taskId, retry, e);
 
-            var task = expenseOcrTaskRepository.findById(taskId).orElseThrow();
             task.markFailed(e);
             if (willRetry) task.markQueued();
             expenseOcrTaskRepository.save(task);
