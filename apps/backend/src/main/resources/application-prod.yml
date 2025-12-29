@@ -33,6 +33,9 @@ spring:
     port: 5672
     username: app
     password: apppass
+    listener:
+      simple:
+        prefetch: 1
 
 server:
   forward-headers-strategy: framework
