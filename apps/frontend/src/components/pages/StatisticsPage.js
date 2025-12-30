@@ -11,6 +11,7 @@ export const StatisticsPage = () => {
     const [yearlyData, setYearlyData] = useState([]); // 1년 동안의 월별 데이터를 저장
     const [peopleList, setPeopleList] = useState([]);
     const [placeList, setPlaceList] = useState([]);
+    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const weekdays = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
     // 현재 월을 "yyyy-MM" 형식으로 반환하는 함수
     function getCurrentMonth() {
@@ -103,37 +104,57 @@ const fetchStatistics = async () => {
     };
 
     // 월별 스케줄 추이 (꺾은선 그래프)
-  const renderMonthlyTrend = () => {
-    const monthlyTrendData = statistics?.monthlyTrend || []; // 월별 스케줄 추이 데이터
+const renderMonthlyTrend = () => {
+  const monthlyTrendData = statistics?.monthlyTrend || [];
 
-    // 데이터가 비어있다면, 차트가 렌더링되지 않도록 조건 추가
-    if (monthlyTrendData.length === 0) {
-        return <p>월별 데이터가 없습니다.</p>;
-    }
+  if (monthlyTrendData.length === 0) {
+    return <p>월별 데이터가 없습니다.</p>;
+  }
 
-    // "2025-09-01T00:00:00" -> "2025-09" 형식으로 변환
-    const transformedData = monthlyTrendData.map(item => ({
-        month: item.month.split('T')[0].slice(0, 7), // "2025-09" 형식으로 변경
-        scheduleCount: item.scheduleCount
-    }));
+  // ✅ 선택된 연도 필터링
+  const filteredData = monthlyTrendData.filter(item =>
+    item.month.startsWith(String(selectedYear))
+  );
 
-    return (
-        <div>
-            <h3>월별 스케줄 추이</h3>
-            <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={transformedData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" /> {/* x축에 "2025-09", "2025-10" 형식으로 표시 */}
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line type="monotone" dataKey="scheduleCount" stroke="#8884d8" />
-                </LineChart>
-            </ResponsiveContainer>
-        </div>
-    );
+  const transformedData = filteredData.map(item => ({
+    month: item.month.slice(0, 7),
+    scheduleCount: item.scheduleCount,
+  }));
+
+  return (
+    <div>
+      <h3>월별 스케줄 추이</h3>
+
+      {/* ✅ 연도 선택 박스 */}
+      <select
+        value={selectedYear}
+        onChange={(e) => setSelectedYear(e.target.value)}
+        style={{
+          padding: '8px 16px',
+          borderRadius: '8px',
+          marginBottom: '20px',
+        }}
+      >
+        {[2023, 2024, 2025].map(year => (
+          <option key={year} value={year}>
+            {year}년
+          </option>
+        ))}
+      </select>
+
+      <ResponsiveContainer width="100%" height={300}>
+        <LineChart data={transformedData}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="month" />
+          <YAxis />
+          <Tooltip />
+          <Legend />
+          <Line type="monotone" dataKey="scheduleCount" stroke="#8884d8" />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
 };
-
 
     // 요일별 스케줄 (원형 그래프)
 const renderWeekdayDistribution = () => {
@@ -296,8 +317,14 @@ const renderHourlyDistribution = () => {
                 ))}
             </div>
 
-            <div>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+  <table
+    style={{
+      width: '90%',
+      borderCollapse: 'collapse',
+      textAlign: 'center',
+    }}
+  >
                     <thead>
                         <tr>
                             <th>이름</th>
@@ -353,8 +380,14 @@ const renderHourlyDistribution = () => {
                 ))}
             </div>
 
-            <div>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+  <table
+    style={{
+      width: '90%',
+      borderCollapse: 'collapse',
+      textAlign: 'center',
+    }}
+  >
                     <thead>
                         <tr>
                             <th>장소</th>

@@ -75,6 +75,9 @@ export default function EditScheduleModal({ isOpen, onClose, eventData }) {
   const [editingRecurrence, setEditingRecurrence] = useState(null);
   const [isRecurrenceEditing, setIsRecurrenceEditing] = useState(false);
   const [exceptionList, setExceptionList] = useState([]);
+  const [expense, setExpense] = useState(null);
+  const [lines, setLines] = useState([]);
+
 
   const loadLinks = useCallback(async (scheduleId) => {
   try {
@@ -210,30 +213,27 @@ function toValidISO(dt) {
   }, [scheduleId]);
 
   // ========== 초기값 ==========
-  useEffect(() => {
-    if (!isOpen || !eventData) return;
-    console.log('🧩 [EditScheduleModal] eventData:', eventData);
-    setFormData({
-      title: eventData.title || '',
-      description: eventData.description || '',
-      startDateTime: toLocalInputValue(eventData.startDateTime || eventData.startAt),
-      endDateTime: toLocalInputValue(eventData.endDateTime || eventData.endAt),
-      color: eventData.color || '#3b82f6',
-      recurrence: null,
-    });
-      loadData();
-      loadRecurrences();
-  }, [isOpen, eventData, loadData]);
-
-  useEffect(() => {
+useEffect(() => {
   if (!isOpen || !eventData) return;
 
+  setFormData({
+    title: eventData.title || '',
+    description: eventData.description || '',
+    startDateTime: toLocalInputValue(eventData.startDateTime || eventData.startAt),
+    endDateTime: toLocalInputValue(eventData.endDateTime || eventData.endAt),
+    color: eventData.color || '#3b82f6',
+    recurrence: null,
+  });
+
   loadData();
-  // recurrence 로드 후 예외도 로드
-  setTimeout(() => {
-    loadExceptions();
-  }, 50);
-}, [isOpen, eventData, loadData, loadExceptions]);
+
+}, [isOpen, eventData, loadData]);
+
+useEffect(() => {
+  if (!editingRecurrence) return;
+  loadExceptions();
+}, [editingRecurrence, loadExceptions]);
+
 
 // 리마인더 삭제
 const handleDeleteReminder = async (reminderId) => {
@@ -336,7 +336,45 @@ const {
     await loadAttachments();
   };
 
-  // ========== 지출 ==========
+  // ========== 지출 조회 ==========
+useEffect(() => {
+  if (!isOpen || !scheduleId) return;
+
+  const loadExpense = async () => {
+    try {
+      // 1️⃣ 지출 목록
+      const res = await ApiService.listExpenses(scheduleId);
+
+      const expenseList = res?.data?.content ?? [];
+      console.log('💰 expense list:', expenseList);
+
+      const firstExpense = expenseList[0];
+      if (!firstExpense) {
+        setExpense(null);
+        setLines([]);
+        return;
+      }
+
+      // 2️⃣ 지출 상세 (🔥 lines 포함)
+      const detailRes = await ApiService.getExpenseDetail(
+        scheduleId,
+        firstExpense.expenseId
+      );
+
+      const detail = detailRes?.data;
+      console.log('🧾 expense detail:', detail);
+
+      setExpense(detail);
+      setLines(detail.lines ?? []);
+    } catch (err) {
+      console.error('지출 조회 실패:', err);
+    }
+  };
+
+  loadExpense();
+}, [isOpen, scheduleId]);
+
+
   const handleReceiptUpload = (e) => {
     const file = e.target.files[0];
     if (file) setExpenseReceiptFile(file);
@@ -745,13 +783,45 @@ return (
             💰 지출 관리 열기
           </button>
         </div>
+        {expense && (
+  <div style={sectionStyle}>
+    <label style={labelStyle}>💰 지출</label>
 
-        <ExpenseModal
-         isOpen={expenseModalOpen}
-         onClose={() => setExpenseModalOpen(false)}
-         scheduleId={scheduleId}
-       />
+    <div style={itemRow}>
+      <strong>{expense.name}</strong>
+      <span>{expense.amount?.toLocaleString()}원</span>
+    </div>
 
+    {lines.map(line => (
+      <div
+        key={line.expenseLineId}
+        style={{ paddingLeft: 8, fontSize: '0.875rem', color: '#374151' }}
+      >
+        • {line.label} ({line.lineAmount.toLocaleString()}원)
+      </div>
+    ))}
+  </div>
+)}
+       <ExpenseModal
+  isOpen={expenseModalOpen}
+  onClose={() => {
+    setExpenseModalOpen(false);
+    // 🔥 지출 다시 로드
+    ApiService.listExpenses(scheduleId).then(res => {
+      const e = res.data?.[0];
+      if (!e) {
+        setExpense(null);
+        setLines([]);
+        return;
+      }
+      setExpense(e);
+      ApiService.listExpenseLines(e.expenseId).then(r =>
+        setLines(r.data?.content ?? [])
+      );
+    });
+  }}
+  scheduleId={scheduleId}
+/>
 
 {/* 기존 첨부파일 */}
 <div style={sectionStyle}>

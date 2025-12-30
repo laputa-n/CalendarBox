@@ -7,7 +7,6 @@ import { localInputToISO } from '../../utils/datetime';
 import { validateSchedulePayload } from '../../utils/scheduleValidator';
 import { useAttachments } from '../../hooks/useAttachments';
 import { buildRecurrencePayload } from '../../utils/recurrenceBuilder';
-import { COLOR_TO_THEME } from '../../utils/colorUtils';
 // ✅ 생성 전용 모달 (첨부/지출은 수정 모달에서 처리)
 export default function ScheduleModal({ isOpen, onClose, selectedDate }) {
   const { createSchedule } = useSchedules();
@@ -40,26 +39,25 @@ export default function ScheduleModal({ isOpen, onClose, selectedDate }) {
  
   // ====== 지출 & 첨부파일 관련 상태 ======
   const [expenseName, setExpenseName] = useState('');
-  const [expenseAmount, setExpenseAmount] = useState('');
   const [expenseReceiptFile, setExpenseReceiptFile] = useState(null);
   const [exceptionDates, setExceptionDates] = useState([]);
+  const [expenseLines, setExpenseLines] = useState([]);
 
   // ====== 영수증 ======
   const handleReceiptUpload = (e) => {
     const file = e.target.files[0];
     if (file) setExpenseReceiptFile(file);
   };
-// ====== URL 추가 ======
+const [linkInput, setLinkInput] = useState('');
+
 const handleAddLink = () => {
-  const url = prompt('URL을 입력하세요:');
-  const label = prompt('URL 설명을 입력하세요 (없으면 엔터):');
-  if (url) {
-    const newLink = { url, label: label || url };
-    setFormData(prev => ({
-      ...prev,
-      links: [...prev.links, newLink]
-    }));
-  }
+  if (!linkInput.trim()) return;
+
+  setFormData(prev => ({
+    ...prev,
+    links: [...prev.links, { url: linkInput, label: linkInput }],
+  }));
+  setLinkInput('');
 };
 
 const handleRecurrenceChange = (e) => {
@@ -150,11 +148,36 @@ try {
       console.warn('[Schedule] payload validation warnings:', errs);
     }
 
-      // 1️⃣ 일정 생성
-      const res = await createSchedule(payload);
-      const newId = extractScheduleId(res);
-      if (!newId) throw new Error('일정 생성 응답에 id가 없습니다.');
+     // 1️⃣ 일정 생성
+const res = await createSchedule(payload);
+const newId = extractScheduleId(res);
+if (!newId) throw new Error('일정 생성 응답에 id가 없습니다.');
 
+// 2️⃣ 지출 생성 (세부 항목 있을 때만)
+if (expenseName && expenseLines.length > 0) {
+  const totalAmount = expenseLines.reduce(
+    (sum, l) => sum + Number(l.amount || 0),
+    0
+  );
+
+  const expenseRes = await ApiService.createExpense(newId, {
+    name: expenseName,
+    amount: totalAmount,
+    paidAt: new Date().toISOString(),
+  });
+
+  const expenseId = expenseRes?.data?.expenseId;
+
+  // 3️⃣ ExpenseLine 생성
+  for (const line of expenseLines) {
+    if (!line.title || !line.amount) continue;
+
+    await ApiService.createExpenseLine(expenseId, {
+      label: line.title,
+      lineAmount: Number(line.amount),
+    });
+  }
+}
 // 2️⃣ recurrenceId 조회
 let recurrenceId = null;
 try {
@@ -196,15 +219,6 @@ if (recurrenceId && exceptionDates.length > 0) {
 
   // OCR 트리거 (백엔드에서 attachment + OCR 처리)
   const completeRes = await ApiService.completeUpload(uploadId, objectKey);
-}
-
-// 3-2️⃣ ✅ 수동 입력 모드: 이름/금액 입력 시
-if (expenseName && expenseAmount) {
-  const expenseRes = await ApiService.createExpense(newId, {
-    name: expenseName,
-    amount: parseInt(expenseAmount, 10),
-    paidAt: new Date().toISOString(),
-  });
 }
       // 4️⃣ 장소 개별 등록
       if (Array.isArray(formData.places) && formData.places.length) {
@@ -375,7 +389,12 @@ if (expenseName && expenseAmount) {
       places: prev.places.filter((_, i) => i !== index),
     }));
   };
-
+  const handleAddExpenseLine = () => {
+  setExpenseLines(prev => [
+    ...prev,
+    { title: '', amount: '' },
+  ]);
+};
   const handleReorderPlaces = (direction, index) => {
     const target = direction === 'up' ? index - 1 : index + 1;
     if (target < 0 || target >= formData.places.length) return;
@@ -661,19 +680,17 @@ if (expenseName && expenseAmount) {
         <div style={sectionStyle}>
           <label style={labelStyle}>🌐 링크</label>
           <div>
-            <input
-              type="text"
-              placeholder="URL을 입력하세요"
-              onChange={(e) => handleAddLink(e.target.value)}
-              style={inputStyle}
-            />
-            <button
-              type="button"
-              onClick={handleAddLink}
-              style={subButton}
-            >
-              링크 추가
-            </button>
+          <input
+  type="text"
+  placeholder="URL을 입력하세요"
+  value={linkInput}
+  onChange={(e) => setLinkInput(e.target.value)}
+  style={inputStyle}
+/>
+<button type="button" onClick={handleAddLink} style={subButton}>
+  링크 추가
+</button>
+
           </div>
           {formData.links.length > 0 && (
             <ul>
@@ -699,8 +716,10 @@ if (expenseName && expenseAmount) {
 
        
           {/* 💰 지출 등록 */}
+{/* 💰 지출 등록 */}
 <div style={sectionStyle}>
   <label style={labelStyle}>💰 지출 등록</label>
+
   <input
     type="text"
     placeholder="지출명"
@@ -708,16 +727,55 @@ if (expenseName && expenseAmount) {
     onChange={(e) => setExpenseName(e.target.value)}
     style={inputStyle}
   />
+
+  {/* ➕ 세부 지출 항목 추가 */}
+  <button
+    type="button"
+    onClick={handleAddExpenseLine}
+    style={subButton}
+  >
+    + 세부 지출 추가
+  </button>
+
+  {expenseLines.map((line, idx) => (
+    <div
+      key={idx}
+      style={{ display: 'flex', gap: 8, marginBottom: '0.5rem' }}
+    >
+      <input
+        type="text"
+        placeholder="항목명"
+        value={line.title}
+        onChange={(e) => {
+          const next = [...expenseLines];
+          next[idx].title = e.target.value;
+          setExpenseLines(next);
+        }}
+        style={inputStyle}
+      />
+      <input
+        type="number"
+        placeholder="금액"
+        value={line.amount}
+        onChange={(e) => {
+          const next = [...expenseLines];
+          next[idx].amount = e.target.value;
+          setExpenseLines(next);
+        }}
+        style={inputStyle}
+      />
+    </div>
+  ))}
+
+  {/* 📷 영수증 첨부 */}
+  <label style={labelStyle}>📷 영수증 첨부</label>
   <input
-    type="number"
-    placeholder="금액"
-    value={expenseAmount}
-    onChange={(e) => setExpenseAmount(e.target.value)}
+    type="file"
+    onChange={handleReceiptUpload}
     style={inputStyle}
   />
-  <label style={labelStyle}>📷 영수증 첨부</label>
-  <input type="file" onChange={handleReceiptUpload} style={inputStyle} />
 </div>
+
 
 {/* 📷 이미지 첨부 */}
           <div style={sectionStyle}>

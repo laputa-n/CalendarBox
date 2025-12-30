@@ -102,14 +102,18 @@ export const FriendsPage = () => {
     border: '1px solid #e5e7eb'
   };
   
- const handleAccept = async (id) => {
+const handleAccept = async (id) => {
   await acceptFriendRequest(id);
+
+  await fetchReceivedRequests(); // 🔥 받은 요청 갱신
+  await fetchSentRequests();     // 🔥 보낸 요청도 영향 있음
+
   setActiveTab('friends');
 };
 
 const handleReject = async (id) => {
   await rejectFriendRequest(id);
-
+  await fetchReceivedRequests(); // 🔥 즉시 제거
 };
 
   const buttonStyle = (bgColor = '#2563eb', textColor = 'white') => ({
