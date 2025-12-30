@@ -54,21 +54,6 @@ useEffect(() => {
   }
 }, [calendarId, calendars]);
 
-// 2️⃣ currentCalendar → occurrences fetch
-useEffect(() => {
-  if (!currentCalendar) return;
-
-  const api = calendarRef.current?.getApi();
-  if (!api) return;
-
-  const view = api.view;
-  handleDatesSet({
-    start: view.currentStart,
-    end: view.currentEnd,
-  });
-}, [currentCalendar]);
-
-
   /** =========================
    *  캘린더 CRUD
    * ========================= */
@@ -137,6 +122,8 @@ useEffect(() => {
 };
 
 
+
+
   /** =========================
    *  스타일
    * ========================= */
@@ -166,24 +153,23 @@ useEffect(() => {
   const convertOccurrencesToEvents = () => {
   if (!occurrencesByDay) return [];
 
+  console.log("🔵 convertOccurrencesToEvents input:", occurrencesByDay);
+
   const events = [];
+
   Object.entries(occurrencesByDay).forEach(([day, list]) => {
-    console.log("🔵 occurrencesByDay:", occurrencesByDay);
-    console.log("🔵 convertOccurrencesToEvents input:", occurrencesByDay);
     list.forEach((occ) => {
-      // 시작 시각 우선순위: UTC > KST > 그냥 startAt
       const start =
         occ.startAtUtc ||
         occ.startAtKst ||
         occ.startAt;
 
-      if (!start) return; // 시작이 없으면 패스
+      if (!start) return;
 
       events.push({
         id: occ.occurrenceId ?? occ.id,
         title: occ.title,
-        start,           // ✅ 시작만 넘김 (end 안 씀)
-        // end: 제거! (여기 때문에 막 길게 보였던 거)
+        start,
         allDay: false,
         backgroundColor: getThemeColor(occ.theme),
         borderColor: getThemeColor(occ.theme),
@@ -195,7 +181,6 @@ useEffect(() => {
     });
   });
 
-  console.log('✅ convertOccurrencesToEvents result:', events);
   return events;
 };
 
@@ -212,21 +197,39 @@ const getThemeColor = (theme) => {
 
 const calendarRef = useRef(null);
 
+const events = React.useMemo(() => {
+  if (!occurrencesByDay) return [];
+  return convertOccurrencesToEvents();
+}, [occurrencesByDay]);
+
+
 const toKstIso = (date) => {
   const offset = 9 * 60 * 60 * 1000;
   return new Date(date.getTime() + offset).toISOString().replace('Z', '+09:00');
 };
 
+const lastFetchKeyRef = useRef('');
+
 const handleDatesSet = (arg) => {
   if (!currentCalendar) return;
 
+  const from = toKstIso(arg.start);
+  const to = toKstIso(arg.end);
+  const key = `${currentCalendar.id}_${from}_${to}`;
+
+  // ✅ 동일한 조건이면 fetch 중단
+  if (lastFetchKeyRef.current === key) {
+    return;
+  }
+
+  lastFetchKeyRef.current = key;
+
   fetchOccurrences({
-    fromKst: toKstIso(arg.start),
-    toKst: toKstIso(arg.end),
+    fromKst: from,
+    toKst: to,
     calendarId: currentCalendar.id,
   });
 };
-
 
   /** =========================
    *  렌더링
@@ -340,7 +343,7 @@ const handleDatesSet = (arg) => {
             plugins={[dayGridPlugin, interactionPlugin]}
             initialView="dayGridMonth"
             locale="ko"
-            events={convertOccurrencesToEvents()}
+            events={events}
             datesSet={handleDatesSet}
             dateClick={handleDateClick}
             eventClick={handleEventClick}

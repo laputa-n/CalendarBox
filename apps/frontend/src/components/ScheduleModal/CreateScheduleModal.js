@@ -6,7 +6,8 @@ import { ApiService } from '../../services/apiService';
 import { localInputToISO } from '../../utils/datetime';
 import { validateSchedulePayload } from '../../utils/scheduleValidator';
 import { useAttachments } from '../../hooks/useAttachments';
-
+import { buildRecurrencePayload } from '../../utils/recurrenceBuilder';
+import { COLOR_TO_THEME } from '../../utils/colorUtils';
 // ✅ 생성 전용 모달 (첨부/지출은 수정 모달에서 처리)
 export default function ScheduleModal({ isOpen, onClose, selectedDate }) {
   const { createSchedule } = useSchedules();
@@ -24,7 +25,7 @@ export default function ScheduleModal({ isOpen, onClose, selectedDate }) {
     color: '#3b82f6',
     places: [],             
    recurrence: {
-    freq: 'WEEKLY',       // 기본값 설정
+    freq: '',       // 기본값 설정
     intervalCount: 1,     // 기본값 설정
     byDay: [],            // 기본값 설정
     until: ''             // 기본값 설정
@@ -67,15 +68,31 @@ const handleRecurrenceChange = (e) => {
   setFormData(prev => {
     const next = { ...prev.recurrence };
 
-    if (name === 'freq') {
-      next.freq = value || null; // ""이면 null
-    }
-    else if (name === 'intervalCount') {
+   if (name === 'freq') {
+  if (!value) {
+    // ✅ 반복 없음 → 완전 초기화
+    return {
+      ...prev,
+      recurrence: {
+        freq: '',
+        intervalCount: 1,
+        byDay: [],
+        until: '',
+      },
+    };
+  }
+
+  next.freq = value;
+}
+else if (name === 'intervalCount') {
       next.intervalCount = Number(value) || 1;
     }
     else if (name === 'byDay') {
-      if (checked) next.byDay = [...next.byDay, value];
-      else next.byDay = next.byDay.filter(d => d !== value);
+      if (checked) {
+        next.byDay = [...next.byDay, value];
+      } else {
+        next.byDay = next.byDay.filter(d => d !== value);
+      }
     }
     else if (name === 'until') {
       next.until = value;
@@ -85,22 +102,30 @@ const handleRecurrenceChange = (e) => {
       ...prev,
       recurrence: next,
     };
+
   });
 };
+
+
 const handleSubmit = async (e) => {
   e.preventDefault();
 
-  const recurrenceData = formData.recurrence; // formData.recurrence 그대로 사용
-  const untilISO = formData.recurrence.until
-    ? localInputToISO(formData.recurrence.until)
-    : null;
-  console.log("recurrenceData before submit:", recurrenceData); // 추가된 로그
+  const startAtISO = localInputToISO(formData.startDateTime);
+  const endAtISO   = localInputToISO(formData.endDateTime);
+
+let recurrencePayload = null;
+
+try {
+  recurrencePayload = buildRecurrencePayload(formData.recurrence);
+} catch (e) {
+  alert(e.message);
+  return;
+}
 
   try {
     const payload = {
       title: formData.title ?? '',
       memo: formData.description ?? '',
-      theme: (formData.theme || 'BLUE').toUpperCase(),
       startAt: localInputToISO(formData.startDateTime),
       endAt: localInputToISO(formData.endDateTime),
       todos: (formData.todos || []).map((t, i) => ({
@@ -115,15 +140,10 @@ const handleSubmit = async (e) => {
               : null
           ).filter(Boolean)
         : [],
-     recurrence: {
-    freq: formData.recurrence.freq || null,  
-    intervalCount: formData.recurrence.intervalCount || 1,
-    byDay: Array.from(new Set(formData.recurrence.byDay)),
-    until: untilISO, 
-  },
       color: formData.color || '#3b82f6',
       places: [], // 예시에서는 비워둠
       links: formData.links,
+      ...(recurrencePayload ? { recurrence: recurrencePayload } : {})
     };
     const errs = validateSchedulePayload ? validateSchedulePayload(payload) : [];
     if (errs.length) {
@@ -225,7 +245,7 @@ if (expenseName && expenseAmount) {
         endDateTime:   `${selectedDate}T10:00`,
         color: '#3b82f6',
         places: [],
-        recurrence: { freq: 'WEEKLY', intervalCount: 1, byDay: [], until: '' },
+        recurrence: { freq: '', intervalCount: 1, byDay: [], until: '' },
         todos: [],
         reminders: [],
       }));
@@ -519,11 +539,11 @@ if (expenseName && expenseAmount) {
 <div style={sectionStyle}>
   <label style={labelStyle}>🔁 반복 주기</label>
   <select
-    name="freq"
-  value={formData.recurrence.freq}
+  name="freq"
+  value={formData.recurrence.freq || ''}  // ✅ 핵심
   onChange={handleRecurrenceChange}
-    style={inputStyle}
-  >
+  style={inputStyle}
+>
     <option value="">없음</option>
     <option value="DAILY">매일</option>
     <option value="WEEKLY">매주</option>

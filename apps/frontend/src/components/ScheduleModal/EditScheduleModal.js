@@ -629,10 +629,18 @@ return (
   type="button"
   style={{ ...subButton, background: '#3b82f6', color: '#fff', marginTop: 8 }}
   onClick={() => {
+    if (!editingRecurrence.freq) {
+  alert('반복 유형을 선택하세요.');
+  return;
+}
     const fixedData = {
-      ...editingRecurrence,
-      until: toValidISO(editingRecurrence.until)
-    };
+  freq: editingRecurrence.freq,
+  intervalCount: editingRecurrence.intervalCount,
+  byDay: editingRecurrence.byDay?.length ? editingRecurrence.byDay : null,
+  until: editingRecurrence.until
+    ? toValidISO(editingRecurrence.until)
+    : null,
+};
     updateRecurrence(
       scheduleId,
       editingRecurrence.recurrenceId,

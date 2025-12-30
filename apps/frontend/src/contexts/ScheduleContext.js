@@ -4,6 +4,7 @@ import { ApiService } from '../services/apiService';
 import { useAuth } from './AuthContext';
 import { useCalendars } from './CalendarContext';
 import { useError } from './ErrorContext';
+import { COLOR_TO_THEME , THEME_TO_COLOR } from '../utils/colorUtils';
 
 const ScheduleContext = createContext();
 
@@ -32,7 +33,7 @@ export const ScheduleProvider = ({ children }) => {
     endAt: item.endAt,
     startDateTime: item.startAt,
     endDateTime: item.endAt,
-    color: item.theme?.toLowerCase?.() || '#3b82f6',
+    color: THEME_TO_COLOR[item.theme] || '#3b82f6',
   });
 
   /** =========================
@@ -110,24 +111,18 @@ export const ScheduleProvider = ({ children }) => {
     try {
       setLoading(true);
 
-      const apiData = {
-        title: scheduleData.title,
-        memo: scheduleData.memo || scheduleData.description || "",
-        theme:
-          scheduleData.theme && scheduleData.theme.startsWith("#")
-            ? "BLUE"
-            : String(scheduleData.theme || "BLUE").toUpperCase(),
-        startAt: new Date(scheduleData.startAt || scheduleData.startDateTime).toISOString(),
-        endAt: new Date(scheduleData.endAt || scheduleData.endDateTime).toISOString(),
-        links: scheduleData.links || [],
-        places: scheduleData.places || [],
-        participants: scheduleData.participants || [],
-        todos: scheduleData.todos || [],
-        reminders: scheduleData.reminders || [],
-        recurrence: scheduleData.recurrence || { freq: 'DAILY', intervalCount: 1, byDay: [], until: '' }
-      };
-
-      const res = await ApiService.createSchedule(currentCalendar.id, apiData);
+const apiData = {
+  title: scheduleData.title,
+  memo: scheduleData.memo || scheduleData.description || '',
+  theme: COLOR_TO_THEME[scheduleData.color] || 'BLUE',
+  startAt: new Date(scheduleData.startAt || scheduleData.startDateTime).toISOString(),
+  endAt: new Date(scheduleData.endAt || scheduleData.endDateTime).toISOString(),
+  links: scheduleData.links || [],
+  places: scheduleData.places || [],
+  todos: scheduleData.todos || [],
+  reminders: scheduleData.reminders || [],
+  ...(scheduleData.recurrence ? { recurrence: scheduleData.recurrence } : {}),
+};   const res = await ApiService.createSchedule(currentCalendar.id, apiData);
       await fetchAllSchedules(); // ✅ 생성 후 즉시 새로고침
       return res;
     } catch (error) {
@@ -197,6 +192,22 @@ export const ScheduleProvider = ({ children }) => {
     }
   };
 
+const searchSchedules = async ({ query, calendarId }) => {
+  try {
+    setLoading(true);
+
+    const res = await ApiService.searchSchedules({ query, calendarId });
+    const raw = res.data?.content || res.data || [];
+
+    setSchedules(raw.map(transformScheduleData));
+  } catch (e) {
+    showError('일정 검색 실패');
+  } finally {
+    setLoading(false);
+  }
+};
+
+
 const addScheduleParticipant = async (scheduleId, payload) => {
   return ApiService.addScheduleParticipant(scheduleId, payload);
 };
@@ -254,6 +265,7 @@ const fetchScheduleParticipants = async (scheduleId) => {
     participants,
   participantsLoading,
   fetchScheduleParticipants,
+  searchSchedules,
   };
 
   return (

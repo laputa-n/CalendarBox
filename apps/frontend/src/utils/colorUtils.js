@@ -36,3 +36,24 @@ export const lightenColor = (color, percent) => {
   
   return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
 };
+
+export const COLOR_TO_THEME = {
+  '#3b82f6': 'BLUE',     // blue
+  '#6366f1': 'BLUE',     // indigo → BLUE로 묶기
+  '#10b981': 'GREEN',    // emerald
+  '#84cc16': 'GREEN',    // lime → GREEN
+  '#f97316': 'ORANGE',   // orange
+  '#f59e0b': 'ORANGE',   // amber → ORANGE
+  '#ef4444': 'RED',      // red
+  '#8b5cf6': 'PURPLE',   // violet
+  '#ec4899': 'PURPLE',   // pink → PURPLE
+  '#06b6d4': 'BLUE',     // cyan → BLUE 계열
+};
+
+export const THEME_TO_COLOR = {
+  BLUE: '#3b82f6',
+  GREEN: '#10b981',
+  ORANGE: '#f97316',
+  RED: '#ef4444',
+  PURPLE: '#8b5cf6',
+};
