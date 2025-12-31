@@ -533,9 +533,11 @@ return (
     </div>
 
     {/* ✅ 사람 / 장소 필터는 항상 보이게 */}
-    {(selectedTab === 'people' || selectedTab === 'place') &&
-      renderYearMonthSelector()}
-
+    {(selectedTab === 'people' || selectedTab === 'place') && (
+    <div style={{ marginBottom: '16px' }}>
+    {renderYearMonthSelector()}
+    </div>
+)}
     {/* ✅ 통계 로딩 */}
     {statisticsLoading && <p>Loading...</p>}
 
