@@ -24,7 +24,7 @@ public class ScheduleReminderService {
     public ReminderResponse create(Long userId, Long scheduleId, ReminderRequest req) {
         Schedule s = scheduleRepository.findById(scheduleId).orElseThrow
                 (() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
-        if(scheduleReminderRepository.findAllMinutesBeforeBySchedule_Id(scheduleId).contains(req.minutesBefore())){
+        if(scheduleReminderRepository.existsBySchedule_IdAndMinutesBefore(scheduleId,req.minutesBefore())){
             throw new BusinessException(ErrorCode.REMINDER_MINUTES_DUP);
         }
         if(!s.getCreatedBy().getId().equals(userId)
