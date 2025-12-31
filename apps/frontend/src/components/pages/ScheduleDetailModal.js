@@ -1,44 +1,34 @@
 import React, { useEffect, useState } from 'react';
 import { X, Users, Loader2 } from 'lucide-react';
 import { formatDateTime } from '../../utils/dateUtils';
-import { ApiService } from '../../services/apiService';
+import { useSchedules } from '../../contexts/ScheduleContext';
 
-export const ScheduleDetailModal = ({ schedule, onClose }) => {
+export const ScheduleDetailModal = ({ scheduleId, onClose }) => {
   /** =========================
    * 상태
    * ========================= */
-  const [participants, setParticipants] = useState([]);
-  const [participantsLoading, setParticipantsLoading] = useState(false);
 
   const [inviteName, setInviteName] = useState('');
   const [inviting, setInviting] = useState(false);
+  
 
   const [respondingId, setRespondingId] = useState(null);
+const {
+  scheduleDetail,
+  scheduleDetailLoading,
+  fetchScheduleDetail, // 🔥 추가
+  fetchScheduleParticipants,
+  participants,
+  participantsLoading,
+  addScheduleParticipant,
+  respondToScheduleInvite,
+} = useSchedules();
 
-  /** =========================
-   * 참여자 목록 조회
-   * ========================= */
-  const fetchParticipants = async () => {
-    if (!schedule?.id) return;
-
-    try {
-      setParticipantsLoading(true);
-      const res = await ApiService.getScheduleParticipants(schedule.id);
-      setParticipants(res.data?.content || []);
-    } catch (e) {
-      console.error('참여자 목록 조회 실패', e);
-      setParticipants([]);
-    } finally {
-      setParticipantsLoading(false);
-    }
-  };
-
-  /** =========================
-   * 일정 변경 시 참여자 재조회
-   * ========================= */
-  useEffect(() => {
-    fetchParticipants();
-  }, [schedule]);
+useEffect(() => {
+  if (!scheduleId) return;
+  fetchScheduleDetail(scheduleId);          // 🔥 상세 조회
+  fetchScheduleParticipants(scheduleId);    // 🔥 참여자 조회
+}, [scheduleId, fetchScheduleDetail, fetchScheduleParticipants]);
 
   /** =========================
    * 이름으로 멤버 초대
@@ -52,13 +42,11 @@ export const ScheduleDetailModal = ({ schedule, onClose }) => {
     try {
       setInviting(true);
 
-      await ApiService.addScheduleParticipant(schedule.id, {
-        mode: 'NAME',
-        name: inviteName.trim(),
-      });
-
+      await addScheduleParticipant(scheduleId, {
+    mode: 'NAME',
+    name: inviteName.trim(),
+  });
       setInviteName('');
-      await fetchParticipants();
     } catch (e) {
       console.error('멤버 초대 실패', e);
       alert(e.message || '멤버 초대 실패');
@@ -74,13 +62,12 @@ export const ScheduleDetailModal = ({ schedule, onClose }) => {
     try {
       setRespondingId(participantId);
 
-      await ApiService.respondToScheduleInvite(
-        schedule.id,
-        participantId,
-        action // 'ACCEPT' | 'REJECT'
-      );
+      await respondToScheduleInvite(
+  scheduleId,
+  participantId,
+  action
+);
 
-      await fetchParticipants();
     } catch (e) {
       console.error('응답 처리 실패', e);
       alert('응답 처리 실패');
@@ -88,8 +75,6 @@ export const ScheduleDetailModal = ({ schedule, onClose }) => {
       setRespondingId(null);
     }
   };
-
-  if (!schedule) return null;
 
   /** =========================
    * 스타일
@@ -134,6 +119,18 @@ export const ScheduleDetailModal = ({ schedule, onClose }) => {
     alignItems: 'center',
     gap: '0.5rem',
   };
+  if (scheduleDetailLoading) {
+  return (
+    <div style={overlayStyle}>
+      <Loader2 style={{ animation: 'spin 1s linear infinite' }} />
+    </div>
+  );
+}
+
+if (!scheduleDetail) return null;
+
+const schedule = scheduleDetail;
+
 
   /** =========================
    * 렌더
@@ -144,7 +141,6 @@ export const ScheduleDetailModal = ({ schedule, onClose }) => {
         {/* Header */}
         <div style={headerStyle}>
           <div>
-            <strong>{schedule.title}</strong>
             <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>
               {schedule.isAllDay
                 ? '하루 종일'

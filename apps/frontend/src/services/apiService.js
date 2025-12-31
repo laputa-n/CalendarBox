@@ -159,7 +159,7 @@ export class ApiService {
 
   // === 회원 검색 기능 관련 ===
 static async searchMembers(q, page = 0, size = 20, sort = null) {
-  let endpoint = `/api/members/search?q=${encodeURIComponent(q)}&page=${page}&size=${size}`;
+  let endpoint = `/members/search?q=${encodeURIComponent(q)}&page=${page}&size=${size}`;
 
   if (sort && Array.isArray(sort)) {
     sort.forEach(s => {
@@ -292,6 +292,11 @@ static async patchSchedule(scheduleId, partialData) {
 
 static async deleteSchedule(scheduleId) {
   return this.request(`/schedules/${scheduleId}`, { method: 'DELETE' });
+}
+
+// ✅ 일정 상세 조회
+static async getScheduleDetail(scheduleId) {
+  return this.request(`/schedules/${scheduleId}`);
 }
 
   // === 일정 참여자 관련 ===

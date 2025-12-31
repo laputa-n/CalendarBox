@@ -284,6 +284,7 @@ function toValidISO(dt) {
       files: files?.data || [],
     });
   }, [scheduleId]);
+  
 
   // ========== 초기값 ==========
 useEffect(() => {
@@ -291,7 +292,7 @@ useEffect(() => {
 
   setFormData({
     title: eventData.title || '',
-    description: eventData.description || '',
+    description: eventData.memo || '', 
     startDateTime: toLocalInputValue(eventData.startDateTime || eventData.startAt),
     endDateTime: toLocalInputValue(eventData.endDateTime || eventData.endAt),
     color: eventData.color || '#3b82f6',

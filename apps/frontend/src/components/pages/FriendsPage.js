@@ -264,7 +264,7 @@ const handleReject = async (id) => {
                 친구 요청 ({pendingFriendships.length}개)
               </h3>
               {pendingFriendships.map((friendship, index) => (
-                <div key={friendship.id} style={{
+                <div key={friendship.friendshipId} style={{
                   padding: '1rem',
                   borderBottom: index < pendingFriendships.length - 1 ? '1px solid #e5e7eb' : 'none',
                   display: 'flex',
@@ -285,16 +285,18 @@ const handleReject = async (id) => {
                     </div>
                     <div>
                       <h4 style={{ fontSize: '1rem', fontWeight: '600', color: '#1f2937', margin: 0 }}>
-                        {friendship.requesterUser?.name || '알 수 없음'}
+                      {friendship.requesterName}
                       </h4>
                       <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: '0.25rem 0' }}>
-                        {friendship.requesterUser?.email || '이메일 없음'}
+                       <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
+   요청 상태: {friendship.status}
+ </span>
                       </p>
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <button
-                      onClick={() => handleAccept(friendship.id)}
+                     onClick={() => handleAccept(friendship.friendshipId)}
                       style={buttonStyle('#10b981')}
                       disabled={loading}
                     >
@@ -302,7 +304,7 @@ const handleReject = async (id) => {
                       승인
                     </button>
                     <button
-                      onClick={() => rejectFriendship(friendship.id)}
+                     onClick={() => handleReject(friendship.friendshipId)}
                       style={buttonStyle('#dc2626')}
                       disabled={loading}
                     >
@@ -324,7 +326,7 @@ const handleReject = async (id) => {
               <LoadingSpinner text="친구 목록을 불러오는 중..." />
             ) : acceptedFriendships.length > 0 ? (
               acceptedFriendships.map((friendship, index) => (
-                <div key={friendship.id} style={{
+                <div key={friendship.friendshipId} style={{
                   padding: '1.5rem',
                   borderBottom: index < acceptedFriendships.length - 1 ? '1px solid #e5e7eb' : 'none',
                   display: 'flex',
@@ -345,13 +347,13 @@ const handleReject = async (id) => {
                     </div>
                     <div>
                       <h4 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#1f2937', margin: 0 }}>
-                        {friendship.requesterUser?.name || '알 수 없음'}
+                       {friendship.requesterName}
                       </h4>
                       <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: '0.25rem 0' }}>
-                        {friendship.requesterUser?.email || '이메일 없음'}
+  
                       </p>
                       <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: 0 }}>
-                        친구가 된 날: {new Date(friendship.createdAt).toLocaleDateString('ko-KR')}
+                        친구가 된 날: {new Date(friendship.respondedAt).toLocaleDateString('ko-KR')}
                       </p>
                     </div>
                   </div>
@@ -452,8 +454,6 @@ const handleReject = async (id) => {
   </div>
 )}
 
-
-      {/* 받은 요청 탭 */}
       {/* 받은 요청 탭 */}
 {activeTab === 'received' && (
   <div style={cardStyle}>
