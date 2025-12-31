@@ -401,6 +401,35 @@ useEffect(() => {
   loadExpense();
 }, [isOpen, scheduleId]);
 
+// 🔁 투두 재정렬
+const handleMoveTodo = async (index, direction) => {
+  const list = [...todoPage.content];
+  const targetIndex = direction === 'up' ? index - 1 : index + 1;
+
+  // 범위 체크
+  if (targetIndex < 0 || targetIndex >= list.length) return;
+
+  // 1️⃣ 프론트 배열 swap
+  [list[index], list[targetIndex]] = [list[targetIndex], list[index]];
+
+  // 2️⃣ 서버로 보낼 orders 생성 (orderNo는 0부터)
+  const orders = list.map((t, i) => ({
+    todoId: t.id ?? t.scheduleTodoId,
+    orderNo: i,
+  }));
+
+  try {
+    // 3️⃣ API 호출
+    await ApiService.reorderTodos(scheduleId, orders);
+
+    // 4️⃣ 최신 상태 다시 로드
+    await loadTodos();
+  } catch (err) {
+    console.error('투두 재정렬 실패:', err);
+    alert('투두 순서 변경 실패');
+  }
+};
+
 
   const handleReceiptUpload = (e) => {
     const file = e.target.files[0];
@@ -536,38 +565,52 @@ return (
                   <Plus size={16} />
                 </button>
               </div>
-              {todoPage.content.map((t) => (
-                <div key={t.id ?? t.scheduleTodoId} style={itemRow}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <input
-                      type="checkbox"
-                      checked={!!t.isDone}
-                      onChange={() => handleToggleTodo(t)}
-                    />
-                    <span
-                      style={{ textDecoration: t.isDone ? 'line-through' : 'none' }}
-                    >
-                      {t.content}
-                    </span>
-                  </label>
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    <button
-                      type="button"
-                      onClick={() => handleRenameTodo(t)}
-                      style={iconButton}
-                    >
-                      수정
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteTodo(t)}
-                      style={{ ...iconButton, color: '#ef4444' }}
-                    >
-                      삭제
-                    </button>
-                  </div>
-                </div>
-              ))}
+              {todoPage.content.map((t, index) => (
+  <div key={t.id ?? t.scheduleTodoId} style={itemRow}>
+    <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <input
+        type="checkbox"
+        checked={!!t.isDone}
+        onChange={() => handleToggleTodo(t)}
+      />
+      <span style={{ textDecoration: t.isDone ? 'line-through' : 'none' }}>
+        {t.content}
+      </span>
+    </label>
+
+    <div style={{ display: 'flex', gap: 4 }}>
+      <button
+        type="button"
+        onClick={() => handleMoveTodo(index, 'up')}
+        style={iconButton}
+      >
+        ↑
+      </button>
+      <button
+        type="button"
+        onClick={() => handleMoveTodo(index, 'down')}
+        style={iconButton}
+      >
+        ↓
+      </button>
+      <button
+        type="button"
+        onClick={() => handleRenameTodo(t)}
+        style={iconButton}
+      >
+        수정
+      </button>
+      <button
+        type="button"
+        onClick={() => handleDeleteTodo(t)}
+        style={{ ...iconButton, color: '#ef4444' }}
+      >
+        삭제
+      </button>
+    </div>
+  </div>
+))}
+
             </div>
             {/* 반복 정보 */}
 <div style={sectionStyle}>
