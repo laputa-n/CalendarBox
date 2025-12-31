@@ -133,8 +133,52 @@ const handleAddReminder = async () => {
   }
 };
 
+// 🔁 장소 재정렬
+const handleMovePlace = async (index, direction) => {
+  const list = [...placePage.content];
+  const targetIndex = direction === 'up' ? index - 1 : index + 1;
 
+  if (targetIndex < 0 || targetIndex >= list.length) return;
 
+  // 1️⃣ 프론트 swap
+  [list[index], list[targetIndex]] = [list[targetIndex], list[index]];
+
+  // 🔥 UX 즉시 반영
+  setPlacePage({ content: list });
+
+  // 2️⃣ 서버 payload
+  const positions = list.map((p, i) => ({
+    schedulePlaceId: p.id ?? p.schedulePlaceId,
+    orderNo: i,
+  }));
+
+  try {
+    await ApiService.reorderSchedulePlaces(scheduleId, positions);
+  } catch (err) {
+    alert('장소 순서 변경 실패');
+    await loadPlaces(); // 롤백
+  }
+};
+// ✏️ 장소 이름 수정
+const handleEditPlace = async (p) => {
+  const placeId = p.id ?? p.schedulePlaceId;
+  if (!placeId) return;
+
+  const next = prompt('장소 이름 수정', p.name || p.title);
+  if (next == null || !next.trim()) return;
+
+  try {
+    await ApiService.updateSchedulePlace(
+      scheduleId,
+      placeId,
+      next.trim()
+    );
+    await loadPlaces();
+  } catch (err) {
+    console.error('장소 이름 수정 실패:', err);
+    alert('장소 이름 수정 실패');
+  }
+};
   const loadPlaces = useCallback(async () => {
     const res = await ApiService.listSchedulePlaces(scheduleId, 0, 20);
     console.log('📍 loadPlaces response:', res);
@@ -531,24 +575,47 @@ return (
           
 
             {/* 장소 */}
-            <div style={sectionStyle}>
               <label style={labelStyle}>📍 장소</label>
               <button type="button" onClick={handleAddPlace} style={subButton}>
                 + 장소
               </button>
-              {placePage.content.map((p) => (
-                <div key={p.id ?? p.schedulePlaceId} style={itemRow}>
-                  <span>{p.name || p.title}</span>
-                  <button
-                    type="button"
-                    onClick={() => handleRemovePlace(p)}
-                    style={iconButton}
-                  >
-                    삭제
-                  </button>
-                </div>
-              ))}
-            </div>
+              {placePage.content.map((p, index) => (
+  <div key={p.id ?? p.schedulePlaceId} style={itemRow}>
+    <span>{p.name || p.title}</span>
+
+    <div style={{ display: 'flex', gap: 4 }}>
+      <button
+        type="button"
+        onClick={() => handleMovePlace(index, 'up')}
+        style={iconButton}
+      >
+        ↑
+      </button>
+      <button
+        type="button"
+        onClick={() => handleMovePlace(index, 'down')}
+        style={iconButton}
+      >
+        ↓
+      </button>
+      <button
+        type="button"
+        onClick={() => handleEditPlace(p)}
+        style={iconButton}
+      >
+        수정
+      </button>
+      <button
+        type="button"
+        onClick={() => handleRemovePlace(p)}
+        style={{ ...iconButton, color: '#ef4444' }}
+      >
+        삭제
+      </button>
+    </div>
+  </div>
+))}
+
 
             {/* 투두 */}
             <div style={sectionStyle}>

@@ -36,6 +36,10 @@ export default function ScheduleModal({ isOpen, onClose, selectedDate }) {
 
  // 생성 모드 전용 로컬 입력
   const [newTodo, setNewTodo] = useState('');
+
+  // 장소 검색 결과 상태
+const [placeSearchResults, setPlaceSearchResults] = useState([]);
+const [isSearchingPlace, setIsSearchingPlace] = useState(false);
  
   // ====== 지출 & 첨부파일 관련 상태 ======
   const [expenseName, setExpenseName] = useState('');
@@ -344,45 +348,28 @@ const handleReminderChange = (e) => {
 
   
   // ====== 장소(생성 모드 로컬) ======
-  const handleAddPlace = async () => {
-    const query = prompt('검색할 장소명을 입력하세요.');
-    if (!query) return;
+const handleAddPlace = async () => {
+  const query = prompt('검색할 장소명을 입력하세요.');
+  if (!query) return;
 
-    try {
-      const res = await ApiService.searchPlaces(query);
-      const list = res?.data?.content || res?.content || res?.data || [];
-      if (!Array.isArray(list) || list.length === 0) {
-        alert('검색 결과가 없습니다.');
-        return;
-      }
+  try {
+    setIsSearchingPlace(true);
+    const res = await ApiService.searchPlaces(query);
+    const list = res?.data?.content || [];
 
-      const pick = prompt(
-        list.map((p, i) => `${i + 1}. ${p.title} (${p.category || '-'})`).join('\n')
-      );
-      const idx = parseInt(pick, 10) - 1;
-      if (isNaN(idx) || idx < 0 || idx >= list.length) return;
-
-      const chosen = list[idx];
-      const newPlace = {
-        mode: 'PROVIDER',
-        provider: chosen.provider || 'NAVER',
-        providerPlaceKey: chosen.providerPlaceKey || '',
-        title: chosen.title,
-        category: chosen.category || '',
-        description: chosen.description || '',
-        address: chosen.address || '',
-        roadAddress: chosen.roadAddress || '',
-        link: chosen.link || '',
-        lat: Number(chosen.lat),
-        lng: Number(chosen.lng),
-        name: chosen.title, // UI 표시용
-      };
-
-      setFormData(prev => ({ ...prev, places: [...prev.places, newPlace] }));
-    } catch (err) {
-      alert('장소 검색 중 오류가 발생했습니다.');
+    if (!Array.isArray(list) || list.length === 0) {
+      alert('검색 결과가 없습니다.');
+      return;
     }
-  };
+
+    // 🔥 검색 결과를 state에 저장
+    setPlaceSearchResults(list);
+  } catch (err) {
+    alert('장소 검색 중 오류가 발생했습니다.');
+  } finally {
+    setIsSearchingPlace(false);
+  }
+};
 
   const handleRemovePlace = (index) => {
     const target = formData.places[index];
@@ -452,46 +439,131 @@ const handleReminderChange = (e) => {
             style={inputStyle}
           />
 
-             {/* 장소 (생성 중 로컬로만 관리) */}
-          <div style={sectionStyle}>
-            <label style={labelStyle}>📍 장소</label>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button type="button" onClick={handleAddPlace} style={subButton} title="장소 추가">
-                <Search size={16} />
+            {/* 📍 장소 (생성 중 로컬로만 관리) */}
+<div style={sectionStyle}>
+  <label style={labelStyle}>📍 장소</label>
+
+  {/* 검색 버튼 */}
+  <div style={{ display: 'flex', gap: '0.5rem' }}>
+    <button
+      type="button"
+      onClick={handleAddPlace}
+      style={subButton}
+      title="장소 검색"
+    >
+      <Search size={16} />
+    </button>
+
+    {/* ✅ 이미 추가된 장소 리스트 */}
+    <div style={{ flex: 1 }}>
+      {formData.places.length > 0 ? (
+        formData.places.map((p, i) => (
+          <div
+            key={`${p.providerPlaceKey ?? p.title}-${i}`}
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              background: '#f9fafb',
+              borderRadius: '0.5rem',
+              padding: '0.25rem 0.5rem',
+              marginBottom: '0.25rem',
+            }}
+          >
+            <span
+              style={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {p.name || p.title}
+            </span>
+
+            <div style={{ display: 'flex', gap: '0.25rem' }}>
+              <button
+                type="button"
+                onClick={() => handleReorderPlaces('up', i)}
+                style={iconButton}
+              >
+                ↑
               </button>
-              <div style={{ flex: 1 }}>
-                {formData.places.length > 0 ? (
-                  formData.places.map((p, i) => (
-                    <div
-                      key={`${p.providerPlaceKey ?? p.title}-${i}`}
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        background: '#f9fafb',
-                        borderRadius: '0.5rem',
-                        padding: '0.25rem 0.5rem',
-                        marginBottom: '0.25rem',
-                      }}
-                    >
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {p.name || p.title}
-                      </span>
-                      <div style={{ display: 'flex', gap: '0.25rem' }}>
-                        <button type="button" onClick={() => handleReorderPlaces('up', i)} style={iconButton} title="위로 이동">↑</button>
-                        <button type="button" onClick={() => handleReorderPlaces('down', i)} style={iconButton} title="아래로 이동">↓</button>
-                        <button type="button" onClick={() => handleRemovePlace(i)} style={iconButton} title="삭제">
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>장소 없음</p>
-                )}
-              </div>
+              <button
+                type="button"
+                onClick={() => handleReorderPlaces('down', i)}
+                style={iconButton}
+              >
+                ↓
+              </button>
+              <button
+                type="button"
+                onClick={() => handleRemovePlace(i)}
+                style={iconButton}
+              >
+                <Trash2 size={14} />
+              </button>
             </div>
           </div>
+        ))
+      ) : (
+        <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
+          장소 없음
+        </p>
+      )}
+    </div>
+  </div>
+
+  {/* 🔍 검색 결과 리스트 (👇 여기만 새로 추가) */}
+  {placeSearchResults.length > 0 && (
+    <div style={{ marginTop: 8 }}>
+      <p style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+        장소를 클릭해서 추가하세요
+      </p>
+
+      {placeSearchResults.map((p) => (
+        <div
+          key={p.providerPlaceKey}
+          onClick={() => {
+            const newPlace = {
+              mode: 'PROVIDER',
+              provider: p.provider || 'NAVER',
+              providerPlaceKey: p.providerPlaceKey,
+              title: p.title,
+              category: p.category || '',
+              address: p.address || '',
+              roadAddress: p.roadAddress || '',
+              lat: Number(p.lat),
+              lng: Number(p.lng),
+              name: p.title,
+            };
+
+            setFormData(prev => ({
+              ...prev,
+              places: [...prev.places, newPlace],
+            }));
+
+            // ✅ 선택 후 검색 결과 닫기
+            setPlaceSearchResults([]);
+          }}
+          style={{
+            padding: '8px',
+            borderRadius: 8,
+            background: '#f9fafb',
+            marginBottom: 6,
+            cursor: 'pointer',
+            border: '1px solid #e5e7eb',
+          }}
+        >
+          <strong>{p.title}</strong>
+          <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+            {p.roadAddress || p.address}
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
+</div>
+
 
            {/* 투두 (생성 중 로컬로만 관리) */}
           <div style={sectionStyle}>
