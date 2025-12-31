@@ -151,7 +151,7 @@ const handleMovePlace = async (index, direction) => {
   // 2️⃣ 서버 payload
   const positions = list.map((p, i) => ({
     schedulePlaceId: p.id ?? p.schedulePlaceId,
-    orderNo: i,
+    position: i,
   }));
 
   try {

@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 
 import static com.calendarbox.backend.calendar.enums.CalendarMemberStatus.ACCEPTED;
@@ -92,24 +93,60 @@ public class ScheduleTodoService {
         Schedule s = scheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
 
-        if(!s.getCreatedBy().getId().equals(userId)
-                && !calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(s.getCalendar().getId(),userId,ACCEPTED)
-                && !scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatus(s.getId(),userId, ScheduleParticipantStatus.ACCEPTED)){
+        if (!s.getCreatedBy().getId().equals(userId)
+                && !calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(s.getCalendar().getId(), userId, ACCEPTED)
+                && !scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatus(s.getId(), userId, ScheduleParticipantStatus.ACCEPTED)) {
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
         }
-        Map<Long,Integer> desired = new HashMap<>();
+
+        // 1) 입력 파싱
+        Map<Long, Integer> desired = new HashMap<>();
         for (var it : req.orders()) {
+            if (it.todoId() == null) throw new BusinessException(ErrorCode.INVALID_JSON);
             if (it.orderNo() < 0) throw new BusinessException(ErrorCode.INVALID_JSON);
             desired.put(it.todoId(), it.orderNo());
         }
 
+        // 2) orderNo 중복 방지
+        if (new HashSet<>(desired.values()).size() != desired.size()) {
+            throw new BusinessException(ErrorCode.INVALID_JSON);
+        }
+
+        // 3) "전체 목록 reorder" 전제 검증 (권장)
+        long total = scheduleTodoRepository.countBySchedule_Id(scheduleId);
+        if (total != desired.size()) {
+            throw new BusinessException(ErrorCode.INVALID_JSON); // 필요하면 전용 에러코드로 분리
+        }
+
+        // 4) orderNo 범위 검증 (0..N-1)
+        int n = desired.size();
+        for (int v : desired.values()) {
+            if (v < 0 || v >= n) throw new BusinessException(ErrorCode.INVALID_JSON);
+        }
+
+        // 5) 대상 todo 조회 + 유효성 검증
         var todos = scheduleTodoRepository.findAllByIds(desired.keySet());
+
+        // 존재하지 않는 todoId가 섞인 경우 방지
+        if (todos.size() != desired.size()) {
+            throw new BusinessException(ErrorCode.INVALID_JSON); // 또는 SCHEDULE_TODO_NOT_FOUND
+        }
+
+        // schedule 매칭 검증 + 1차 임시값 부여 (중간 유니크 충돌 방지)
+        int tmp = Integer.MIN_VALUE;
         for (var t : todos) {
             if (!t.getSchedule().getId().equals(scheduleId)) {
                 throw new BusinessException(ErrorCode.SCHEDULE_TODO_NOT_MATCH);
             }
-            Integer newPos = desired.get(t.getId());
-            if (newPos != null && t.getOrderNo() != newPos) t.setOrderNo(newPos);
+            t.setOrderNo(tmp++); // 임시로 유니크한 음수 부여
+        }
+
+        // 임시값을 먼저 DB에 반영
+        scheduleTodoRepository.flush();
+
+        // 6) 최종 orderNo 반영
+        for (var t : todos) {
+            t.setOrderNo(desired.get(t.getId()));
         }
     }
 
