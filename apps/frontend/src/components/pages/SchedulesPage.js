@@ -17,7 +17,17 @@ export const SchedulesPage = () => {
   fetchSchedules,
   searchSchedules,
 } = useSchedules();
-  const { currentCalendar } = useCalendars();
+  const {
+  calendars,
+  currentCalendar,
+  setCurrentCalendar,
+} = useCalendars();
+const {
+  fetchScheduleDetail,
+  scheduleDetail,
+  scheduleDetailLoading,
+} = useSchedules();
+
   const [showForm, setShowForm] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState(null);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
@@ -84,10 +94,7 @@ export const SchedulesPage = () => {
     return;
   }
 
-  searchSchedules({
-    query: searchQuery,
-    calendarId: currentCalendar?.id,
-  });
+  searchSchedules(searchQuery);
 };
 
 
@@ -187,14 +194,47 @@ export const SchedulesPage = () => {
               : '캘린더를 먼저 선택해주세요'}
           </p>
         </div>
-        {/* 🔍 일정 검색 */}
+      {/* 🔍 일정 검색 + 캘린더 선택 */}
 <div
   style={{
     marginBottom: '1.5rem',
     display: 'flex',
     gap: '0.5rem',
+    alignItems: 'center',
   }}
 >
+  {/* 📅 캘린더 선택 */}
+  <select
+    value={currentCalendar?.id || ''}
+    onChange={(e) => {
+      const next = calendars.find(
+        (c) => String(c.id) === e.target.value
+      );
+      if (next) {
+        setCurrentCalendar(next); // ✅ 핵심
+      }
+    }}
+    style={{
+      padding: '0.5rem 0.75rem',
+      border: '1px solid #d1d5db',
+      borderRadius: '0.5rem',
+      fontSize: '0.875rem',
+      minWidth: '200px',
+      backgroundColor: 'white',
+    }}
+  >
+    <option value="" disabled>
+      캘린더 선택
+    </option>
+    {calendars.map((c) => (
+      <option key={c.id} value={c.id}>
+        {c.name}
+        {c.isDefault ? ' (기본)' : ''}
+      </option>
+    ))}
+  </select>
+
+  {/* 🔍 검색 입력 */}
   <input
     type="text"
     placeholder="일정 제목 검색"
@@ -211,6 +251,8 @@ export const SchedulesPage = () => {
       fontSize: '0.875rem',
     }}
   />
+
+  {/* 검색 버튼 */}
   <button
     onClick={handleSearch}
     disabled={loading}
@@ -227,6 +269,7 @@ export const SchedulesPage = () => {
     검색
   </button>
 </div>
+
   </div>
 
 
@@ -426,7 +469,9 @@ export const SchedulesPage = () => {
         index < schedules.length - 1 ? '1px solid #e5e7eb' : 'none',
       cursor: 'pointer', // ⭐ 추가
     }}
-    onClick={() => setSelectedSchedule(schedule)} // ⭐ 추가
+    onClick={() => {
+  setSelectedSchedule(schedule.id); // id만 저장
+}}// ⭐ 추가
   >
 
     
@@ -592,7 +637,7 @@ export const SchedulesPage = () => {
 
       {selectedSchedule && (
   <ScheduleDetailModal
-    schedule={selectedSchedule}
+    scheduleId={selectedSchedule}
     onClose={() => setSelectedSchedule(null)}
   />
 )}

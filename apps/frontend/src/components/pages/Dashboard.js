@@ -18,7 +18,7 @@ import { LoadingSpinner } from '../common/LoadingSpinner';
 export const Dashboard = () => {
   const { user } = useAuth();
   const { calendars, refreshCalendars, loading } = useCalendars();
-  const { schedules, fetchAllSchedules } = useSchedules();
+  const { schedules,  fetchSchedules } = useSchedules();
   const { acceptedFriendships } = useFriends();
   const { unreadCount } = useNotifications();
 
@@ -30,7 +30,7 @@ export const Dashboard = () => {
   // ✅ 최초 데이터 로드
   useEffect(() => {
     refreshCalendars();
-    fetchAllSchedules();
+    fetchSchedules();
   }, []);
 
   // ✅ 기본 캘린더 설정
@@ -44,7 +44,7 @@ export const Dashboard = () => {
   // ✅ 일정 CRUD 후 즉시 새로고침
   useEffect(() => {
     if (defaultCalendar) {
-      fetchAllSchedules();
+      fetchSchedules();
     }
   }, [defaultCalendar]);
 
@@ -163,7 +163,8 @@ export const Dashboard = () => {
               locale="ko"
               height="80vh"
               events={schedules
-                .filter((s) => s.calendarId === defaultCalendar.calendarId)
+               .filter((s) => s.calendarId === defaultCalendar.id)
+
                 .map((s) => ({
                   id: s.id,
                   title: s.title,
