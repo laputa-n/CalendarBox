@@ -86,14 +86,13 @@ export const FriendsPage = () => {
 
   // ID 기반 친구 요청 보내기
   const handleSendRequest = async (userId) => {
-    try {
-      await sendFriendRequestById(userId);
-      // 검색 결과 새로고침하거나 성공 메시지 표시
-    } catch (error) {
-      console.error('Failed to send friend request:', error);
-    }
-  };
-
+  try {
+    await sendFriendRequestById(userId);
+    await fetchSentRequests(); // 🔥 즉시 반영
+  } catch (error) {
+    console.error('Failed to send friend request:', error);
+  }
+};
   const cardStyle = {
     backgroundColor: 'white',
     padding: '1.5rem',

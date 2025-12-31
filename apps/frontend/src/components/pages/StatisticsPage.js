@@ -225,6 +225,76 @@ const renderWeekdayDistribution = () => {
 };
 
 
+const renderYearMonthSelector = () => {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        gap: '12px',
+        alignItems: 'center',
+        marginBottom: '24px',
+        padding: '12px 16px',
+        background: '#f8f9fc',
+        borderRadius: '12px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+        width: 'fit-content',
+      }}
+    >
+      {/* 연도 셀렉 */}
+      <select
+        value={selectedYear}
+        onChange={(e) => {
+          const year = e.target.value;
+          const month = selectedMonth.split('-')[1];
+          setSelectedYear(year);
+          setSelectedMonth(`${year}-${month}`);
+        }}
+        style={{
+          padding: '8px 14px',
+          borderRadius: '8px',
+          border: '1px solid #d0d7ff',
+          backgroundColor: '#fff',
+          fontSize: '14px',
+          cursor: 'pointer',
+        }}
+      >
+        {[2023, 2024, 2025].map((year) => (
+          <option key={year} value={year}>
+            {year}년
+          </option>
+        ))}
+      </select>
+
+      {/* 월 셀렉 */}
+      <select
+        value={selectedMonth.split('-')[1]}
+        onChange={(e) => {
+          const month = e.target.value;
+          setSelectedMonth(`${selectedYear}-${month}`);
+        }}
+        style={{
+          padding: '8px 14px',
+          borderRadius: '8px',
+          border: '1px solid #d0d7ff',
+          backgroundColor: '#fff',
+          fontSize: '14px',
+          cursor: 'pointer',
+        }}
+      >
+        {Array.from({ length: 12 }, (_, i) => {
+          const month = String(i + 1).padStart(2, '0');
+          return (
+            <option key={month} value={month}>
+              {month}월
+            </option>
+          );
+        })}
+      </select>
+    </div>
+  );
+};
+
+
 //시간대별 통계
 const renderHourlyDistribution = () => {
     const scheduleData = statistics?.scheduleDayHour || [];
@@ -458,11 +528,17 @@ const renderHourlyDistribution = () => {
                 </button>
             </div>
 
-            {selectedTab === 'people' && renderPeopleSummary()}
-            {selectedTab === 'place' && renderPlaceSummary()}
-            {selectedTab === 'monthly' && renderMonthlyTrend()}
-            {selectedTab === 'weekday' && renderWeekdayDistribution()}
-            {selectedTab === 'hour' && renderHourlyDistribution()}
-        </div>
+           {/* ✅ 사람 / 장소 필터는 로딩 중에도 표시 */}
+  {(selectedTab === 'people' || selectedTab === 'place') &&
+    renderYearMonthSelector()}
+
+  {loading && <p>Loading...</p>}
+
+  {!loading && selectedTab === 'people' && renderPeopleSummary()}
+  {!loading && selectedTab === 'place' && renderPlaceSummary()}
+  {!loading && selectedTab === 'monthly' && renderMonthlyTrend()}
+  {!loading && selectedTab === 'weekday' && renderWeekdayDistribution()}
+  {!loading && selectedTab === 'hour' && renderHourlyDistribution()}
+</div>
     );
 };
