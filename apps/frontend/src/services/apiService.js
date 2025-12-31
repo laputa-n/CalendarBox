@@ -157,6 +157,19 @@ export class ApiService {
     });
   }
 
+  // === 회원 검색 기능 관련 ===
+static async searchMembers(q, page = 0, size = 20, sort = null) {
+  let endpoint = `/api/members/search?q=${encodeURIComponent(q)}&page=${page}&size=${size}`;
+
+  if (sort && Array.isArray(sort)) {
+    sort.forEach(s => {
+      endpoint += `&sort=${encodeURIComponent(s)}`;
+    });
+  }
+
+  return this.request(endpoint);
+}
+
   // === 캘린더 관련 API ===
 static async getCalendars(page = 1, size = 20) {
   // ✅ 페이지 계산 및 안전한 URL 구성

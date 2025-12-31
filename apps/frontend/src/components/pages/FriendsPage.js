@@ -29,6 +29,9 @@ export const FriendsPage = () => {
     removeFriend,
     fetchReceivedRequests,
     fetchSentRequests,
+     memberSearchResults,
+  memberSearchLoading,
+  searchMembers,
     searchUsers
   } = useFriends();
   
@@ -46,6 +49,13 @@ export const FriendsPage = () => {
   const [friendEmail, setFriendEmail] = useState('');
   const [emailError, setEmailError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const handleMemberSearch = (query) => {
+  setSearchQuery(query);
+  if (query.trim()) {
+    searchMembers(query);
+  }
+};
+
 
   // 탭 변경시 데이터 로드
   useEffect(() => {
@@ -377,216 +387,190 @@ const handleReject = async (id) => {
         </>
       )}
 
-      {/* 친구 찾기 탭 */}
-      {activeTab === 'search' && (
-        <div style={cardStyle}>
-          <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>
-            친구 찾기
-          </h3>
-          <div style={{ marginBottom: '1rem' }}>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-              placeholder="이름 또는 이메일로 검색..."
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                border: '1px solid #d1d5db',
-                borderRadius: '0.5rem',
-                fontSize: '0.875rem'
-              }}
-            />
+     {/* 친구 찾기 탭 */}
+{activeTab === 'search' && (
+  <div style={cardStyle}>
+    <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>
+      친구 찾기
+    </h3>
+
+    {/* 검색 입력 */}
+    <div style={{ marginBottom: '1rem' }}>
+      <input
+        type="text"
+        value={searchQuery}
+        onChange={(e) => handleMemberSearch(e.target.value)}
+        placeholder="이름 / 이메일 / 전화번호로 검색..."
+        style={{
+          width: '100%',
+          padding: '0.75rem',
+          border: '1px solid #d1d5db',
+          borderRadius: '0.5rem',
+          fontSize: '0.875rem'
+        }}
+      />
+    </div>
+
+    {/* 🔽 여기부터가 네가 질문한 코드 */}
+    {memberSearchLoading ? (
+      <LoadingSpinner text="회원 검색 중..." />
+    ) : memberSearchResults.length > 0 ? (
+      memberSearchResults.map(member => (
+        <div
+          key={member.memberId}
+          style={{
+            padding: '1rem',
+            borderBottom: '1px solid #e5e7eb',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}
+        >
+          <div>
+            <strong>{member.name}</strong>
+            <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>{member.email}</div>
+            <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>{member.phoneNumber}</div>
           </div>
-          
-          {searchLoading ? (
-            <LoadingSpinner text="사용자를 검색하는 중..." />
-          ) : searchResults.length > 0 ? (
-            searchResults.map((user) => (
-              <div key={user.id} style={{
-                padding: '1rem',
-                borderBottom: '1px solid #e5e7eb',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <div style={{
-                    width: '3rem',
-                    height: '3rem',
-                    backgroundColor: '#e0e7ff',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <User style={{ width: '1.5rem', height: '1.5rem', color: '#6366f1' }} />
-                  </div>
-                  <div>
-                    <h4 style={{ fontSize: '1rem', fontWeight: '600', color: '#1f2937', margin: 0 }}>
-                      {user.name}
-                    </h4>
-                    <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: '0.25rem 0' }}>
-                      {user.email}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleSendRequest(user.id)}
-                  style={buttonStyle()}
-                  disabled={loading}
-                >
-                  <UserPlus style={{ width: '1rem', height: '1rem' }} />
-                  친구 요청
-                </button>
-              </div>
-            ))
-          ) : searchQuery ? (
-            <div style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
-              <p>검색 결과가 없습니다.</p>
-            </div>
-          ) : (
-            <div style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
-              <Search style={{ width: '3rem', height: '3rem', color: '#d1d5db', margin: '0 auto 1rem auto' }} />
-              <p>친구를 검색해보세요!</p>
-            </div>
-          )}
+
+          <button
+            onClick={() => sendFriendRequest(member.memberId)}
+            style={buttonStyle()}
+          >
+            친구 요청
+          </button>
         </div>
-      )}
+      ))
+    ) : searchQuery ? (
+      <p style={{ textAlign: 'center', color: '#6b7280' }}>
+        검색 결과가 없습니다.
+      </p>
+    ) : (
+      <p style={{ textAlign: 'center', color: '#9ca3af' }}>
+        이름 / 이메일 / 전화번호로 검색하세요.
+      </p>
+    )}
+  </div>
+)}
+
 
       {/* 받은 요청 탭 */}
-      {activeTab === 'received' && (
-        <div style={cardStyle}>
-          <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>
-            받은 친구 요청
-          </h3>
-          {receivedRequests.loading ? (
-            <LoadingSpinner text="받은 요청을 불러오는 중..." />
-          ) : receivedRequests.content?.length > 0 ? (
-            receivedRequests.content.map((request) => (
-              <div key={request.friendshipId} style={{
-                padding: '1rem',
-                borderBottom: '1px solid #e5e7eb',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <div style={{
-                    width: '3rem',
-                    height: '3rem',
-                    backgroundColor: '#fef3c7',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <User style={{ width: '1.5rem', height: '1.5rem', color: '#d97706' }} />
-                  </div>
-                  <div>
-                    <h4 style={{ fontSize: '1rem', fontWeight: '600', color: '#1f2937', margin: 0 }}>
-                      사용자 ID: {request.requesterId}
-                    </h4>
-                    <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: '0.25rem 0' }}>
-                      {new Date(request.createdAt).toLocaleDateString('ko-KR')}
-                    </p>
-                    <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: 0 }}>
-                      상태: {request.status}
-                    </p>
-                  </div>
-                </div>
-                {request.status === 'PENDING' && (
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button
-  onClick={() => handleAccept(request.friendshipId)}
-  style={buttonStyle('#10b981')}
-  disabled={loading}
->
-  <CheckCircle style={{ width: '1rem', height: '1rem' }} />
-  수락
-</button>
-                    <button
-                      onClick={() => rejectFriendRequest(request.friendshipId)}
-                      style={buttonStyle('#dc2626')}
-                      disabled={loading}
-                    >
-                      <XCircle style={{ width: '1rem', height: '1rem' }} />
-                      거절
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))
-          ) : (
-            <div style={{ padding: '3rem', textAlign: 'center', color: '#6b7280' }}>
-              <Mail style={{ width: '4rem', height: '4rem', color: '#d1d5db', margin: '0 auto 1rem auto' }} />
-              <p>받은 친구 요청이 없습니다.</p>
-            </div>
-          )}
-        </div>
-      )}
+      {/* 받은 요청 탭 */}
+{activeTab === 'received' && (
+  <div style={cardStyle}>
+    <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>
+      받은 친구 요청
+    </h3>
 
-      {/* 보낸 요청 탭 */}
-      {activeTab === 'sent' && (
-        <div style={cardStyle}>
-          <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>
-            보낸 친구 요청
-          </h3>
-          {sentRequests.loading ? (
-            <LoadingSpinner text="보낸 요청을 불러오는 중..." />
-          ) : sentRequests.content?.length > 0 ? (
-            sentRequests.content.map((request) => (
-              <div key={request.friendshipId} style={{
-                padding: '1rem',
-                borderBottom: '1px solid #e5e7eb',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <div style={{
-                    width: '3rem',
-                    height: '3rem',
-                    backgroundColor: '#e0e7ff',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <User style={{ width: '1.5rem', height: '1.5rem', color: '#6366f1' }} />
-                  </div>
-                  <div>
-                    <h4 style={{ fontSize: '1rem', fontWeight: '600', color: '#1f2937', margin: 0 }}>
-                      사용자 ID: {request.addresseeId}
-                    </h4>
-                    <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: '0.25rem 0' }}>
-                      {new Date(request.createdAt).toLocaleDateString('ko-KR')}
-                    </p>
-                    <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: 0 }}>
-                      상태: {request.status}
-                    </p>
-                  </div>
-                </div>
-                <div style={{
-                  padding: '0.5rem 1rem',
-                  borderRadius: '1rem',
-                  fontSize: '0.75rem',
-                  fontWeight: '500',
-                  backgroundColor: request.status === 'ACCEPTED' ? '#dcfce7' : '#fef3c7',
-                  color: request.status === 'ACCEPTED' ? '#16a34a' : '#d97706'
-                }}>
-                  {request.status === 'ACCEPTED' ? '수락됨' : '대기중'}
-                </div>
-              </div>
-            ))
-          ) : (
-            <div style={{ padding: '3rem', textAlign: 'center', color: '#6b7280' }}>
-              <Send style={{ width: '4rem', height: '4rem', color: '#d1d5db', margin: '0 auto 1rem auto' }} />
-              <p>보낸 친구 요청이 없습니다.</p>
+    {receivedRequests.loading ? (
+      <LoadingSpinner text="받은 요청을 불러오는 중..." />
+    ) : receivedRequests.content.length > 0 ? (
+      receivedRequests.content.map(request => (
+        <div
+          key={request.friendshipId}
+          style={{
+            padding: '1rem',
+            borderBottom: '1px solid #e5e7eb',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 600 }}>
+              {request.requesterName}
+            </div>
+
+            <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+              요청 시간: {new Date(request.createdAt).toLocaleString('ko-KR')}
+            </div>
+
+            <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
+              상태: {request.status}
+            </div>
+          </div>
+
+          {request.status === 'PENDING' && (
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                onClick={() => handleAccept(request.friendshipId)}
+                style={buttonStyle('#10b981')}
+              >
+                수락
+              </button>
+              <button
+                onClick={() => handleReject(request.friendshipId)}
+                style={buttonStyle('#dc2626')}
+              >
+                거절
+              </button>
             </div>
           )}
         </div>
-      )}
+      ))
+    ) : (
+      <p style={{ textAlign: 'center', color: '#6b7280' }}>
+        받은 친구 요청이 없습니다.
+      </p>
+    )}
+  </div>
+)}
+
+{/* 보낸 요청 탭 */}
+{activeTab === 'sent' && (
+  <div style={cardStyle}>
+    <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>
+      보낸 친구 요청
+    </h3>
+
+    {sentRequests.loading ? (
+      <LoadingSpinner text="보낸 요청을 불러오는 중..." />
+    ) : sentRequests.content.length > 0 ? (
+      sentRequests.content.map(request => (
+        <div
+          key={request.friendshipId}
+          style={{
+            padding: '1rem',
+            borderBottom: '1px solid #e5e7eb',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 600 }}>
+              {request.addresseeName}
+            </div>
+
+            <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+              요청 시간:{' '}
+              {new Date(
+                request.creadtedAt || request.createdAt
+              ).toLocaleString('ko-KR')}
+            </div>
+
+            <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
+              상태: {request.status}
+            </div>
+          </div>
+
+          {request.status === 'REQUESTED' && (
+            <button
+              onClick={() => handleReject(request.friendshipId)}
+              style={buttonStyle('#6b7280')}
+            >
+              요청 취소
+            </button>
+          )}
+        </div>
+      ))
+    ) : (
+      <p style={{ textAlign: 'center', color: '#6b7280' }}>
+        보낸 친구 요청이 없습니다.
+      </p>
+    )}
+  </div>
+)}
+
     </div>
   );
 };

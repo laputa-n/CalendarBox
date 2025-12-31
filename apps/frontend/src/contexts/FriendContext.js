@@ -34,6 +34,10 @@ export const FriendProvider = ({ children }) => {
   
   const { user, isAuthenticated } = useAuth();
   const { showError } = useError();
+  // ===== 회원(Member) 검색 =====
+const [memberSearchResults, setMemberSearchResults] = useState([]);
+const [memberSearchLoading, setMemberSearchLoading] = useState(false);
+
 
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -41,6 +45,29 @@ export const FriendProvider = ({ children }) => {
       fetchSentRequests();
     }
   }, []);
+
+  // ===== 회원 검색 (이름 / 이메일 / 전화번호) =====
+const searchMembers = async (query, page = 0, size = 20) => {
+  if (!query.trim()) {
+    setMemberSearchResults([]);
+    return;
+  }
+
+  try {
+    setMemberSearchLoading(true);
+
+    const response = await ApiService.searchMembers(query, page, size);
+
+    setMemberSearchResults(response.data?.content || []);
+  } catch (error) {
+    console.error('Failed to search members:', error);
+    setMemberSearchResults([]);
+    showError('회원 검색에 실패했습니다.');
+  } finally {
+    setMemberSearchLoading(false);
+  }
+};
+
 
   // ===== 받은 친구 요청 조회 =====
   const fetchReceivedRequests = async (page = 1, size = 10) => {
@@ -200,24 +227,30 @@ export const FriendProvider = ({ children }) => {
   ...sentRequests.content.filter(f => f.status === 'ACCEPTED')
 ], [receivedRequests.content, sentRequests.content]);
 
-  const contextValue = {
-    // 상태
-    receivedRequests,
-    sentRequests,
-    acceptedFriendships,
-    searchResults,
-    searchLoading,
-    loading,
-    
-    // 메서드
-    sendFriendRequest,
-    acceptFriendRequest,
-    rejectFriendRequest,
-    removeFriend,
-    fetchReceivedRequests,
-    fetchSentRequests,
-    searchUsers,
-  };
+const contextValue = {
+  // 상태
+  receivedRequests,
+  sentRequests,
+  acceptedFriendships,
+
+  searchResults,        // (기존 – 혹시 쓰면 유지)
+  searchLoading,
+  memberSearchResults, // ✅ 추가
+  memberSearchLoading, // ✅ 추가
+
+  loading,
+
+  // 메서드
+  sendFriendRequest,
+  acceptFriendRequest,
+  rejectFriendRequest,
+  removeFriend,
+  fetchReceivedRequests,
+  fetchSentRequests,
+
+  searchUsers,   // (기존)
+  searchMembers, // ✅ 추가
+};
 
   return (
     <FriendContext.Provider value={contextValue}>
