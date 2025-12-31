@@ -78,6 +78,8 @@ export default function EditScheduleModal({ isOpen, onClose, eventData }) {
   const [expense, setExpense] = useState(null);
   const [lines, setLines] = useState([]);
   const [newReminder, setNewReminder] = useState('none');
+  const [placeSearchResults, setPlaceSearchResults] = useState([]);
+  const [isSearchingPlace, setIsSearchingPlace] = useState(false);
 
   const loadLinks = useCallback(async (scheduleId) => {
   try {
@@ -317,31 +319,29 @@ const handleDeleteReminder = async (reminderId) => {
   }
 };
   // ========== 장소 ==========
-  const handleAddPlace = async () => {
-    const query = prompt('검색할 장소명을 입력하세요.');
-    if (!query) return;
+const handleAddPlace = async () => {
+  const query = prompt('검색할 장소명을 입력하세요.');
+  if (!query) return;
+
+  try {
+    setIsSearchingPlace(true);
     const res = await ApiService.searchPlaces(query);
     const list = res?.data?.content || [];
-    if (!list.length) return alert('검색 결과가 없습니다.');
-    const pick = prompt(
-      list.map((p, i) => `${i + 1}. ${p.title} (${p.category || '-'})`).join('\n')
-    );
-    const idx = parseInt(pick, 10) - 1;
-    if (isNaN(idx) || idx < 0 || idx >= list.length) return;
-    const chosen = list[idx];
-    await ApiService.addSchedulePlace(scheduleId, {
-      mode: 'PROVIDER',
-      provider: 'NAVER',
-      providerPlaceKey: chosen.providerPlaceKey,
-      title: chosen.title,
-      category: chosen.category,
-      address: chosen.address,
-      roadAddress: chosen.roadAddress,
-      lat: Number(chosen.lat),
-      lng: Number(chosen.lng),
-    });
-    loadPlaces();
-  };
+
+    if (!list.length) {
+      alert('검색 결과가 없습니다.');
+      return;
+    }
+
+    // 🔥 검색 결과 state에 저장
+    setPlaceSearchResults(list);
+  } catch (err) {
+    alert('장소 검색 중 오류가 발생했습니다.');
+  } finally {
+    setIsSearchingPlace(false);
+  }
+};
+
 
   const handleRemovePlace = async (p) => {
     if (!window.confirm('삭제할까요?')) return;
@@ -615,6 +615,58 @@ return (
     </div>
   </div>
 ))}
+
+{/* 🔍 장소 검색 결과 */}
+{placeSearchResults.length > 0 && (
+  <div style={{ marginTop: 8 }}>
+    <p style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+      장소를 클릭해서 추가하세요
+    </p>
+
+    {placeSearchResults.map((p) => (
+      <div
+        key={p.providerPlaceKey}
+        onClick={async () => {
+          try {
+            await ApiService.addSchedulePlace(scheduleId, {
+              mode: 'PROVIDER',
+              provider: p.provider || 'NAVER',
+              providerPlaceKey: p.providerPlaceKey,
+              title: p.title,
+              category: p.category || '',
+              address: p.address || '',
+              roadAddress: p.roadAddress || '',
+              lat: Number(p.lat),
+              lng: Number(p.lng),
+            });
+
+            // ✅ 서버 반영 후 재조회
+            await loadPlaces();
+          } catch (err) {
+            alert('장소 추가 실패');
+          } finally {
+            // ✅ 검색 결과 닫기
+            setPlaceSearchResults([]);
+          }
+        }}
+        style={{
+          padding: '8px',
+          borderRadius: 8,
+          background: '#f9fafb',
+          marginBottom: 6,
+          cursor: 'pointer',
+          border: '1px solid #e5e7eb',
+        }}
+      >
+        <strong>{p.title}</strong>
+        <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+          {p.roadAddress || p.address}
+        </div>
+      </div>
+    ))}
+  </div>
+)}
+
 
 
             {/* 투두 */}
