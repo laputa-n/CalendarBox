@@ -31,10 +31,9 @@ public class ScheduleReminderService {
             && !scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatus(scheduleId,userId, ScheduleParticipantStatus.ACCEPTED))
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
 
-        ScheduleReminder r = ScheduleReminder.of(req.minutesBefore());
-        s.addReminder(r);
-        scheduleRepository.save(s);
-        scheduleRepository.flush();
+        ScheduleReminder r = ScheduleReminder.create(s, req.minutesBefore());
+        scheduleReminderRepository.save(r);
+        scheduleReminderRepository.flush();
 
         return new ReminderResponse(r.getId(), r.getMinutesBefore());
     }
