@@ -278,15 +278,19 @@ if (recurrenceId && exceptionDates.length > 0) {
     }
   };
 
-  const handleReminderChange = (e) => {
-    const value = e.target.value;
-    if (value === 'none') {
-      setFormData(prev => ({ ...prev, reminders: [] }));
-    } else {
-      const minutes = reminderSelectToMinutes(value);
-      setFormData(prev => ({ ...prev, reminders: [{ minutesBefore: minutes }] }));
-    }
-  };
+const handleReminderChange = (e) => {
+  const value = e.target.value;
+
+  if (value === 'none') {
+    setFormData(prev => ({ ...prev, reminders: [] }));
+  } else {
+    const minutes = reminderSelectToMinutes(value);
+    setFormData(prev => ({
+      ...prev,
+      reminders: [{ minutesBefore: minutes }]
+    }));
+  }
+};
 
   // ====== 투두(생성 모드 로컬) ======
   const handleAddTodo = () => {
@@ -661,20 +665,28 @@ if (recurrenceId && exceptionDates.length > 0) {
 </div>
 
           {/* 리마인더 */}
-          <div style={sectionStyle}>
-            <label style={labelStyle}>⏰ 리마인더</label>
-            <select
-              value={formData.reminders?.[0]?.minutesBefore ? minutesToSelect(formData.reminders[0].minutesBefore) : 'none'}
-              onChange={handleReminderChange}
-              style={inputStyle}
-            >
-              <option value="none">없음</option>
-              <option value="5m">5분 전</option>
-              <option value="30m">30분 전</option>
-              <option value="1h">1시간 전</option>
-              <option value="1d">하루 전</option>
-            </select>
-          </div>
+         <div style={sectionStyle}>
+  <label style={labelStyle}>⏰ 리마인더</label>
+
+  {/* 🔥 리마인더 추가 */}
+  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+   <select
+  value={
+    formData.reminders?.[0]?.minutesBefore
+      ? minutesToSelect(formData.reminders[0].minutesBefore)
+      : 'none'
+  }
+  onChange={handleReminderChange}
+  style={inputStyle}
+>
+  <option value="none">없음</option>
+  <option value="5m">5분 전</option>
+  <option value="30m">30분 전</option>
+  <option value="1h">1시간 전</option>
+  <option value="1d">하루 전</option>
+</select>
+  </div>
+</div>
 
           {/* URL 링크 추가 (텍스트 입력 필드로 수정) */}
         <div style={sectionStyle}>

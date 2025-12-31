@@ -554,12 +554,16 @@ static async deleteTodo(scheduleId, todoId) {
 
 // === 일정 리마인더 관련 API ===
 
-static async createReminder(scheduleId, minutesBefore) {
+static async createReminder(scheduleId, minutes) {
   return this.request(`/schedules/${scheduleId}/reminders`, {
     method: 'POST',
-    body: JSON.stringify({ minutesBefore }),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ minutesBefore: minutes }),
   });
 }
+
 static async listReminders(scheduleId) {
   return this.request(`/schedules/${scheduleId}/reminders`, {
     method: 'GET',

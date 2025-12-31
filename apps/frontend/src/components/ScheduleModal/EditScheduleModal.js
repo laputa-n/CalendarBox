@@ -77,7 +77,7 @@ export default function EditScheduleModal({ isOpen, onClose, eventData }) {
   const [exceptionList, setExceptionList] = useState([]);
   const [expense, setExpense] = useState(null);
   const [lines, setLines] = useState([]);
-
+  const [newReminder, setNewReminder] = useState('none');
 
   const loadLinks = useCallback(async (scheduleId) => {
   try {
@@ -107,6 +107,33 @@ export default function EditScheduleModal({ isOpen, onClose, eventData }) {
     const content = Array.isArray(data?.content) ? data.content : data;
     setTodoPage({ content });
   }, [scheduleId]);
+
+  const reminderSelectToMinutes = (v) => {
+  switch (v) {
+    case '5m': return 5;
+    case '30m': return 30;
+    case '1h': return 60;
+    case '1d': return 1440;
+    default: return null;
+  }
+};
+
+const handleAddReminder = async () => {
+  const minutes = reminderSelectToMinutes(newReminder);
+  if (!minutes) return;
+
+  try {
+    await ApiService.createReminder(scheduleId, minutes);
+
+    await loadReminders(scheduleId); // 목록 갱신
+    setNewReminder('none');
+  } catch (error) {
+    console.error('리마인더 추가 실패:', error);
+    alert('리마인더 추가 실패');
+  }
+};
+
+
 
   const loadPlaces = useCallback(async () => {
     const res = await ApiService.listSchedulePlaces(scheduleId, 0, 20);
@@ -745,6 +772,30 @@ return (
           <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>리마인더 없음</p>
         )}
       </div>
+
+      {/* 🔥 리마인더 추가 */}
+<div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+  <select
+    value={newReminder}
+    onChange={(e) => setNewReminder(e.target.value)}
+    style={{ ...inputStyle, marginBottom: 0 }}
+  >
+    <option value="none">추가할 리마인더</option>
+    <option value="5m">5분 전</option>
+    <option value="30m">30분 전</option>
+    <option value="1h">1시간 전</option>
+    <option value="1d">하루 전</option>
+  </select>
+
+  <button
+    type="button"
+    onClick={handleAddReminder}
+    style={{ ...subButton, background: '#dbeafe' }}
+  >
+    추가
+  </button>
+</div>
+
 
         <div style={sectionStyle}>
   <label style={labelStyle}>🌐 링크</label>
