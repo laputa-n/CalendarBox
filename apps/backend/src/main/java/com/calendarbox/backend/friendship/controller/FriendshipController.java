@@ -114,4 +114,11 @@ public class FriendshipController {
         friendshipService.delete(userId, friendshipId);
         return ResponseEntity.ok(ApiResponse.ok("친구 삭제 완료",null));
     }
+
+//    @Operation(
+//            summary = "친구 목록 조회",
+//            description = "친구 목록을 조회합니다."
+//    )
+//    @GetMapping
+//    public
 }
