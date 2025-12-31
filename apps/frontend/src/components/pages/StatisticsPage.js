@@ -4,7 +4,8 @@ import { ApiService } from '../../services/apiService';
 
 export const StatisticsPage = () => {
     const [statistics, setStatistics] = useState(null);
-    const [loading, setLoading] = useState(false);
+    const [statisticsLoading, setStatisticsLoading] = useState(false);
+    const [yearlyLoading, setYearlyLoading] = useState(false);
     const [selectedTab, setSelectedTab] = useState('people');
     const [selectedWeekday, setSelectedWeekday] = useState('1'); // 월요일 기본값
     const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth()); // 기본값은 이번 달
@@ -22,37 +23,38 @@ export const StatisticsPage = () => {
     }
 
     // 1년 동안의 월별 데이터를 요청하는 함수
-    const fetchYearlyData = async () => {
-        try {
-            setLoading(true);
-            const data = [];
-            const currentYear = new Date().getFullYear();
-            // 1년간의 각 월 데이터 요청
-            for (let month = 1; month <= 12; month++) {
-                const yearMonth = `${currentYear}-${String(month).padStart(2, '0')}`;
-                const monthlyData = await ApiService.getMonthlyScheduleTrend(yearMonth);
-                data.push(monthlyData.data);
-            }
-            setYearlyData(data); // 1년 데이터 저장
-        } catch (error) {
-            console.error('Failed to fetch yearly data:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+ const fetchYearlyData = async () => {
+  try {
+    setYearlyLoading(true);
+
+    const data = [];
+    const currentYear = new Date().getFullYear();
+
+    for (let month = 1; month <= 12; month++) {
+      const yearMonth = `${currentYear}-${String(month).padStart(2, '0')}`;
+      const monthlyData = await ApiService.getMonthlyScheduleTrend(yearMonth);
+      data.push(monthlyData.data);
+    }
+
+    setYearlyData(data);
+  } catch (error) {
+    console.error('Failed to fetch yearly data:', error);
+  } finally {
+    setYearlyLoading(false);
+  }
+};
 
 
     // 선택된 월에 해당하는 통계를 가져오는 함수
 const fetchStatistics = async () => {
   try {
-    setLoading(true);
-    const yearMonth = selectedMonth; // 🔴 이미 state 있음
+    setStatisticsLoading(true);
 
-    // ✅ summary
+    const yearMonth = selectedMonth;
+
     const peopleSummaryResponse = await ApiService.getPeopleSummary(yearMonth);
     const placeSummaryResponse = await ApiService.getPlaceSummary(yearMonth);
 
-    // ✅ list (추가!)
     const peopleListResponse = await ApiService.getPeopleList(yearMonth, 1, 20);
     const placeListResponse = await ApiService.getPlaceList(yearMonth, 1, 20);
 
@@ -66,23 +68,26 @@ const fetchStatistics = async () => {
       monthlyTrend: monthlyTrendResponse.data,
     });
 
-    // ✅ 여기만 추가
     setPeopleList(peopleListResponse.data?.content || []);
     setPlaceList(placeListResponse.data?.content || []);
-
   } catch (error) {
     console.error('Failed to fetch statistics:', error);
   } finally {
-    setLoading(false);
+    setStatisticsLoading(false);
   }
 };
+
  
 
     // 월별 데이터를 업데이트 할 때마다 fetch
-    useEffect(() => {
-        fetchStatistics(); // 선택된 월에 해당하는 통계 데이터를 불러옵니다.
-        fetchYearlyData(); // 1년 간의 월별 데이터를 불러옵니다.
-    }, [selectedMonth]); // selectedMonth가 변경될 때마다 호출
+   useEffect(() => {
+  fetchStatistics();
+}, [selectedMonth]);
+
+// ✅ 최초 1회: 월별 통계용 1년치 데이터(필요할 때만)
+useEffect(() => {
+  fetchYearlyData();
+}, []);
 
     // 탭 버튼 스타일
     const tabButtonStyle = {
@@ -488,57 +493,61 @@ const renderHourlyDistribution = () => {
         setSelectedTab(tab);
     };
 
-    if (loading) {
-        return <p>Loading...</p>;
-    }
 
-    return (
-        <div>
-            <h1>통계</h1>
-            <div style={{ marginBottom: '2rem' }}>
-                <button
-                    style={selectedTab === 'people' ? tabButtonActiveStyle : tabButtonStyle}
-                    onClick={() => setSelectedTab('people')}
-                >
-                    사람 통계
-                </button>
-                <button
-                    style={selectedTab === 'place' ? tabButtonActiveStyle : tabButtonStyle}
-                    onClick={() => setSelectedTab('place')}
-                >
-                    장소 통계
-                </button>
-                <button
-                    style={selectedTab === 'monthly' ? tabButtonActiveStyle : tabButtonStyle}
-                    onClick={() => setSelectedTab('monthly')}
-                >
-                    월별 통계
-                </button>
-                <button
-                    style={selectedTab === 'weekday' ? tabButtonActiveStyle : tabButtonStyle}
-                    onClick={() => setSelectedTab('weekday')}
-                >
-                    요일별 통계
-                </button>
-                <button
-                    style={selectedTab === 'hour' ? tabButtonActiveStyle : tabButtonStyle}
-                    onClick={() => setSelectedTab('hour')}
-                >
-                    시간대별 통계
-                </button>
-            </div>
+return (
+  <div>
+    <h1>통계</h1>
 
-           {/* ✅ 사람 / 장소 필터는 로딩 중에도 표시 */}
-  {(selectedTab === 'people' || selectedTab === 'place') &&
-    renderYearMonthSelector()}
+    {/* 탭 버튼 */}
+    <div style={{ marginBottom: '2rem' }}>
+      <button
+        style={selectedTab === 'people' ? tabButtonActiveStyle : tabButtonStyle}
+        onClick={() => setSelectedTab('people')}
+      >
+        사람 통계
+      </button>
+      <button
+        style={selectedTab === 'place' ? tabButtonActiveStyle : tabButtonStyle}
+        onClick={() => setSelectedTab('place')}
+      >
+        장소 통계
+      </button>
+      <button
+        style={selectedTab === 'monthly' ? tabButtonActiveStyle : tabButtonStyle}
+        onClick={() => setSelectedTab('monthly')}
+      >
+        월별 통계
+      </button>
+      <button
+        style={selectedTab === 'weekday' ? tabButtonActiveStyle : tabButtonStyle}
+        onClick={() => setSelectedTab('weekday')}
+      >
+        요일별 통계
+      </button>
+      <button
+        style={selectedTab === 'hour' ? tabButtonActiveStyle : tabButtonStyle}
+        onClick={() => setSelectedTab('hour')}
+      >
+        시간대별 통계
+      </button>
+    </div>
 
-  {loading && <p>Loading...</p>}
+    {/* ✅ 사람 / 장소 필터는 항상 보이게 */}
+    {(selectedTab === 'people' || selectedTab === 'place') &&
+      renderYearMonthSelector()}
 
-  {!loading && selectedTab === 'people' && renderPeopleSummary()}
-  {!loading && selectedTab === 'place' && renderPlaceSummary()}
-  {!loading && selectedTab === 'monthly' && renderMonthlyTrend()}
-  {!loading && selectedTab === 'weekday' && renderWeekdayDistribution()}
-  {!loading && selectedTab === 'hour' && renderHourlyDistribution()}
-</div>
-    );
+    {/* ✅ 통계 로딩 */}
+    {statisticsLoading && <p>Loading...</p>}
+
+    {/* ✅ 월별 통계 로딩 */}
+    {selectedTab === 'monthly' && yearlyLoading && <p>Loading...</p>}
+
+    {/* ✅ 탭별 렌더 */}
+    {!statisticsLoading && selectedTab === 'people' && renderPeopleSummary()}
+    {!statisticsLoading && selectedTab === 'place' && renderPlaceSummary()}
+    {selectedTab === 'monthly' && renderMonthlyTrend()}
+    {!statisticsLoading && selectedTab === 'weekday' && renderWeekdayDistribution()}
+    {!statisticsLoading && selectedTab === 'hour' && renderHourlyDistribution()}
+  </div>
+);
 };
