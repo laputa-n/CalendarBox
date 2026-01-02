@@ -1,6 +1,7 @@
 package com.calendarbox.backend.friendship.service;
 
 import com.calendarbox.backend.friendship.domain.Friendship;
+import com.calendarbox.backend.friendship.dto.response.FriendListItem;
 import com.calendarbox.backend.friendship.dto.response.ReceivedItemResponse;
 import com.calendarbox.backend.friendship.dto.response.SentItemResponse;
 import com.calendarbox.backend.friendship.enums.FriendshipStatus;
@@ -93,5 +94,11 @@ public class FriendshipQueryService {
                 pageResult.hasNext(),
                 pageResult.hasPrevious()
         );
+    }
+
+    public PageResponse<FriendListItem> getList(Long userId,Pageable pageable){
+        Page<FriendListItem> page = friendshipRepository.findAcceptedFriendList(userId, pageable);
+
+        return PageResponse.of(page);
     }
 }

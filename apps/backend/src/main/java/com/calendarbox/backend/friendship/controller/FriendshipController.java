@@ -115,10 +115,18 @@ public class FriendshipController {
         return ResponseEntity.ok(ApiResponse.ok("친구 삭제 완료",null));
     }
 
-//    @Operation(
-//            summary = "친구 목록 조회",
-//            description = "친구 목록을 조회합니다."
-//    )
-//    @GetMapping
-//    public
+    @Operation(
+            summary = "친구 목록 조회",
+            description = "친구 목록을 조회합니다."
+    )
+    @GetMapping
+    public ResponseEntity<ApiResponse<PageResponse<FriendListItem>>> getFriendList(
+            @AuthenticationPrincipal(expression="id")Long userId
+    ){
+        Pageable pageable = PageRequest.of(0, 20);
+
+        var data = friendshipQueryService.getList(userId,pageable);
+
+        return ResponseEntity.ok(ApiResponse.ok("친구 목록 조회 성공",data));
+    }
 }

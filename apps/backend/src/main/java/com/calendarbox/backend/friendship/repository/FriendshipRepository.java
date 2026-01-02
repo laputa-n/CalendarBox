@@ -1,6 +1,7 @@
 package com.calendarbox.backend.friendship.repository;
 
 import com.calendarbox.backend.friendship.domain.Friendship;
+import com.calendarbox.backend.friendship.dto.response.FriendListItem;
 import com.calendarbox.backend.friendship.enums.FriendshipStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -45,4 +46,26 @@ public interface FriendshipRepository extends JpaRepository<Friendship, Long> {
       and f.status = com.calendarbox.backend.friendship.enums.FriendshipStatus.ACCEPTED
     """)
     boolean existsAcceptedBetween(@Param("a") Long a, @Param("b") Long b);
+
+    @Query(
+            value = """
+            select new com.calendarbox.backend.friendship.dto.response.FriendListItem(
+                case when f.requester.id = :userId then a.name else r.name end,
+                f.respondedAt
+            )
+            from Friendship f
+            join f.requester r
+            join f.addressee a
+            where f.status = com.calendarbox.backend.friendship.enums.FriendshipStatus.ACCEPTED
+              and (r.id = :userId or a.id = :userId)
+            order by f.respondedAt desc
+            """,
+            countQuery = """
+            select count(f)
+            from Friendship f
+            where f.status = com.calendarbox.backend.friendship.enums.FriendshipStatus.ACCEPTED
+              and (f.requester.id = :userId or f.addressee.id = :userId)
+            """
+    )
+    Page<FriendListItem> findAcceptedFriendList(@Param("userId") Long userId, Pageable pageable);
 }
