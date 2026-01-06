@@ -5,8 +5,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.Collection;
@@ -133,5 +135,41 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
             @Param("calIds") List<Long> calIds,
             @Param("fromUtc") Instant fromUtc
     );
+
+    @Query(value = """
+        SELECT s.schedule_id
+        FROM schedule s
+        LEFT JOIN schedule_embedding e ON e.schedule_id = s.schedule_id
+        WHERE e.schedule_id IS NULL
+        ORDER BY s.updated_at DESC
+        LIMIT :limit
+        """, nativeQuery = true)
+    List<Long> findScheduleIdsWithoutEmbedding(@Param("limit") int limit);
+
+    @Modifying
+    @Transactional
+    @Query(value = """
+        UPDATE schedule
+           SET embedding_status = 'RUNNING', updated_at = now()
+         WHERE schedule_id = :id
+           AND embedding_dirty = true
+           AND embedding_status = 'QUEUED'
+        """, nativeQuery = true)
+    int markEmbeddingRunningIfQueued(@Param("id") Long id);
+
+    @Modifying
+    @Transactional
+    @Query(value = """
+    UPDATE schedule s
+       SET embedding_dirty = true,
+           embedding_status = 'QUEUED',
+           embedding_last_error = null
+     WHERE s.schedule_id IN (:ids)
+       AND NOT EXISTS (
+           SELECT 1 FROM schedule_embedding e WHERE e.schedule_id = s.schedule_id
+       )
+""", nativeQuery = true)
+    int markEmbeddingQueuedForBackfill(@Param("ids") List<Long> ids);
+
 
 }

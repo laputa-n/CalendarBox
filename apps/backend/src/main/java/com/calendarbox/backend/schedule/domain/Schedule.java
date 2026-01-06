@@ -99,6 +99,36 @@ public class Schedule {
     @OrderBy("paidAt Asc, id Asc")
     private List<Expense> expenses = new ArrayList<>();
 
+    @Column(name = "embedding_dirty", nullable = false)
+    private boolean embeddingDirty = false;
+
+    @Column(name = "embedding_synced_at")
+    private Instant embeddingSyncedAt;
+
+    @Column(name = "embedding_fail_count", nullable = false)
+    private int embeddingFailCount = 0;
+
+    @Column(name = "embedding_last_error")
+    private String embeddingLastError;
+
+    @Column(name = "embedding_status", nullable = false, length = 20)
+    private String embeddingStatus = "SYNCED"; // 기본
+
+    public void markEmbeddingSynced(Instant now) {
+        this.embeddingDirty = false;
+        this.embeddingStatus = "SYNCED";
+        this.embeddingSyncedAt = now;
+        this.embeddingFailCount = 0;
+        this.embeddingLastError = null;
+    }
+
+    public void markEmbeddingFailed(String error, boolean willRetry) {
+        this.embeddingDirty = true;
+        this.embeddingFailCount += 1;
+        this.embeddingLastError = error;
+        this.embeddingStatus = willRetry ? "QUEUED" : "FAILED";
+    }
+
     public Schedule(Calendar c, String title, String memo, ScheduleTheme theme, Instant startAt, Instant endAt, Member createdBy) {
         this.calendar = c;
         this.title = title;
