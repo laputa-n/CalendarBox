@@ -153,13 +153,6 @@ public class ScheduleParticipantService {
 
         notificationRepository.save(notification);
 
-        try {
-            float[] embedding = scheduleEmbeddingService.embedScheduleEntity(s);
-            scheduleEmbeddingRepository.upsertEmbedding(s.getId(), embedding);
-        } catch (Exception e){
-            log.error("Failed to update schedule embedding. scheduleId={}", s.getId(), e);
-        }
-
         return toAddParticipantResponse(sp);
     }
     private AddParticipantResponse addName(Long userId, Long scheduleId, String name) {

@@ -25,7 +25,7 @@ public class EmbeddingBackfillBatch {
     private static final int BATCH_SIZE = 200;
 
     // 매일 새벽 3:30 (한국 기준). 원하는 시간으로 변경 가능.
-    @Scheduled(cron = "0 50 13 * * *", zone = "Asia/Seoul")
+    @Scheduled(cron = "0 30 3 * * *", zone = "Asia/Seoul")
     @Transactional // readOnly 제거!
     public void runDaily() {
         List<Long> ids = scheduleRepository.findScheduleIdsWithoutEmbedding(BATCH_SIZE);

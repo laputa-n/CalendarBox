@@ -2,6 +2,7 @@ package com.calendarbox.backend.schedule.util;
 
 import com.calendarbox.backend.place.dto.request.PlaceRecommendRequest;
 import com.calendarbox.backend.schedule.domain.Schedule;
+import com.calendarbox.backend.schedule.enums.ScheduleParticipantStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -133,11 +134,16 @@ public class DefaultScheduleEmbeddingService {
             }
         }
 
-        if (schedule.getParticipants() != null && !schedule.getParticipants().isEmpty()) {
-            int count = schedule.getParticipants().size();
-            String label = (count == 1) ? "혼자"
-                    : (count <= 3) ? ("소규모 모임 (" + count + "명)")
-                    : ("다인원 모임 (" + count + "명)");
+        int accepted = 0;
+        if (schedule.getParticipants() != null) {
+            for (var sp : schedule.getParticipants()) {
+                if (sp.getStatus() == ScheduleParticipantStatus.ACCEPTED) accepted++;
+            }
+        }
+        if (accepted > 0) {
+            String label = (accepted == 1) ? "혼자"
+                    : (accepted <= 3) ? ("소규모 모임 (" + accepted + "명)")
+                    : ("다인원 모임 (" + accepted + "명)");
             sb.append("참여인원: ").append(label).append("\n");
         }
         return sb.toString().trim();
