@@ -104,6 +104,7 @@ gemini:
 embedding:
   python:
     url: ${ML_URL}
+  model-version: "st:all-MiniLM-L6-v2"
 
 springdoc:
   api-docs:
