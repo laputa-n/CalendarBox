@@ -18,10 +18,11 @@ jobs:
         working-directory: apps/backend
         run: chmod +x gradlew    # CI에서 가끔 권한 없는 경우 대비
 
-      - name: Check Maven Central connectivity
-        run: |
-          set -eux
-          curl -I https://repo.maven.apache.org/maven2/org/springframework/boot/spring-boot-starter-test/3.5.4/spring-boot-starter-test-3.5.4.pom
+#CI 네트워크 이슈 확인용
+#      - name: Check Maven Central connectivity
+#        run: |
+#          set -eux
+#          curl -I https://repo.maven.apache.org/maven2/org/springframework/boot/spring-boot-starter-test/3.5.4/spring-boot-starter-test-3.5.4.pom
 
       - name: Gradle build (with tests)
         working-directory: apps/backend

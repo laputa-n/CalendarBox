@@ -39,24 +39,33 @@ public class EmbeddingMqConfig {
                 .build();
     }
 
-    @Bean
+    @Bean(name = "embeddingRetry10sQueue")
     public Queue retry10sQueue() { return retryQueue("embedding.retry.10s.queue", 10_000); }
-    @Bean public Queue retry1mQueue()  { return retryQueue("embedding.retry.1m.queue", 60_000); }
-    @Bean public Queue retry10mQueue() { return retryQueue("embedding.retry.10m.queue", 600_000); }
 
-    @Bean public Binding bindRetry10s(@Qualifier("embeddingExchange") DirectExchange ex) {
+    @Bean(name = "embeddingRetry1mQueue")
+    public Queue retry1mQueue()  { return retryQueue("embedding.retry.1m.queue", 60_000); }
+
+    @Bean(name = "embeddingRetry10mQueue")
+    public Queue retry10mQueue() { return retryQueue("embedding.retry.10m.queue", 600_000); }
+
+    @Bean(name = "embeddingBindRetry10s")
+    public Binding bindRetry10s(@Qualifier("embeddingExchange") DirectExchange ex) {
         return BindingBuilder.bind(retry10sQueue()).to(ex).with(RK_RETRY_10S);
     }
-    @Bean public Binding bindRetry1m(@Qualifier("embeddingExchange") DirectExchange ex) {
+    @Bean(name = "embeddingBindRetry1m")
+    public Binding bindRetry1m(@Qualifier("embeddingExchange") DirectExchange ex) {
         return BindingBuilder.bind(retry1mQueue()).to(ex).with(RK_RETRY_1M);
     }
-    @Bean public Binding bindRetry10m(@Qualifier("embeddingExchange") DirectExchange ex) {
+    @Bean(name = "embeddingBindRetry10m")
+    public Binding bindRetry10m(@Qualifier("embeddingExchange") DirectExchange ex) {
         return BindingBuilder.bind(retry10mQueue()).to(ex).with(RK_RETRY_10M);
     }
 
-    @Bean public Queue dlqQueue() { return QueueBuilder.durable("embedding.dlq.queue").build(); }
+    @Bean(name = "embeddingDlqQueue")
+    public Queue dlqQueue() { return QueueBuilder.durable("embedding.dlq.queue").build(); }
 
-    @Bean public Binding bindDlq(@Qualifier("embeddingExchange") DirectExchange ex) {
+    @Bean(name = "embeddingBindDlq")
+    public Binding bindDlq(@Qualifier("embeddingExchange") DirectExchange ex) {
         return BindingBuilder.bind(dlqQueue()).to(ex).with(RK_DLQ);
     }
 }

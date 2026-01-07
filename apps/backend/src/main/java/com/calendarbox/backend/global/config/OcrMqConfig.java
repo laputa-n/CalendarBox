@@ -39,23 +39,34 @@ public class OcrMqConfig {
                 .build();
     }
 
-    @Bean public Queue retry10sQueue() { return retryQueue("ocr.retry.10s.queue", 10_000); }
-    @Bean public Queue retry1mQueue()  { return retryQueue("ocr.retry.1m.queue", 60_000); }
-    @Bean public Queue retry10mQueue() { return retryQueue("ocr.retry.10m.queue", 600_000); }
+    @Bean(name = "ocrRetry10sQueue")
+    public Queue retry10sQueue() { return retryQueue("ocr.retry.10s.queue", 10_000); }
 
-    @Bean public Binding bindRetry10s(@Qualifier("ocrExchange") DirectExchange ex) {
+    @Bean(name = "ocrRetry1mQueue")
+    public Queue retry1mQueue()  { return retryQueue("ocr.retry.1m.queue", 60_000); }
+
+    @Bean(name = "ocrRetry10mQueue")
+    public Queue retry10mQueue() { return retryQueue("ocr.retry.10m.queue", 600_000); }
+
+    @Bean(name = "ocrBindRetry10s")
+    public Binding bindRetry10s(@Qualifier("ocrExchange") DirectExchange ex) {
         return BindingBuilder.bind(retry10sQueue()).to(ex).with(RK_RETRY_10S);
     }
-    @Bean public Binding bindRetry1m(@Qualifier("ocrExchange") DirectExchange ex) {
+
+    @Bean(name = "ocrBindRetry1m")
+    public Binding bindRetry1m(@Qualifier("ocrExchange") DirectExchange ex) {
         return BindingBuilder.bind(retry1mQueue()).to(ex).with(RK_RETRY_1M);
     }
-    @Bean public Binding bindRetry10m(@Qualifier("ocrExchange") DirectExchange ex) {
+    @Bean(name = "ocrBindRetry10m")
+    public Binding bindRetry10m(@Qualifier("ocrExchange") DirectExchange ex) {
         return BindingBuilder.bind(retry10mQueue()).to(ex).with(RK_RETRY_10M);
     }
 
-    @Bean public Queue dlqQueue() { return QueueBuilder.durable("ocr.dlq.queue").build(); }
+    @Bean(name = "ocrDlqQueue")
+    public Queue dlqQueue() { return QueueBuilder.durable("ocr.dlq.queue").build(); }
 
-    @Bean public Binding bindDlq(@Qualifier("ocrExchange") DirectExchange ex) {
+    @Bean(name = "ocrBindDlq")
+    public Binding bindDlq(@Qualifier("ocrExchange") DirectExchange ex) {
         return BindingBuilder.bind(dlqQueue()).to(ex).with(RK_DLQ);
     }
 }
