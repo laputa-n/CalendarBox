@@ -160,16 +160,27 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
     @Modifying
     @Transactional
     @Query(value = """
-    UPDATE schedule s
-       SET embedding_dirty = true,
-           embedding_status = 'QUEUED',
-           embedding_last_error = null
-     WHERE s.schedule_id IN (:ids)
-       AND NOT EXISTS (
-           SELECT 1 FROM schedule_embedding e WHERE e.schedule_id = s.schedule_id
-       )
+UPDATE schedule
+   SET embedding_dirty = true,
+       embedding_status = 'QUEUED',
+       embedding_last_error = null
+ WHERE schedule_id = :id
+   AND embedding_status IN ('SYNCED', 'FAILED')
 """, nativeQuery = true)
-    int markEmbeddingQueuedForBackfill(@Param("ids") List<Long> ids);
+    int markEmbeddingQueued(@Param("id") Long id);
 
+
+    @Modifying
+    @Transactional
+    @Query(value = """
+UPDATE schedule s
+   SET embedding_dirty = true,
+       embedding_status = 'QUEUED',
+       embedding_last_error = null
+ WHERE s.schedule_id IN (:ids)
+   AND NOT EXISTS (SELECT 1 FROM schedule_embedding e WHERE e.schedule_id = s.schedule_id)
+RETURNING s.schedule_id
+""", nativeQuery = true)
+    List<Long> markEmbeddingQueuedForBackfillReturning(@Param("ids") List<Long> ids);
 
 }

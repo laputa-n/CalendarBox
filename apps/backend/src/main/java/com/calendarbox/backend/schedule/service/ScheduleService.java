@@ -30,6 +30,7 @@ import com.calendarbox.backend.schedule.enums.ScheduleParticipantStatus;
 import com.calendarbox.backend.schedule.enums.ScheduleTheme;
 import com.calendarbox.backend.schedule.repository.*;
 import com.calendarbox.backend.schedule.util.DefaultScheduleEmbeddingService;
+import com.calendarbox.backend.schedule.util.EmbeddingEnqueueService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -67,6 +68,7 @@ public class ScheduleService {
     private final PlaceRepository placeRepository;
     private final DefaultScheduleEmbeddingService scheduleEmbeddingService;
     private final ScheduleEmbeddingRepository scheduleEmbeddingRepository;
+    private final EmbeddingEnqueueService embeddingEnqueueService;
 
 
     public CloneScheduleResponse clone(Long userId, Long calendarId, CloneScheduleRequest request) {
@@ -315,12 +317,7 @@ public class ScheduleService {
         scheduleRepository.save(schedule);
         scheduleRepository.flush();
 
-        try {
-            float[] embedding = scheduleEmbeddingService.embedScheduleEntity(schedule);
-            scheduleEmbeddingRepository.upsertEmbedding(schedule.getId(), embedding);
-        } catch (Exception e) {
-            log.error("Failed to update schedule embedding. scheduleId={}", schedule.getId(), e);
-        }
+        embeddingEnqueueService.enqueueAfterCommit(schedule.getId());
 
         List<Notification> inviteNotis = schedule.getParticipants().stream()
                 .filter(sp -> sp.getMember() != null)
@@ -412,12 +409,7 @@ public class ScheduleService {
 
 
         if(!diff.isEmpty()){
-            try {
-                float[] embedding = scheduleEmbeddingService.embedScheduleEntity(s);
-                scheduleEmbeddingRepository.upsertEmbedding(s.getId(), embedding);
-            } catch (Exception e) {
-                log.error("Failed to update schedule embedding. scheduleId={}", s.getId(), e);
-            }
+            embeddingEnqueueService.enqueueAfterCommit(s.getId());
             CalendarHistory history = CalendarHistory.builder()
                     .calendar(c)
                     .actor(user)
