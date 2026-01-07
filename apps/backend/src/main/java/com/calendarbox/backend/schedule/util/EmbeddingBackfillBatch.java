@@ -19,7 +19,7 @@ import java.util.List;
 public class EmbeddingBackfillBatch {
 
     private final ScheduleRepository scheduleRepository;
-    private final RabbitTemplate rabbitTemplate;
+    private final EmbeddingEnqueueService embeddingEnqueueService;
 
     // 처음엔 200~500 정도로 작게
     private static final int BATCH_SIZE = 200;
@@ -31,17 +31,9 @@ public class EmbeddingBackfillBatch {
         List<Long> ids = scheduleRepository.findScheduleIdsWithoutEmbedding(BATCH_SIZE);
         if (ids.isEmpty()) return;
 
-        int queued = scheduleRepository.markEmbeddingQueuedForBackfill(ids);
-        if (queued == 0) return;
+        List<Long> queuedIds = scheduleRepository.markEmbeddingQueuedForBackfillReturning(ids);
+        if (queuedIds.isEmpty()) return;
 
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                for (Long scheduleId : ids) {
-                    rabbitTemplate.convertAndSend(EmbeddingMqConfig.EXCHANGE, EmbeddingMqConfig.RK_RUN, scheduleId);
-                }
-                log.info("[EMBED-BACKFILL] selected={}, queued={}, published={}", ids.size(), queued, ids.size());
-            }
-        });
+        embeddingEnqueueService.publishAfterCommit(queuedIds, "BACKFILL");
     }
 }

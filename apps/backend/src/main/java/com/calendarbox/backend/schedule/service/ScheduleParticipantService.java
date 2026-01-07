@@ -24,6 +24,7 @@ import com.calendarbox.backend.schedule.repository.ScheduleEmbeddingRepository;
 import com.calendarbox.backend.schedule.repository.ScheduleParticipantRepository;
 import com.calendarbox.backend.schedule.repository.ScheduleRepository;
 import com.calendarbox.backend.schedule.util.DefaultScheduleEmbeddingService;
+import com.calendarbox.backend.schedule.util.EmbeddingEnqueueService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -50,6 +51,7 @@ public class ScheduleParticipantService {
     private final CalendarHistoryRepository calendarHistoryRepository;
     private final DefaultScheduleEmbeddingService scheduleEmbeddingService;
     private final ScheduleEmbeddingRepository scheduleEmbeddingRepository;
+    private final EmbeddingEnqueueService embeddingEnqueueService;
 
     public AddParticipantResponse add(Long userId, Long scheduleId, AddParticipantRequest request) {
 
@@ -73,12 +75,7 @@ public class ScheduleParticipantService {
         Map<String, Object> removedParticipant = new HashMap<>();
         removedParticipant.put("removedParticipantName", sp.getName());
 
-        try {
-            float[] embedding = scheduleEmbeddingService.embedScheduleEntity(s);
-            scheduleEmbeddingRepository.upsertEmbedding(s.getId(), embedding);
-        } catch (Exception e){
-            log.error("Failed to update schedule embedding. scheduleId={}", s.getId(), e);
-        }
+        embeddingEnqueueService.enqueueAfterCommit(s.getId());
 
         CalendarHistory history = CalendarHistory.builder()
                 .calendar(c)
@@ -111,12 +108,7 @@ public class ScheduleParticipantService {
                 calendarHistoryRepository.save(history);
                 sp.accept();
 
-                try {
-                    float[] embedding = scheduleEmbeddingService.embedScheduleEntity(s);
-                    scheduleEmbeddingRepository.upsertEmbedding(s.getId(), embedding);
-                } catch (Exception e){
-                    log.error("Failed to update schedule embedding. scheduleId={}", s.getId(), e);
-                }
+                embeddingEnqueueService.enqueueAfterCommit(s.getId());
             }
             case REJECT -> sp.decline();
         }
@@ -177,12 +169,7 @@ public class ScheduleParticipantService {
                 .build();
         calendarHistoryRepository.save(history);
 
-        try {
-            float[] embedding = scheduleEmbeddingService.embedScheduleEntity(s);
-            scheduleEmbeddingRepository.upsertEmbedding(s.getId(), embedding);
-        } catch (Exception e){
-            log.error("Failed to update schedule embedding. scheduleId={}", s.getId(), e);
-        }
+        embeddingEnqueueService.enqueueAfterCommit(s.getId());
 
         return toAddParticipantResponse(sp);
     }
