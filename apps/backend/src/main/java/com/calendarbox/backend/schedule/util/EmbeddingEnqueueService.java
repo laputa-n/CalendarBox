@@ -18,19 +18,18 @@ public class EmbeddingEnqueueService {
     private final RabbitTemplate rabbitTemplate;
 
     public void enqueueAfterCommit(Long scheduleId) {
-        int updated = scheduleRepository.markEmbeddingQueued(scheduleId);
-        if (updated == 0) return;
-
-        if (!TransactionSynchronizationManager.isActualTransactionActive()) {
-            rabbitTemplate.convertAndSend(EmbeddingMqConfig.EXCHANGE, EmbeddingMqConfig.RK_RUN, scheduleId);
+        int queued = scheduleRepository.markEmbeddingQueuedIfSyncedOrFailed(scheduleId);
+        if (queued == 1) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override public void afterCommit() {
+                    rabbitTemplate.convertAndSend(EmbeddingMqConfig.EXCHANGE, EmbeddingMqConfig.RK_RUN, scheduleId);
+                }
+            });
             return;
         }
 
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override public void afterCommit() {
-                rabbitTemplate.convertAndSend(EmbeddingMqConfig.EXCHANGE, EmbeddingMqConfig.RK_RUN, scheduleId);
-            }
-        });
+        // RUNNING이면 표시만 남기고 publish는 하지 않음
+        scheduleRepository.markEmbeddingDirtyIfRunning(scheduleId);
     }
 
     public void publishAfterCommit(List<Long> scheduleIds, String reason) {

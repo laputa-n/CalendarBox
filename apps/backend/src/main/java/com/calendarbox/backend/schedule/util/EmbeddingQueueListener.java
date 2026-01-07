@@ -31,8 +31,10 @@ public class EmbeddingQueueListener {
 
         try {
             worker.processOne(scheduleId);
-            txService.markSuccess(scheduleId);
-            log.info("[EMBED-MQ] success scheduleId={}", scheduleId);
+            boolean requeued = txService.markSuccess(scheduleId);
+            if (requeued) {
+                rabbitTemplate.convertAndSend(EmbeddingMqConfig.EXCHANGE, EmbeddingMqConfig.RK_RUN, scheduleId);
+            }
 
         } catch (Exception e) {
             int retry = beforeRetry + 1;

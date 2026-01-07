@@ -150,9 +150,10 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
     @Transactional
     @Query(value = """
         UPDATE schedule
-           SET embedding_status = 'RUNNING', updated_at = now()
+           SET embedding_status = 'RUNNING', 
+                updated_at = now(),
+                embedding_dirty = false
          WHERE schedule_id = :id
-           AND embedding_dirty = true
            AND embedding_status = 'QUEUED'
         """, nativeQuery = true)
     int markEmbeddingRunningIfQueued(@Param("id") Long id);
@@ -167,7 +168,19 @@ UPDATE schedule
  WHERE schedule_id = :id
    AND embedding_status IN ('SYNCED', 'FAILED')
 """, nativeQuery = true)
-    int markEmbeddingQueued(@Param("id") Long id);
+    int markEmbeddingQueuedIfSyncedOrFailed(@Param("id") Long id);
+
+    @Modifying
+    @Transactional
+    @Query(value = """
+UPDATE schedule
+   SET embedding_dirty = true,
+       embedding_last_error = null
+ WHERE schedule_id = :id
+   AND embedding_status = 'RUNNING'
+""", nativeQuery = true)
+    int markEmbeddingDirtyIfRunning(@Param("id") Long id);
+
 
 
     @Modifying
@@ -182,5 +195,66 @@ UPDATE schedule s
 RETURNING s.schedule_id
 """, nativeQuery = true)
     List<Long> markEmbeddingQueuedForBackfillReturning(@Param("ids") List<Long> ids);
+
+    @Modifying
+    @Transactional
+    @Query(value = """
+UPDATE schedule
+   SET embedding_status = 'SYNCED',
+       embedding_dirty = false,
+       embedding_synced_at = now(),
+       embedding_fail_count = 0,
+       embedding_last_error = null
+ WHERE schedule_id = :id
+   AND embedding_status = 'RUNNING'
+   AND embedding_dirty = false
+""", nativeQuery = true)
+    int markSyncedIfStillClean(@Param("id") Long id);
+
+    @Modifying
+    @Transactional
+    @Query(value = """
+UPDATE schedule
+   SET embedding_status = 'QUEUED'
+ WHERE schedule_id = :id
+   AND embedding_status = 'RUNNING'
+   AND embedding_dirty = true
+""", nativeQuery = true)
+    int requeueIfDirtyDuringRun(@Param("id") Long id);
+
+    @Query(value = """
+  SELECT s.schedule_id
+  FROM schedule s
+  WHERE s.embedding_status = 'QUEUED'
+    AND s.updated_at < now() - interval '10 minutes'
+  ORDER BY s.updated_at ASC
+  LIMIT :limit
+""", nativeQuery = true)
+    List<Long> findStuckQueuedEmbeddingIds(@Param("limit") int limit);
+
+    @Query(value = """
+  SELECT s.schedule_id
+  FROM schedule s
+  WHERE s.embedding_status = 'RUNNING'
+    AND s.updated_at < now() - interval '45 minutes'
+  ORDER BY s.updated_at ASC
+  LIMIT :limit
+""", nativeQuery = true)
+    List<Long> findStuckRunningEmbeddingIds(@Param("limit") int limit);
+
+    @Modifying
+    @Transactional
+    @Query(value = """
+  UPDATE schedule
+     SET embedding_status = 'QUEUED',
+         embedding_dirty = true,
+         embedding_last_error = 'RESCUED_FROM_RUNNING',
+         updated_at = now()
+   WHERE schedule_id IN (:ids)
+     AND embedding_status = 'RUNNING'
+""", nativeQuery = true)
+    int resetRunningToQueued(@Param("ids") List<Long> ids);
+
+
 
 }

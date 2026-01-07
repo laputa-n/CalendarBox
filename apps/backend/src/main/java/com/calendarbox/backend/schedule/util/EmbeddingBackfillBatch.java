@@ -36,4 +36,25 @@ public class EmbeddingBackfillBatch {
 
         embeddingEnqueueService.publishAfterCommit(queuedIds, "BACKFILL");
     }
+
+    @Scheduled(cron = "0 */15 * * * *", zone = "Asia/Seoul")
+    @Transactional
+    public void republishStuckQueued() {
+        List<Long> ids = scheduleRepository.findStuckQueuedEmbeddingIds(200);
+        if (ids.isEmpty()) return;
+        embeddingEnqueueService.publishAfterCommit(ids, "RESCUE_QUEUED");
+    }
+
+    @Scheduled(cron = "0 */45 * * * *", zone = "Asia/Seoul")
+    @Transactional
+    public void rescueStuckRunning() {
+        List<Long> ids = scheduleRepository.findStuckRunningEmbeddingIds(200);
+        if (ids.isEmpty()) return;
+
+        int reset = scheduleRepository.resetRunningToQueued(ids);
+        if (reset == 0) return;
+
+        embeddingEnqueueService.publishAfterCommit(ids, "RESCUE_RUNNING");
+    }
+
 }

@@ -21,9 +21,12 @@ public class EmbeddingTaskTxService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void markSuccess(Long scheduleId) {
-        var s = repo.findById(scheduleId).orElseThrow();
-        s.markEmbeddingSynced(Instant.now());
+    public boolean markSuccess(Long scheduleId) {
+        int synced = repo.markSyncedIfStillClean(scheduleId);
+        if (synced == 1) return false; // 재발행 불필요
+
+        int requeued = repo.requeueIfDirtyDuringRun(scheduleId);
+        return requeued == 1; // 재발행 필요
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
