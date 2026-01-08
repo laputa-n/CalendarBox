@@ -20,6 +20,7 @@ export const FriendsPage = () => {
     receivedRequests = { content: [], loading: false },
     sentRequests = { content: [], loading: false },
      acceptedFriendships = [],
+     friends,
     searchResults = [],
     searchLoading = false,
     loading = false,
@@ -124,6 +125,14 @@ const handleReject = async (id) => {
   await rejectFriendRequest(id);
   await fetchReceivedRequests(); // 🔥 즉시 제거
 };
+
+// 🔵 친구 목록 화면 전용 (GET /api/friendships 결과)
+const friendsForList = friends?.content?.map((f, index) => ({
+   friendshipId: f.friendshipId,         // UI key용 (임시)
+  requesterName: f.friendName,  // 기존 UI 필드명 유지
+  respondedAt: f.respondedAt
+})) || [];
+
 
   const buttonStyle = (bgColor = '#2563eb', textColor = 'white') => ({
     backgroundColor: bgColor,
@@ -318,74 +327,108 @@ const handleReject = async (id) => {
           )}
 
           {/* 친구 목록 */}
-          <div style={cardStyle}>
-            <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>
-              친구 목록 ({acceptedFriendships.length}명)
-            </h3>
-            {loading ? (
-              <LoadingSpinner text="친구 목록을 불러오는 중..." />
-            ) : acceptedFriendships.length > 0 ? (
-              acceptedFriendships.map((friendship, index) => (
-                <div key={friendship.friendshipId} style={{
-                  padding: '1.5rem',
-                  borderBottom: index < acceptedFriendships.length - 1 ? '1px solid #e5e7eb' : 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <div style={{
-                      width: '3rem',
-                      height: '3rem',
-                      backgroundColor: '#dcfce7',
-                      borderRadius: '50%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
-                      <User style={{ width: '1.5rem', height: '1.5rem', color: '#16a34a' }} />
-                    </div>
-                    <div>
-                      <h4 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#1f2937', margin: 0 }}>
-                       {friendship.requesterName}
-                      </h4>
-                      <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: '0.25rem 0' }}>
-  
-                      </p>
-                      <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: 0 }}>
-                        친구가 된 날: {new Date(friendship.respondedAt).toLocaleDateString('ko-KR')}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      if (window.confirm('정말로 친구를 삭제하시겠습니까?')) {
-                        removeFriend(friendship.friendshipId);
-                      }
-                    }}
-                    style={{
-                      padding: '0.5rem',
-                      color: '#dc2626',
-                      backgroundColor: 'transparent',
-                      border: 'none',
-                      borderRadius: '0.5rem',
-                      cursor: 'pointer'
-                    }}
-                    disabled={loading}
-                    title="친구 삭제"
-                  >
-                    <Trash2 style={{ width: '1rem', height: '1rem' }} />
-                  </button>
-                </div>
-              ))
-            ) : (
-              <div style={{ padding: '3rem', textAlign: 'center', color: '#6b7280' }}>
-                <Users style={{ width: '4rem', height: '4rem', color: '#d1d5db', margin: '0 auto 1rem auto' }} />
-                <p style={{ fontSize: '1.125rem', marginBottom: '0.5rem' }}>아직 친구가 없습니다.</p>
-                <p style={{ color: '#9ca3af' }}>친구를 추가하여 일정을 공유해보세요!</p>
-              </div>
-            )}
+    {/* 친구 목록 */}
+<div style={cardStyle}>
+  <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>
+    친구 목록 ({friendsForList.length}명)
+  </h3>
+
+  {loading ? (
+    <LoadingSpinner text="친구 목록을 불러오는 중..." />
+  ) : friendsForList.length > 0 ? (
+    friendsForList.map((friendship, index) => (
+      <div
+        key={friendship.friendshipId}
+        style={{
+          padding: '1.5rem',
+          borderBottom:
+            index < friendsForList.length - 1 ? '1px solid #e5e7eb' : 'none',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div
+            style={{
+              width: '3rem',
+              height: '3rem',
+              backgroundColor: '#dcfce7',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <User style={{ width: '1.5rem', height: '1.5rem', color: '#16a34a' }} />
           </div>
+
+          <div>
+            <h4
+              style={{
+                fontSize: '1.125rem',
+                fontWeight: '600',
+                color: '#1f2937',
+                margin: 0
+              }}
+            >
+              {friendship.requesterName}
+            </h4>
+
+            <p
+              style={{
+                fontSize: '0.75rem',
+                color: '#9ca3af',
+                margin: 0
+              }}
+            >
+              친구가 된 날:{' '}
+              {new Date(friendship.respondedAt).toLocaleDateString('ko-KR')}
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => {
+            if (window.confirm('정말로 친구를 삭제하시겠습니까?')) {
+              removeFriend(friendship.friendshipId);
+            }
+          }}
+          style={{
+            padding: '0.5rem',
+            color: '#dc2626',
+            backgroundColor: 'transparent',
+            border: 'none',
+            borderRadius: '0.5rem',
+            cursor: 'pointer'
+          }}
+          disabled={loading}
+          title="친구 삭제"
+        >
+          <Trash2 style={{ width: '1rem', height: '1rem' }} />
+        </button>
+      </div>
+    ))
+  ) : (
+    <div style={{ padding: '3rem', textAlign: 'center', color: '#6b7280' }}>
+      <Users
+        style={{
+          width: '4rem',
+          height: '4rem',
+          color: '#d1d5db',
+          margin: '0 auto 1rem auto'
+        }}
+      />
+      <p style={{ fontSize: '1.125rem', marginBottom: '0.5rem' }}>
+        아직 친구가 없습니다.
+      </p>
+      <p style={{ color: '#9ca3af' }}>
+        친구를 추가하여 일정을 공유해보세요!
+      </p>
+    </div>
+  )}
+</div>
+
         </>
       )}
 

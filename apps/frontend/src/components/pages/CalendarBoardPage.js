@@ -4,12 +4,28 @@ import { useNavigate } from 'react-router-dom';
 import { useCalendars } from '../../contexts/CalendarContext';
 
 export const CalendarBoardPage = () => {
-  const { calendars, loading } = useCalendars();
+  const { calendars, loading, setDefaultCalendar } = useCalendars();
   const navigate = useNavigate();
 
   if (loading) {
     return <p>캘린더를 불러오는 중...</p>;
   }
+
+  // ✅ 기본 캘린더 설정 핸들러 (컴포넌트 안!)
+  const handleSetDefault = async (calendar) => {
+    if (calendar.isDefault) return;
+
+    const ok = window.confirm(
+      `"${calendar.name}"을 기본 캘린더로 설정할까요?`
+    );
+    if (!ok) return;
+
+    try {
+      await setDefaultCalendar(calendar.id);
+    } catch (e) {
+      console.error('기본 캘린더 설정 실패', e);
+    }
+  };
 
   return (
     <div style={containerStyle}>
@@ -30,6 +46,7 @@ export const CalendarBoardPage = () => {
               calendar={calendar}
               onOpen={() => navigate(`/calendar/${calendar.id}`)}
               onDetail={() => navigate(`/calendar/${calendar.id}/detail`)}
+              onSetDefault={handleSetDefault}   // ✅ 전달
             />
           ))}
         </div>
@@ -38,19 +55,36 @@ export const CalendarBoardPage = () => {
   );
 };
 
+const renderVisibilityLabel = (visibility) => {
+  switch (visibility) {
+    case 'PRIVATE':
+      return '🔒 PRIVATE';
+    case 'PROTECTED':
+      return '🛡 PROTECTED';
+    case 'PUBLIC':
+      return '🌍 PUBLIC';
+    default:
+      return visibility;
+  }
+};
+
 /* =========================
  *  Components
  * ========================= */
 
-const CalendarCard = ({ calendar, onOpen , onDetail }) => {
-  const isPublic = calendar.visibility === 'PUBLIC';
-
+const CalendarCard = ({ calendar, onOpen, onDetail, onSetDefault }) => {
   return (
     <div style={cardStyle}>
       <div>
-        <h2 style={cardTitleStyle}>{calendar.name}</h2>
+        <h2 style={cardTitleStyle}>
+          {calendar.name}
+          {calendar.isDefault && (
+            <span style={{ marginLeft: 6, color: '#10b981' }}>⭐ 기본</span>
+          )}
+        </h2>
+
         <p style={cardSubtitleStyle}>
-          {isPublic ? '👥 공유 캘린더' : '🔒 개인 캘린더'}
+          {renderVisibilityLabel(calendar.visibility)}
         </p>
       </div>
 
@@ -59,13 +93,22 @@ const CalendarCard = ({ calendar, onOpen , onDetail }) => {
           캘린더 보기
         </button>
 
-        {/* TODO: 캘린더 상세 모달 */}
-       <button
-  onClick={onDetail}
-  style={outlineButtonStyle}
->
-  상세
-</button>
+        <button onClick={onDetail} style={outlineButtonStyle}>
+          상세
+        </button>
+
+        {/* ✅ 기본 캘린더가 아닐 때만 노출 */}
+        {!calendar.isDefault && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onSetDefault(calendar);
+            }}
+            style={defaultButtonStyle}
+          >
+            ⭐ 기본으로 설정
+          </button>
+        )}
       </div>
     </div>
   );
@@ -81,13 +124,8 @@ const EmptyState = () => (
  *  Styles
  * ========================= */
 
-const containerStyle = {
-  padding: '2rem',
-};
-
-const headerStyle = {
-  marginBottom: '2rem',
-};
+const containerStyle = { padding: '2rem' };
+const headerStyle = { marginBottom: '2rem' };
 
 const titleStyle = {
   fontSize: '1.75rem',
@@ -95,9 +133,7 @@ const titleStyle = {
   marginBottom: '0.25rem',
 };
 
-const subtitleStyle = {
-  color: '#6b7280',
-};
+const subtitleStyle = { color: '#6b7280' };
 
 const gridStyle = {
   display: 'grid',
@@ -128,6 +164,7 @@ const cardSubtitleStyle = {
 
 const cardButtonGroupStyle = {
   display: 'flex',
+  flexWrap: 'wrap',
   gap: '0.5rem',
   marginTop: '1.25rem',
 };
@@ -149,6 +186,15 @@ const outlineButtonStyle = {
   borderRadius: '0.5rem',
   cursor: 'pointer',
   fontSize: '0.875rem',
+};
+
+const defaultButtonStyle = {
+  padding: '0.5rem 0.75rem',
+  backgroundColor: '#f9fafb',
+  border: '1px solid #d1d5db',
+  borderRadius: '0.5rem',
+  cursor: 'pointer',
+  fontSize: '0.75rem',
 };
 
 const emptyStateStyle = {

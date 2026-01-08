@@ -1,179 +1,107 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { useCalendars } from '../../contexts/CalendarContext';
-import { useFriends } from '../../contexts/FriendContext';
-import { useAuth } from '../../contexts/AuthContext';
-import { CalendarMemberList } from './CalendarMemberList';
-
+// src/pages/calendar/CalendarDetailPage.jsx
+import React, { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ApiService } from '../../services/apiService';
 
 export const CalendarDetailPage = () => {
   const { calendarId } = useParams();
-  const { user } = useAuth();
+  const navigate = useNavigate();
 
-  const {
-    calendars,
-    currentCalendar,
-    setCurrentCalendar,
-    inviteCalendarMembers,
-    fetchCalendarMembers,
-    calendarMembers,
-    loading,
-  } = useCalendars();
-
-  const { acceptedFriendships } = useFriends();
-
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [selectedIds, setSelectedIds] = useState([]);
+  const [calendar, setCalendar] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   /* =========================
-   *  URL → currentCalendar
+   *  캘린더 상세 조회
    * ========================= */
   useEffect(() => {
-    if (!calendarId || calendars.length === 0) return;
+    const fetchDetail = async () => {
+      try {
+        const res = await ApiService.getCalendarById(calendarId);
+        const data = res?.data?.data ?? res?.data ?? res;
+        setCalendar(data);
+      } catch (e) {
+        console.error('캘린더 상세 조회 실패:', e);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    const id = Number(calendarId);
-    const target = calendars.find(c => c.id === id);
+    fetchDetail();
+  }, [calendarId]);
 
-    if (target && currentCalendar?.id !== target.id) {
-      setCurrentCalendar(target);
-    }
-  }, [calendarId, calendars, currentCalendar?.id, setCurrentCalendar]);
-
-  /* =========================
-   *  캘린더 멤버 조회
-   * ========================= */
-  useEffect(() => {
-    if (!calendarId) return;
-    fetchCalendarMembers(Number(calendarId), { page: 0, size: 50 });
-  }, [calendarId, fetchCalendarMembers]);
-
-  /* =========================
-   *  친구 → 초대 대상 변환
-   * ========================= */
-  const inviteCandidates = useMemo(() => {
-    if (!user) return [];
-
-    return acceptedFriendships.map(f =>
-      f.requesterId === user.id
-        ? { memberId: f.receiverId, name: f.receiverName }
-        : { memberId: f.requesterId, name: f.requesterName }
-    );
-  }, [acceptedFriendships, user]);
-
-  const alreadyMemberIds = new Set(
-    (calendarMembers || []).map(m => m.memberId)
-  );
-
-  const toggle = (id) => {
-    setSelectedIds(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-    );
-  };
-
-const handleInvite = async () => {
-  if (selectedIds.length === 0) {
-    alert('초대할 친구를 선택해주세요.');
-    return;
+  if (loading) {
+    return <p style={{ padding: '2rem' }}>불러오는 중...</p>;
   }
 
-  const res = await inviteCalendarMembers(Number(calendarId), selectedIds);
-  const data = res?.data?.data ?? res?.data ?? res;
-
-  alert(
-    `초대 결과\n성공: ${data.successCount}명\n실패: ${data.failureCount}명`
-  );
-
-  // ✅ 여기 추가
-  await fetchCalendarMembers(Number(calendarId), 0, 50);
-
-  setSelectedIds([]);
-  setInviteOpen(false);
-};
+  if (!calendar) {
+    return <p style={{ padding: '2rem' }}>캘린더 정보를 찾을 수 없습니다.</p>;
+  }
 
   /* =========================
    *  Render
    * ========================= */
   return (
-    <div style={{ padding: '2rem' }}>
+    <div style={{ padding: '2rem', maxWidth: 640 }}>
       <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>
-        {currentCalendar?.name}
+        {calendar.name}
       </h1>
 
-      <button style={primaryBtn} onClick={() => setInviteOpen(true)}>
-        멤버 초대
-      </button>
+      <div style={{ marginTop: '1.5rem', lineHeight: 1.9 }}>
+        <InfoRow label="캘린더 ID" value={calendar.calendarId} />
+        <InfoRow label="타입" value={calendar.type} />
+        <InfoRow
+          label="공개 범위"
+          value={renderVisibility(calendar.visibility)}
+        />
+        <InfoRow
+          label="멤버 수"
+          value={`${calendar.memberCount} 명`}
+        />
+        <InfoRow
+          label="생성일"
+          value={formatDate(calendar.createdAt)}
+        />
+        <InfoRow
+          label="수정일"
+          value={formatDate(calendar.updatedAt)}
+        />
+      </div>
 
-       <CalendarMemberList calendarId={Number(calendarId)} />
-
-      {/* 초대 모달 */}
-      {inviteOpen && (
-        <div style={overlay}>
-          <div style={modal}>
-            <h3 style={{ fontWeight: 700 }}>친구 초대</h3>
-
-            <div style={listBox}>
-              {inviteCandidates.map(f => {
-                const disabled = alreadyMemberIds.has(f.memberId);
-
-                return (
-                  <label key={f.memberId} style={{ opacity: disabled ? 0.5 : 1 }}>
-                    <input
-                      type="checkbox"
-                      disabled={disabled}
-                      checked={selectedIds.includes(f.memberId)}
-                      onChange={() => toggle(f.memberId)}
-                    />
-                    {f.name}
-                    {disabled && ' (이미 멤버)'}
-                  </label>
-                );
-              })}
-            </div>
-
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setInviteOpen(false)}>취소</button>
-              <button style={primaryBtn} onClick={handleInvite}>초대</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <div style={{ marginTop: '2rem', display: 'flex', gap: 8 }}>
+        <button onClick={() => navigate(-1)}>← 뒤로가기</button>
+        <button onClick={() => navigate(`/calendar/${calendarId}/members`)}>
+          멤버 관리
+        </button>
+      </div>
     </div>
   );
 };
 
 /* =========================
- *  Styles
+ *  Sub Components
  * ========================= */
 
-const primaryBtn = {
-  padding: '0.5rem 1rem',
-  backgroundColor: '#2563eb',
-  color: '#fff',
-  border: 'none',
-  borderRadius: 8,
+const InfoRow = ({ label, value }) => (
+  <div style={{ display: 'flex', gap: 12 }}>
+    <div style={{ width: 100, color: '#6b7280' }}>{label}</div>
+    <div>{value}</div>
+  </div>
+);
+
+const renderVisibility = (visibility) => {
+  switch (visibility) {
+    case 'PRIVATE':
+      return '🔒 PRIVATE';
+    case 'PROTECTED':
+      return '🛡 PROTECTED';
+    case 'PUBLIC':
+      return '🌍 PUBLIC';
+    default:
+      return visibility;
+  }
 };
 
-const overlay = {
-  position: 'fixed',
-  inset: 0,
-  background: 'rgba(0,0,0,0.4)',
-  display: 'flex',
-  justifyContent: 'center',
-  alignItems: 'center',
-};
-
-const modal = {
-  background: '#fff',
-  padding: 16,
-  borderRadius: 12,
-  width: 420,
-};
-
-const listBox = {
-  maxHeight: 300,
-  overflow: 'auto',
-  margin: '1rem 0',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 6,
+const formatDate = (iso) => {
+  if (!iso) return '-';
+  return new Date(iso).toLocaleString();
 };

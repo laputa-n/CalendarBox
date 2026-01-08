@@ -1,8 +1,9 @@
 // AppRouter.js
 import React, { useEffect } from "react";
+import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { useLocation, useNavigate, Navigate } from "react-router-dom";
 import { LoadingSpinner } from "./common/LoadingSpinner";
+
 import { LoginPage } from "./pages/LoginPage";
 import { SignupCompletePage } from "./pages/SignupCompletePage";
 import { Dashboard } from "./pages/Dashboard";
@@ -21,91 +22,79 @@ export const AppRouter = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // ✅ /login → /dashboard 이동
+  // ✅ 로그인 후 /login → /dashboard 리다이렉트
   useEffect(() => {
     if (!loading && isAuthenticated && location.pathname === "/login") {
       navigate("/dashboard", { replace: true });
     }
   }, [isAuthenticated, loading, location.pathname, navigate]);
 
+  /* =========================
+   *  Loading
+   * ========================= */
   if (loading) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: "#f9fafb",
-        }}
-      >
+      <div style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#f9fafb",
+      }}>
         <LoadingSpinner size="3rem" text="로딩 중..." />
       </div>
     );
   }
 
-  // ✅ /login/success 들어오면 바로 대시보드로 리다이렉트
-  if (isAuthenticated && location.pathname === "/login/success") {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  // ✅ 신규회원 추가정보 입력
-  if (location.pathname === "/signup/complete") {
-    return <SignupCompletePage />;
-  }
-
-  // ✅ 인증 안된 상태 → 로그인 페이지
+  /* =========================
+   *  인증 전 라우트
+   * ========================= */
   if (!isAuthenticated) {
-    return <LoginPage />;
+    return (
+      <Routes>
+        <Route path="/signup/complete" element={<SignupCompletePage />} />
+        <Route path="*" element={<LoginPage />} />
+      </Routes>
+    );
   }
 
-  // ✅ 메인 레이아웃
-  const mainLayoutStyle = {
-    display: "flex",
-    height: "100vh",
-    backgroundColor: "#f9fafb",
-  };
-
-  const contentStyle = {
-    flex: 1,
-    overflow: "auto",
-    padding: "2rem",
-  };
-
+  /* =========================
+   *  인증 후 메인 레이아웃
+   * ========================= */
   return (
-    <div style={mainLayoutStyle}>
+    <div style={{
+      display: "flex",
+      height: "100vh",
+      backgroundColor: "#f9fafb",
+    }}>
       <Sidebar />
-      <div style={contentStyle}>
-        {location.pathname === "/dashboard" && <Dashboard />}
-        {location.pathname === "/schedules" && <SchedulesPage />}
-        {location.pathname === "/friends" && <FriendsPage />}
-        {location.pathname === "/notifications" && <NotificationsPage />}
-        {location.pathname === "/statistics" && <StatisticsPage />}
-        {location.pathname === "/search" && <SearchPage />}
-        {location.pathname === "/" && <Dashboard />}
-      {/* /calendar → 보드로 리다이렉트 */}
-{location.pathname === "/calendar" && (
-  <Navigate to="/calendar/board" replace />
-)}
 
-{/* 캘린더 보드 */}
-{location.pathname === "/calendar/board" && <CalendarBoardPage />}
+      <div style={{
+        flex: 1,
+        overflow: "auto",
+        padding: "2rem",
+      }}>
+        <Routes>
+          {/* 기본 */}
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<Dashboard />} />
 
-{/* 캘린더 상세 */}
-{location.pathname.startsWith("/calendar/") &&
- location.pathname.endsWith("/detail") && (
-  <CalendarDetailPage />
-)}
+          {/* 일반 페이지 */}
+          <Route path="/schedules" element={<SchedulesPage />} />
+          <Route path="/friends" element={<FriendsPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/statistics" element={<StatisticsPage />} />
+          <Route path="/search" element={<SearchPage />} />
 
-{/* 실제 캘린더 화면 (/calendar/:id) */}
-{location.pathname.startsWith("/calendar/") &&
- !location.pathname.endsWith("/board") &&
- !location.pathname.endsWith("/detail") && (
-  <CalendarPage />
-)}
+          {/* 캘린더 */}
+          <Route path="/calendar" element={<Navigate to="/calendar/board" replace />} />
+          <Route path="/calendar/board" element={<CalendarBoardPage />} />
+          <Route path="/calendar/:calendarId" element={<CalendarPage />} />
+          <Route path="/calendar/:calendarId/detail" element={<CalendarDetailPage />} />
 
-
-
+          {/* fallback */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
       </div>
     </div>
   );

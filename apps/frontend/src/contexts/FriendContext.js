@@ -37,12 +37,23 @@ export const FriendProvider = ({ children }) => {
   // ===== 회원(Member) 검색 =====
 const [memberSearchResults, setMemberSearchResults] = useState([]);
 const [memberSearchLoading, setMemberSearchLoading] = useState(false);
+// 친구 목록
+const [friends, setFriends] = useState({
+  content: [],
+  page: 0,
+  size: 10,
+  totalElements: 0,
+  totalPages: 0,
+  loading: false
+});
+
 
 
   useEffect(() => {
     if (isAuthenticated && user) {
       fetchReceivedRequests();
       fetchSentRequests();
+      fetchFriends();
     }
   }, []);
 
@@ -96,6 +107,32 @@ const searchMembers = async (query, page = 0, size = 20) => {
       }
     }
   };
+
+  // ===== 친구 목록 조회 =====
+const fetchFriends = async (page = 1, size = 10) => {
+  if (!user) return;
+
+  try {
+    setFriends(prev => ({ ...prev, loading: true }));
+
+    const response = await ApiService.getFriends(page, size);
+    const data = response.data?.data;
+
+    setFriends({
+      content: data?.content || [],
+      page: (data?.page || 0) + 1,
+      size: data?.size || 10,
+      totalElements: data?.totalElements || 0,
+      totalPages: data?.totalPages || 0,
+      loading: false
+    });
+  } catch (error) {
+    console.error('Failed to fetch friends:', error);
+    setFriends(prev => ({ ...prev, content: [], loading: false }));
+    showError('친구 목록 조회에 실패했습니다.');
+  }
+};
+
 
   // ===== 보낸 친구 요청 조회 =====
   const fetchSentRequests = async (page = 1, size = 10) => {
@@ -172,7 +209,8 @@ const searchMembers = async (query, page = 0, size = 20) => {
       
       await Promise.all([
         fetchReceivedRequests(),
-        fetchSentRequests()
+        fetchSentRequests(),
+        fetchFriends()
       ]);
       
     } catch (error) {
@@ -209,7 +247,8 @@ const searchMembers = async (query, page = 0, size = 20) => {
       
       await Promise.all([
         fetchReceivedRequests(),
-        fetchSentRequests()
+        fetchSentRequests(),
+        fetchFriends()
       ]);
       
     } catch (error) {
@@ -232,6 +271,7 @@ const contextValue = {
   receivedRequests,
   sentRequests,
   acceptedFriendships,
+  friends,
 
   searchResults,        // (기존 – 혹시 쓰면 유지)
   searchLoading,
@@ -247,6 +287,7 @@ const contextValue = {
   removeFriend,
   fetchReceivedRequests,
   fetchSentRequests,
+  fetchFriends,
 
   searchUsers,   // (기존)
   searchMembers, // ✅ 추가

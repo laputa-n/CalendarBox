@@ -1,19 +1,20 @@
 import React from 'react';
-import { Bell, CheckCircle, Trash2, Users, Calendar as CalendarIcon } from 'lucide-react';
+import { Bell, Users, Calendar as CalendarIcon } from 'lucide-react';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { formatDate, formatTime } from '../../utils/dateUtils';
 import { NOTIFICATION_TYPES } from '../../utils/constants';
 import { LoadingSpinner } from '../common/LoadingSpinner';
 
+
+
 export const NotificationsPage = () => {
-  const { 
-    notifications, 
-    markAsRead, 
-    markAllAsRead, 
-    deleteNotification,
-    unreadCount, 
-    loading 
-  } = useNotifications();
+ const { 
+  notifications,
+  markAsRead,
+  unreadCount,
+  loading
+} = useNotifications();
+
 
   const getNotificationIcon = (type) => {
     switch (type) {
@@ -27,6 +28,30 @@ export const NotificationsPage = () => {
         return <Bell style={{ width: '1.25rem', height: '1.25rem' }} />;
     }
   };
+
+  const getNotificationMessage = (notification) => {
+  const payload = notification.payloadJson
+    ? JSON.parse(notification.payloadJson)
+    : {};
+
+  switch (notification.type) {
+    case NOTIFICATION_TYPES.FRIEND_REQUEST:
+      return `${notification.actor?.name}님이 친구 요청을 보냈습니다.`;
+
+    case NOTIFICATION_TYPES.INVITED_TO_CALENDAR:
+      return `${notification.actor?.name}님이 캘린더에 초대했습니다.`;
+
+    case NOTIFICATION_TYPES.INVITED_TO_SCHEDULE:
+      return `${notification.actor?.name}님이 일정에 초대했습니다.`;
+
+    case NOTIFICATION_TYPES.SYSTEM:
+      return payload.message || '시스템 알림이 도착했습니다.';
+
+    default:
+      return '새로운 알림이 도착했습니다.';
+  }
+};
+
 
   const getNotificationColor = (type, isRead) => {
     if (isRead) return '#6b7280';
@@ -75,16 +100,6 @@ export const NotificationsPage = () => {
             읽지 않은 알림이 {unreadCount}개 있습니다
           </p>
         </div>
-        {unreadCount > 0 && (
-          <button 
-            onClick={markAllAsRead}
-            disabled={loading}
-            style={buttonStyle}
-          >
-            <CheckCircle style={{ width: '1rem', height: '1rem', marginRight: '0.5rem' }} />
-            모두 읽음 처리
-          </button>
-        )}
       </div>
 
       <div style={cardStyle}>
@@ -126,7 +141,7 @@ export const NotificationsPage = () => {
                     marginBottom: '0.5rem',
                     lineHeight: '1.5'
                   }}>
-                    {notification.message}
+                    {getNotificationMessage(notification)}
                   </p>
                   
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -143,29 +158,7 @@ export const NotificationsPage = () => {
                           borderRadius: '50%'
                         }} />
                       )}
-                      
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (window.confirm('이 알림을 삭제하시겠습니까?')) {
-                            deleteNotification(notification.id);
-                          }
-                        }}
-                        style={{
-                          padding: '0.25rem',
-                          color: '#6b7280',
-                          backgroundColor: 'transparent',
-                          border: 'none',
-                          borderRadius: '0.25rem',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                        title="알림 삭제"
-                      >
-                        <Trash2 style={{ width: '0.875rem', height: '0.875rem' }} />
-                      </button>
+      
                     </div>
                   </div>
                 </div>

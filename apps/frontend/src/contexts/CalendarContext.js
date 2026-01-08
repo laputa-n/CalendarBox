@@ -166,6 +166,7 @@ export const CalendarProvider = ({ children }) => {
       const backendData = {
         name: calendarData.name,
         visibility: calendarData.visibility || 'PRIVATE',
+         type: calendarData.type,
       };
       const response = await ApiService.updateCalendar(calendarId, backendData);
 
@@ -321,6 +322,22 @@ const inviteCalendarMembers = async (calendarId, memberIds) => {
     });
   };
 
+  const setDefaultCalendar = async (calendarId) => {
+  try {
+    setLoading(true);
+    await ApiService.setDefaultCalendar(calendarId);
+
+    // ⭐ 가장 중요
+    await fetchCalendars();
+  } catch (error) {
+    handleApiError(error, '기본 캘린더 설정에 실패했습니다.');
+    throw error;
+  } finally {
+    setLoading(false);
+  }
+};
+
+
   const contextValue = {
     calendars,
     currentCalendar,
@@ -349,6 +366,7 @@ const inviteCalendarMembers = async (calendarId, memberIds) => {
     fetchSharedCalendars,
     getCalendarScheduleCount,
     shareCalendar,
+    setDefaultCalendar,
 
     refreshCalendars: fetchCalendars,
   };

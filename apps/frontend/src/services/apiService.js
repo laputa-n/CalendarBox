@@ -104,6 +104,15 @@ export class ApiService {
     return this.request('/friendships/received');
   }
 
+  static async getFriends(page = 1, size = 10) {
+  return this.request(
+    `/api/friendships?page=${page}&size=${size}`,
+    {
+      method: 'GET'
+    }
+  );
+}
+
   static async sendFriendRequest(friendEmail) {
     return this.request('/friendships/request', {
       method: 'POST',
@@ -196,10 +205,13 @@ static async createCalendar(calendarData) {
 }
 
 static async getCalendarById(calendarId) {
-  // ✅ 개별 캘린더 상세 조회
-  const response = await this.request(`/calendars/${calendarId}`);
-  return response;
+  if (!calendarId) {
+    console.error('❌ calendarId가 없습니다.');
+    return;
+  }
+  return this.request(`/calendars/${calendarId}`);
 }
+
 
 static async updateCalendar(calendarId, calendarData) {
   // ✅ PUT 업데이트
@@ -221,6 +233,12 @@ static async deleteCalendar(calendarId) {
     method: 'DELETE',
   });
   return response;
+}
+
+static async setDefaultCalendar(calendarId) {
+  return this.request(`/calendars/${calendarId}/default`, {
+    method: 'PATCH',
+  });
 }
 
 // === 캘린더 멤버 관련 API ===
@@ -686,9 +704,31 @@ static async getCalendarOccurrences(calendarId, { fromKst, toKst }) {
   );
 
   console.log(`📡 [API 응답 - 캘린더(${calendarId}) 오커런스]:`, response);
-  return response;
+  return response; 
+}
 
-  
+// 알림 목록 조회
+static async getNotifications({ page = 0, size = 20, onlyUnread, types } = {}) {
+  let endpoint = `/notifications?page=${page}&size=${size}`;
+
+  if (onlyUnread !== undefined) {
+    endpoint += `&onlyUnread=${onlyUnread}`;
+  }
+
+  if (types && Array.isArray(types)) {
+    types.forEach(type => {
+      endpoint += `&types=${type}`;
+    });
+  }
+
+  return this.request(endpoint);
+}
+
+// 알림 읽음 처리
+static async markNotificationAsRead(notificationId) {
+  return this.request(`/notifications/${notificationId}`, {
+    method: 'PATCH'
+  });
 }
  // === 사람(일정, 지출) 통계 요약 및 top3 ===
   static async getPeopleSummary(yearMonth) {

@@ -121,8 +121,18 @@ useEffect(() => {
   setIsModalOpen(true);
 };
 
-
-
+const renderVisibility = (visibility) => {
+  switch (visibility) {
+    case 'PRIVATE':
+      return '🔒 PRIVATE';
+    case 'PROTECTED':
+      return '🛡 PROTECTED';
+    case 'PUBLIC':
+      return '🌍 PUBLIC';
+    default:
+      return visibility;
+  }
+};
 
   /** =========================
    *  스타일
@@ -247,53 +257,128 @@ const handleDatesSet = (arg) => {
         </button>
       </div>
 
-      {/* 캘린더 생성/수정 폼 */}
-      {showForm && (
-        <div style={cardStyle}>
-          <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>
-            {editingCalendar ? '캘린더 수정' : '새 캘린더 추가'}
-          </h3>
-          <form onSubmit={handleSubmit}>
-            <div style={{ display: 'grid', gap: '1rem', marginBottom: '1rem' }}>
-              <div>
-                <label style={{ fontWeight: '500', fontSize: '0.875rem' }}>캘린더 이름 *</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                  style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem' }}
-                />
-              </div>
+     {/* 캘린더 생성/수정 폼 */}
+{showForm && (
+  <div style={cardStyle}>
+    <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>
+      {editingCalendar ? '캘린더 수정' : '새 캘린더 추가'}
+    </h3>
 
-              <div>
-                <label style={{ fontWeight: '500', fontSize: '0.875rem' }}>공개 범위</label>
-                <select
-                  value={formData.visibility}
-                  onChange={(e) => setFormData({ ...formData, visibility: e.target.value })}
-                  style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '0.5rem' }}
-                >
-                  <option value="PRIVATE">비공개</option>
-                  <option value="PUBLIC">공개</option>
-                </select>
-              </div>
-            </div>
+    <form onSubmit={handleSubmit}>
+      <div style={{ display: 'grid', gap: '1rem', marginBottom: '1rem' }}>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-              <button
-                type="button"
-                onClick={resetForm}
-                style={{ padding: '0.75rem 1rem', border: '1px solid #d1d5db', borderRadius: '0.5rem' }}
-              >
-                취소
-              </button>
-              <button type="submit" style={buttonStyle}>
-                {editingCalendar ? '수정' : '추가'}
-              </button>
-            </div>
-          </form>
+        {/* 캘린더 이름 */}
+        <div>
+          <label style={{ fontWeight: '500', fontSize: '0.875rem' }}>
+            캘린더 이름 *
+          </label>
+          <input
+            type="text"
+            value={formData.name}
+            onChange={(e) =>
+              setFormData({ ...formData, name: e.target.value })
+            }
+            required
+            style={{
+              width: '100%',
+              padding: '0.75rem',
+              border: '1px solid #d1d5db',
+              borderRadius: '0.5rem',
+            }}
+          />
         </div>
-      )}
+
+        {/* 캘린더 타입 */}
+        <div>
+          <label style={{ fontWeight: '500', fontSize: '0.875rem' }}>
+            캘린더 타입
+          </label>
+          <select
+            value={formData.type}
+            onChange={(e) =>
+              setFormData({ ...formData, type: e.target.value })
+            }
+            style={{
+              width: '100%',
+              padding: '0.75rem',
+              border: '1px solid #d1d5db',
+              borderRadius: '0.5rem',
+            }}
+          >
+            <option value="PERSONAL">개인 캘린더</option>
+            <option value="GROUP">그룹 캘린더</option>
+          </select>
+        </div>
+
+        {/* 공개 범위 */}
+        <div>
+          <label style={{ fontWeight: '500', fontSize: '0.875rem' }}>
+            공개 범위
+          </label>
+          <select
+            value={formData.visibility}
+            onChange={(e) =>
+              setFormData({ ...formData, visibility: e.target.value })
+            }
+            style={{
+              width: '100%',
+              padding: '0.75rem',
+              border: '1px solid #d1d5db',
+              borderRadius: '0.5rem',
+            }}
+          >
+            <option value="PRIVATE">🔒 PRIVATE</option>
+            <option value="PROTECTED"> PROTECTED</option>
+            <option value="PUBLIC">🌍 PUBLIC</option>
+          </select>
+
+          {/* 선택 설명 */}
+          <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: 4 }}>
+            {formData.visibility === 'PRIVATE' &&
+              '본인만 사용하는 개인 캘린더입니다.'}
+            {formData.visibility === 'PROTECTED' &&
+              '공유되지만 설정 변경이 제한됩니다.'}
+            {formData.visibility === 'PUBLIC' &&
+              '누구나 접근 가능한 공개 캘린더입니다.'}
+          </p>
+        </div>
+
+        {/* 기본 캘린더 설정 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <input
+            type="checkbox"
+            checked={formData.isDefault}
+            onChange={(e) =>
+              setFormData({ ...formData, isDefault: e.target.checked })
+            }
+          />
+          <label style={{ fontSize: '0.875rem' }}>
+            기본 캘린더로 설정
+          </label>
+        </div>
+      </div>
+
+      {/* 버튼 */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+        <button
+          type="button"
+          onClick={resetForm}
+          style={{
+            padding: '0.75rem 1rem',
+            border: '1px solid #d1d5db',
+            borderRadius: '0.5rem',
+          }}
+        >
+          취소
+        </button>
+        <button type="submit" style={buttonStyle}>
+          {editingCalendar ? '수정' : '추가'}
+        </button>
+      </div>
+    </form>
+  </div>
+)}
+
 
       {/* ✅ 캘린더 목록 & 선택 */}
       <div style={cardStyle}>
@@ -313,7 +398,10 @@ const handleDatesSet = (arg) => {
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <strong>{calendar.name}</strong> ({calendar.visibility})
+                 <strong>{calendar.name}</strong>
+<span style={{ marginLeft: '0.5rem', fontSize: '0.875rem', color: '#6b7280' }}>
+  {renderVisibility(calendar.visibility)}
+</span>
                   {calendar.isDefault && <span style={{ color: '#10b981', marginLeft: '0.5rem' }}>기본</span>}
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
