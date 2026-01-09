@@ -29,23 +29,19 @@ export const NotificationsPage = () => {
     }
   };
 
-  const getNotificationMessage = (notification) => {
-  const payload = notification.payloadJson
-    ? JSON.parse(notification.payloadJson)
-    : {};
-
+const getNotificationMessage = (notification) => {
   switch (notification.type) {
-    case NOTIFICATION_TYPES.FRIEND_REQUEST:
+    case 'RECEIVED_FRIEND_REQUEST':
       return `${notification.actor?.name}님이 친구 요청을 보냈습니다.`;
 
-    case NOTIFICATION_TYPES.INVITED_TO_CALENDAR:
+    case 'INVITED_TO_CALENDAR':
       return `${notification.actor?.name}님이 캘린더에 초대했습니다.`;
 
-    case NOTIFICATION_TYPES.INVITED_TO_SCHEDULE:
+    case 'INVITED_TO_SCHEDULE':
       return `${notification.actor?.name}님이 일정에 초대했습니다.`;
 
-    case NOTIFICATION_TYPES.SYSTEM:
-      return payload.message || '시스템 알림이 도착했습니다.';
+    case 'SYSTEM':
+      return '시스템 알림이 도착했습니다.';
 
     default:
       return '새로운 알림이 도착했습니다.';
