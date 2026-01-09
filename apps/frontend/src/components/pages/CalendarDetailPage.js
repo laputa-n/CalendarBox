@@ -47,7 +47,6 @@ export const CalendarDetailPage = () => {
       </h1>
 
       <div style={{ marginTop: '1.5rem', lineHeight: 1.9 }}>
-        <InfoRow label="캘린더 ID" value={calendar.calendarId} />
         <InfoRow label="타입" value={calendar.type} />
         <InfoRow
           label="공개 범위"
