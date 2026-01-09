@@ -10,10 +10,4 @@ import java.util.List;
 
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
     Page<Notification> findByMember_Id(Long memberId, Pageable pageable);
-
-    Page<Notification> findByMember_IdAndReadAtIsNull(Long memberId, Pageable pageable);
-
-    Page<Notification> findByMember_IdAndTypeIn(Long memberId, List<NotificationType> types, Pageable pageable);
-
-    Page<Notification> findByMember_IdAndReadAtIsNullAndTypeIn(Long memberId, List<NotificationType> types, Pageable pageable);
 }
