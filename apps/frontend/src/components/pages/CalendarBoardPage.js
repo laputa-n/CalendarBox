@@ -27,6 +27,18 @@ export const CalendarBoardPage = () => {
     }
   };
 
+  const renderCalendarType = (type) => {
+  switch (type) {
+    case 'PERSONAL':
+      return { label: '👤 개인', color: '#3b82f6' };
+    case 'GROUP':
+      return { label: '👥 그룹', color: '#10b981' };
+    default:
+      return { label: type, color: '#6b7280' };
+  }
+};
+
+
   return (
     <div style={containerStyle}>
       <header style={headerStyle}>
@@ -73,6 +85,8 @@ const renderVisibilityLabel = (visibility) => {
  * ========================= */
 
 const CalendarCard = ({ calendar, onOpen, onDetail, onSetDefault }) => {
+  const typeInfo = renderCalendarType(calendar.type);
+
   return (
     <div style={cardStyle}>
       <div>
@@ -83,9 +97,25 @@ const CalendarCard = ({ calendar, onOpen, onDetail, onSetDefault }) => {
           )}
         </h2>
 
-        <p style={cardSubtitleStyle}>
-          {renderVisibilityLabel(calendar.visibility)}
-        </p>
+        {/* ✅ 타입 + 공개범위 */}
+        <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+          <span
+            style={{
+              fontSize: '0.75rem',
+              padding: '2px 6px',
+              borderRadius: 6,
+              backgroundColor: '#f1f5f9',
+              color: typeInfo.color,
+              fontWeight: 500,
+            }}
+          >
+            {typeInfo.label}
+          </span>
+
+          <span style={cardSubtitleStyle}>
+            {renderVisibilityLabel(calendar.visibility)}
+          </span>
+        </div>
       </div>
 
       <div style={cardButtonGroupStyle}>
@@ -97,7 +127,6 @@ const CalendarCard = ({ calendar, onOpen, onDetail, onSetDefault }) => {
           상세
         </button>
 
-        {/* ✅ 기본 캘린더가 아닐 때만 노출 */}
         {!calendar.isDefault && (
           <button
             onClick={(e) => {
@@ -113,6 +142,7 @@ const CalendarCard = ({ calendar, onOpen, onDetail, onSetDefault }) => {
     </div>
   );
 };
+
 
 const EmptyState = () => (
   <div style={emptyStateStyle}>
