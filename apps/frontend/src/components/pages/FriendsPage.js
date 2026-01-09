@@ -131,11 +131,13 @@ const handleReject = async (id) => {
 };
 
 // 🔵 친구 목록 화면 전용 (GET /api/friendships 결과)
-const friendsForList = friends?.content?.map((f, index) => ({
-  id: `${f.friendName}-${index}`, // UI key용 임시 ID
-  name: f.friendName,
-  respondedAt: f.respondedAt
-})) || [];
+const friendsForList =
+  friends?.data?.content?.map((f, index) => ({
+    id: `${f.friendName}-${index}`,
+    name: f.friendName,
+    respondedAt: f.respondedAt
+  })) || [];
+
 
 
   const buttonStyle = (bgColor = '#2563eb', textColor = 'white') => ({
