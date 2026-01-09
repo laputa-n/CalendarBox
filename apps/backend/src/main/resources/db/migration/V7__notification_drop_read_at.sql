@@ -1,1 +1,0 @@
-ALTER TABLE notification DROP COLUMN read_at;

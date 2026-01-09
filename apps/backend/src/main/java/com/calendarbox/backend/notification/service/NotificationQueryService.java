@@ -18,10 +18,20 @@ import java.util.List;
 public class NotificationQueryService {
     private final NotificationRepository notificationRepository;
 
-    public NotificationListResponse getList(Long userId, Pageable pageable) {
-        Page<Notification> page;
+    public NotificationListResponse getList(Long userId, Pageable pageable, Boolean onlyUnread, List<NotificationType> types) {
+        boolean unread = Boolean.TRUE.equals(onlyUnread);
+        boolean hasTypes = types != null && !types.isEmpty();
 
-        page = notificationRepository.findByMember_Id(userId, pageable);
+        Page<Notification> page;
+        if (unread && hasTypes) {
+            page = notificationRepository.findByMember_IdAndReadAtIsNullAndTypeIn(userId, types, pageable);
+        } else if (unread) {
+            page = notificationRepository.findByMember_IdAndReadAtIsNull(userId, pageable);
+        } else if (hasTypes) {
+            page = notificationRepository.findByMember_IdAndTypeIn(userId, types, pageable);
+        } else {
+            page = notificationRepository.findByMember_Id(userId, pageable);
+        }
 
         return NotificationListResponse.from(page);
     }

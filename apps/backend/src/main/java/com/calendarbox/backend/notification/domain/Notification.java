@@ -46,6 +46,15 @@ public class Notification {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Column(name = "read_at")
+    private Instant readAt;
+
     @Column(name = "dedupe_key", unique = true)
     private String dedupeKey;
+
+    public void read(){
+        if (this.readAt == null) {
+            this.readAt = Instant.now();
+        }
+    }
 }

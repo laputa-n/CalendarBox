@@ -11,6 +11,7 @@ public record NotificationListItem(
         NotificationType type,
         String payloadJson,
         Instant createdAt,
+        Instant readAt,
         ActorSummary actor
 ) {
     public static NotificationListItem from(Notification n) {
@@ -19,6 +20,7 @@ public record NotificationListItem(
                 n.getType(),
                 n.getPayloadJson().toString(),
                 n.getCreatedAt(),
+                n.getReadAt(),
                 n.getActor() != null ? ActorSummary.from(n.getActor()) : null
         );
     }
