@@ -106,7 +106,7 @@ export class ApiService {
 
   static async getFriends(page = 1, size = 10) {
   return this.request(
-    `/api/friendships?page=${page}&size=${size}`,
+    `/friendships?page=${page}&size=${size}`,
     {
       method: 'GET'
     }
