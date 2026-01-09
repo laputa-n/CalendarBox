@@ -36,6 +36,8 @@ export const FriendsPage = () => {
   searchMembers,
     searchUsers
   } = useFriends();
+
+  
   
   // 기존 코드 호환성을 위한 변수들
   const pendingFriendships = receivedRequests.content?.filter(r => r.status === 'PENDING') || [];
@@ -131,13 +133,17 @@ const handleReject = async (id) => {
 };
 
 // 🔵 친구 목록 화면 전용 (GET /api/friendships 결과)
-const friendsForList =
-  friends?.data?.content?.map((f, index) => ({
-    id: `${f.friendName}-${index}`,
-    name: f.friendName,
-    respondedAt: f.respondedAt
-  })) || [];
+const friendsForList = friends?.content?.map((f, index) => ({
+  id: `${f.friendName}-${index}`, // UI key용 임시 ID
+  name: f.friendName,
+  respondedAt: f.respondedAt
 
+  
+})) || []
+
+console.log('friends (context):', friends);
+console.log('friends.content:', friends?.content);
+console.log('friendsForList:', friendsForList);;
 
 
   const buttonStyle = (bgColor = '#2563eb', textColor = 'white') => ({
