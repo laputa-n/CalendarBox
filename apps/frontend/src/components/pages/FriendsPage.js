@@ -21,6 +21,7 @@ export const FriendsPage = () => {
     sentRequests = { content: [], loading: false },
      acceptedFriendships = [],
      friends,
+     fetchFriends,
     searchResults = [],
     searchLoading = false,
     loading = false,
@@ -35,6 +36,8 @@ export const FriendsPage = () => {
   searchMembers,
     searchUsers
   } = useFriends();
+
+  
   
   // 기존 코드 호환성을 위한 변수들
   const pendingFriendships = receivedRequests.content?.filter(r => r.status === 'PENDING') || [];
@@ -59,13 +62,16 @@ export const FriendsPage = () => {
 
 
   // 탭 변경시 데이터 로드
-  useEffect(() => {
-    if (activeTab === 'received') {
-      fetchReceivedRequests();
-    } else if (activeTab === 'sent') {
-      fetchSentRequests();
-    }
-  },[activeTab]);
+ useEffect(() => {
+  if (activeTab === 'friends') {
+    fetchFriends();            // ✅ 이 한 줄이면 끝
+  } else if (activeTab === 'received') {
+    fetchReceivedRequests();
+  } else if (activeTab === 'sent') {
+    fetchSentRequests();
+  }
+}, [activeTab]);
+
 
   // 검색 처리
   const handleSearch = (query) => {
@@ -128,10 +134,16 @@ const handleReject = async (id) => {
 
 // 🔵 친구 목록 화면 전용 (GET /api/friendships 결과)
 const friendsForList = friends?.content?.map((f, index) => ({
-   friendshipId: f.friendshipId,         // UI key용 (임시)
-  requesterName: f.friendName,  // 기존 UI 필드명 유지
+  id: `${f.friendName}-${index}`, // UI key용 임시 ID
+  name: f.friendName,
   respondedAt: f.respondedAt
-})) || [];
+
+  
+})) || []
+
+console.log('friends (context):', friends);
+console.log('friends.content:', friends?.content);
+console.log('friendsForList:', friendsForList);;
 
 
   const buttonStyle = (bgColor = '#2563eb', textColor = 'white') => ({
@@ -338,11 +350,10 @@ const friendsForList = friends?.content?.map((f, index) => ({
   ) : friendsForList.length > 0 ? (
     friendsForList.map((friendship, index) => (
       <div
-        key={friendship.friendshipId}
+        key={friendship.id}   // ✅ 여기! friendship.friendshipId 아님
         style={{
           padding: '1.5rem',
-          borderBottom:
-            index < friendsForList.length - 1 ? '1px solid #e5e7eb' : 'none',
+          borderBottom: index < friendsForList.length - 1 ? '1px solid #e5e7eb' : 'none',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between'
@@ -364,67 +375,25 @@ const friendsForList = friends?.content?.map((f, index) => ({
           </div>
 
           <div>
-            <h4
-              style={{
-                fontSize: '1.125rem',
-                fontWeight: '600',
-                color: '#1f2937',
-                margin: 0
-              }}
-            >
-              {friendship.requesterName}
+            <h4 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#1f2937', margin: 0 }}>
+              {friendship.name}   {/* ✅ requesterName 아님 */}
             </h4>
 
-            <p
-              style={{
-                fontSize: '0.75rem',
-                color: '#9ca3af',
-                margin: 0
-              }}
-            >
-              친구가 된 날:{' '}
-              {new Date(friendship.respondedAt).toLocaleDateString('ko-KR')}
+            <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: 0 }}>
+              친구가 된 날: {new Date(friendship.respondedAt).toLocaleDateString('ko-KR')}
             </p>
           </div>
         </div>
 
-        <button
-          onClick={() => {
-            if (window.confirm('정말로 친구를 삭제하시겠습니까?')) {
-              removeFriend(friendship.friendshipId);
-            }
-          }}
-          style={{
-            padding: '0.5rem',
-            color: '#dc2626',
-            backgroundColor: 'transparent',
-            border: 'none',
-            borderRadius: '0.5rem',
-            cursor: 'pointer'
-          }}
-          disabled={loading}
-          title="친구 삭제"
-        >
-          <Trash2 style={{ width: '1rem', height: '1rem' }} />
-        </button>
+        {/* ❌ friendshipId가 없으니 삭제 버튼은 일단 막아두자 */}
+        {/* <button ...>삭제</button> */}
       </div>
     ))
   ) : (
     <div style={{ padding: '3rem', textAlign: 'center', color: '#6b7280' }}>
-      <Users
-        style={{
-          width: '4rem',
-          height: '4rem',
-          color: '#d1d5db',
-          margin: '0 auto 1rem auto'
-        }}
-      />
-      <p style={{ fontSize: '1.125rem', marginBottom: '0.5rem' }}>
-        아직 친구가 없습니다.
-      </p>
-      <p style={{ color: '#9ca3af' }}>
-        친구를 추가하여 일정을 공유해보세요!
-      </p>
+      <Users style={{ width: '4rem', height: '4rem', color: '#d1d5db', margin: '0 auto 1rem auto' }} />
+      <p style={{ fontSize: '1.125rem', marginBottom: '0.5rem' }}>아직 친구가 없습니다.</p>
+      <p style={{ color: '#9ca3af' }}>친구를 추가하여 일정을 공유해보세요!</p>
     </div>
   )}
 </div>

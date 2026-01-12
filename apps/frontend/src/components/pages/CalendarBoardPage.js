@@ -3,6 +3,18 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCalendars } from '../../contexts/CalendarContext';
 
+  const renderCalendarType = (type) => {
+  switch (type) {
+    case 'PERSONAL':
+      return { label: '👤 개인', color: '#3b82f6' };
+    case 'GROUP':
+      return { label: '👥 그룹', color: '#10b981' };
+    default:
+      return { label: type, color: '#6b7280' };
+  }
+};
+
+
 export const CalendarBoardPage = () => {
   const { calendars, loading, setDefaultCalendar } = useCalendars();
   const navigate = useNavigate();
@@ -27,16 +39,6 @@ export const CalendarBoardPage = () => {
     }
   };
 
-  const renderCalendarType = (type) => {
-  switch (type) {
-    case 'PERSONAL':
-      return { label: '👤 개인', color: '#3b82f6' };
-    case 'GROUP':
-      return { label: '👥 그룹', color: '#10b981' };
-    default:
-      return { label: type, color: '#6b7280' };
-  }
-};
 
 
   return (

@@ -106,7 +106,7 @@ export class ApiService {
 
   static async getFriends(page = 1, size = 10) {
   return this.request(
-    `/api/friendships?page=${page}&size=${size}`,
+    `/friendships?page=${page}&size=${size}`,
     {
       method: 'GET'
     }
@@ -242,41 +242,75 @@ static async setDefaultCalendar(calendarId) {
 }
 
 // === 캘린더 멤버 관련 API ===
+static async getCalendarMembers(
+  calendarId,
+  {
+    status,
+    sort = "NAME_ASC",
+    page = 0,
+    size = 20,
+  } = {}
+) {
+  const params = new URLSearchParams();
+
+  if (status) params.append("status", status);
+  if (sort) params.append("sort", sort);
+  params.append("page", page);
+  params.append("size", size);
+
+  return this.request(
+    `/calendars/${calendarId}/members?${params.toString()}`,
+    {
+      method: "GET",
+    }
+  );
+}
+
+/**
+ * POST /api/calendars/{calendarId}/members
+ * 캘린더 멤버 초대
+ */
 static async inviteCalendarMembers(calendarId, memberIds) {
-  return this.request(`/calendars/${calendarId}/members`, {
-    method: 'POST',
-    body: JSON.stringify({ members: memberIds }), // ✅ 명세 핵심
-  });
+  return this.request(
+    `/calendars/${calendarId}/members`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        members: memberIds,
+      }),
+    }
+  );
 }
 
-static async getCalendarMembers(calendarId, params = {}) {
-  const qs = new URLSearchParams();
-
-  if (params.status) qs.append('status', params.status);
-  if (params.sort) qs.append('sort', params.sort);
-  if (params.page !== undefined) qs.append('page', params.page);
-  if (params.size !== undefined) qs.append('size', params.size);
-
-  const query = qs.toString();
-  return this.request(`/calendars/${calendarId}/members${query ? `?${query}` : ''}`, {
-    method: 'GET',
-  });
-}
-
-static async respondToCalendarInvite(calendarMemberId, action) {
-  return this.request(`/calendar-members/${calendarMemberId}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ action }), // ACCEPT / REJECT
-  });
-}
-
+/**
+ * DELETE /api/calendar-members/{calendarMemberId}
+ * 캘린더 멤버 강퇴 / 탈퇴
+ */
 static async removeCalendarMember(calendarMemberId) {
-  const response = await this.request(`/calendar-members/${calendarMemberId}`, {
-    method: 'DELETE',
-  });
-  return response;
+  return this.request(
+    `/calendar-members/${calendarMemberId}`,
+    {
+      method: "DELETE",
+    }
+  );
 }
 
+/**
+ * PATCH /api/calendar-members/{calendarMemberId}
+ * 캘린더 멤버 초대 응답 (수락 / 거절)
+ * action: "ACCEPT" | "REJECT"
+ */
+static async respondCalendarInvite(calendarMemberId, action) {
+  return this.request(
+    `/calendar-members/${calendarMemberId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        action,
+      }),
+    }
+  );
+}
 // === 일정 관련 API ===
 static async getCalendarSchedules(calendarId, params = {}) {
   const queryString = new URLSearchParams(params).toString();

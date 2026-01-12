@@ -116,7 +116,7 @@ const fetchFriends = async (page = 1, size = 10) => {
     setFriends(prev => ({ ...prev, loading: true }));
 
     const response = await ApiService.getFriends(page, size);
-    const data = response.data?.data;
+    const data = response.data;
 
     setFriends({
       content: data?.content || [],
