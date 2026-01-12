@@ -49,7 +49,9 @@ public interface FriendshipRepository extends JpaRepository<Friendship, Long> {
 
     @Query(
             value = """
-            select new com.calendarbox.backend.friendship.dto.response.FriendListItem(
+
+                    select new com.calendarbox.backend.friendship.dto.response.FriendListItem(
+                cast(case when f.requester.id = :userId then a.id else r.id end as long),
                 case when f.requester.id = :userId then a.name else r.name end,
                 f.respondedAt
             )
