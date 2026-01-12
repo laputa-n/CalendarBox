@@ -46,8 +46,10 @@ export const CalendarMemberList = () => {
 
     try {
       setSearchLoading(true);
+      console.log("검색요청:", query);
       const res = await ApiService.searchMembers(query);
-      setSearchResults(res?.data?.data?.content || []);
+      console.log("검색응답 raw:", res?.data);
+      setSearchResults(res?.data?.content || []);
     } catch (e) {
       console.error("회원 검색 실패", e);
     } finally {
@@ -131,14 +133,23 @@ export const CalendarMemberList = () => {
         ) : (
           <div style={{ marginTop: "1rem", display: "grid", gap: 10 }}>
             {members.map((m) => (
-              <MemberRow
-                key={m.calendarMemberId}
-                member={m}
-                onAccept={() => handleRespond(m.calendarMemberId, "ACCEPT")}
-                onReject={() => handleRespond(m.calendarMemberId, "REJECT")}
-                onRemove={() => handleRemove(m.calendarMemberId)}
-              />
-            ))}
+  <MemberRow
+    key={m.calendarMemberId}
+    member={m}
+    onAccept={() =>
+      ApiService.respondCalendarInvite(m.calendarMemberId, "ACCEPT")
+        .then(fetchMembers)
+    }
+    onReject={() =>
+      ApiService.respondCalendarInvite(m.calendarMemberId, "REJECT")
+        .then(fetchMembers)
+    }
+    onRemove={() =>
+      ApiService.removeCalendarMember(m.calendarMemberId)
+        .then(fetchMembers)
+    }
+  />
+))}
           </div>
         )}
       </section>
@@ -284,20 +295,15 @@ export const CalendarMemberList = () => {
  * Sub Components
  * ========================= */
 
-const MemberRow = ({ member }) => {
-  // status: INVITED, ACCEPTED, REJECTED
-  const statusLabel = (() => {
-    switch (member.status) {
-      case "ACCEPTED":
-        return "✅ 수락됨";
-      case "INVITED":
-        return "📨 초대됨";
-      case "REJECTED":
-        return "❌ 거절됨";
-      default:
-        return member.status || "-";
-    }
-  })();
+const MemberRow = ({ member, onAccept, onReject, onRemove }) => {
+  const isInvited = member.status === "INVITED";
+  const isAccepted = member.status === "ACCEPTED";
+
+  const statusLabel = {
+    INVITED: "📨 초대됨",
+    ACCEPTED: "✅ 수락됨",
+    REJECTED: "❌ 거절됨",
+  }[member.status] || member.status;
 
   return (
     <div
@@ -308,26 +314,60 @@ const MemberRow = ({ member }) => {
         background: "white",
         display: "flex",
         justifyContent: "space-between",
-        gap: 10,
         alignItems: "center",
+        gap: 12,
       }}
     >
       <div>
-        <div style={{ fontWeight: 700, color: "#111827" }}>
-          {member.memberName}
-        </div>
+        <div style={{ fontWeight: 700 }}>{member.memberName}</div>
         <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
           상태: {statusLabel}
         </div>
       </div>
 
-      <div style={{ fontSize: 12, color: "#9ca3af", textAlign: "right" }}>
-        <div>초대: {formatDate(member.createdAt)}</div>
-        <div>응답: {formatDate(member.respondedAt)}</div>
+      {/* ✅ 액션 영역 */}
+      <div style={{ display: "flex", gap: 6 }}>
+        {isInvited && (
+          <>
+            <button
+              onClick={onAccept}
+              style={actionBtn("#2563eb")}
+            >
+              수락
+            </button>
+            <button
+              onClick={onReject}
+              style={actionBtn("#9ca3af")}
+            >
+              거절
+            </button>
+          </>
+        )}
+
+        {isAccepted && (
+          <button
+            onClick={onRemove}
+            style={actionBtn("#ef4444")}
+          >
+            강퇴
+          </button>
+        )}
       </div>
     </div>
   );
 };
+
+const actionBtn = (bg) => ({
+  padding: "6px 10px",
+  fontSize: 12,
+  fontWeight: 600,
+  borderRadius: 8,
+  border: "none",
+  background: bg,
+  color: "white",
+  cursor: "pointer",
+});
+
 
 /* =========================
  * Empty UI Component

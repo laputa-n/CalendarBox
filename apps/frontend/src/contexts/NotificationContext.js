@@ -3,7 +3,9 @@ import { ApiService } from '../services/apiService';
 import { useAuth } from './AuthContext';
 import { useError } from './ErrorContext';
 
-const NotificationContext = createContext();
+
+  const NotificationContext = createContext();
+
 
 export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
@@ -33,7 +35,7 @@ export const NotificationProvider = ({ children }) => {
         size: pagination.size
       });
 
-      const data = response.data?.data;
+      const data = response.data;
       if (!data) return;
 
       const mapped = data.notifications.map(n => ({
@@ -65,6 +67,22 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
+// ===== 캘린더 초대 응답 =====
+const respondCalendarInvite = async (notificationId, action) => {
+  try {
+    await ApiService.respondCalendarInvite(notificationId, action);
+
+    // ✅ 알림 제거
+    setNotifications(prev =>
+      prev.filter(n => n.id !== notificationId)
+    );
+  } catch (e) {
+    showError('캘린더 초대 응답에 실패했습니다.');
+  }
+};
+
+
+
   // ===== 알림 읽음 =====
   const markAsRead = async (notificationId) => {
     try {
@@ -92,7 +110,9 @@ export const NotificationProvider = ({ children }) => {
         pagination,
         unreadCount,
         markAsRead,
+        respondCalendarInvite, 
         refreshNotifications: () => fetchNotifications(0, false)
+
       }}
     >
       {children}
