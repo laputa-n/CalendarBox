@@ -7,7 +7,7 @@ export default function ScheduleModal({ isOpen, onClose, selectedDate, eventData
 
   // ✅ eventData 있으면 수정 모드, 없으면 생성 모드
   if (eventData) {
-    console.log('🧩 [ScheduleModal] 수정 모드:', eventData);
+    console.log('🧩 수정 모드 eventData:', JSON.stringify(eventData));
     return (
       <EditScheduleModal
         isOpen={isOpen}

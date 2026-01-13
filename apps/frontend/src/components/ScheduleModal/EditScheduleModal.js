@@ -47,7 +47,7 @@ const linkStyle = {
 };
 
 export default function EditScheduleModal({ isOpen, onClose, eventData }) {
-  const { updateSchedule } = useSchedules();
+ const { updateSchedule, fetchScheduleDetail, scheduleDetail, clearScheduleDetail } = useSchedules();
  const scheduleId = Number(eventData?.id || eventData?.scheduleId);
 
   // ========== 상태 ==========
@@ -285,14 +285,26 @@ function toValidISO(dt) {
     });
   }, [scheduleId]);
   
+useEffect(() => {
+  if (!isOpen) return;
+  clearScheduleDetail();
+}, [isOpen, clearScheduleDetail]);
+useEffect(() => {
+  if (!isOpen || !scheduleId) return;
+  fetchScheduleDetail(scheduleId);
+}, [isOpen, scheduleId, fetchScheduleDetail]);
 
   // ========== 초기값 ==========
 useEffect(() => {
   if (!isOpen || !eventData) return;
-
+ console.log('🧾 EditScheduleModal eventData snapshot:', JSON.stringify(eventData));
   setFormData({
     title: eventData.title || '',
-    description: eventData.memo || '', 
+    description:
+     eventData.memo ??
+     eventData.description ??
+     eventData.summary ??
+     '',
     startDateTime: toLocalInputValue(eventData.startDateTime || eventData.startAt),
     endDateTime: toLocalInputValue(eventData.endDateTime || eventData.endAt),
     color: eventData.color || '#3b82f6',
@@ -302,6 +314,19 @@ useEffect(() => {
   loadData();
 
 }, [isOpen, eventData, loadData]);
+useEffect(() => {
+  if (!scheduleDetail) return;
+  if (scheduleDetail.id !== scheduleId) return;
+
+  setFormData(prev => {
+    if (prev.description) return prev;
+
+    return {
+      ...prev,
+      description: scheduleDetail.memo ?? '',
+    };
+  });
+}, [scheduleDetail, scheduleId]);
 
 useEffect(() => {
   if (!editingRecurrence) return;
