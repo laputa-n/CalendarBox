@@ -192,7 +192,7 @@ update CalendarMember cm
 
     @Query(value = """
             select new com.calendarbox.backend.calendar.dto.response.InvitedCalendarMemberItem(
-                cm.id, c.id, c.name, c.type, i.name, cm.createdAt
+                cm.id, c.id, c.name, c.visibility, i.name, cm.createdAt
             ) from CalendarMember cm
             join cm.calendar c
             join cm.inviter i
