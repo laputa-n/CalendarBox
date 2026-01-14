@@ -31,6 +31,10 @@ public class ScheduleParticipant {
     @JoinColumn(name = "member_id", nullable = true)
     private Member member;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "inviter_id", nullable = true)
+    private Member inviter;
+
     @Column(nullable = false)
     private String name;
 
@@ -45,19 +49,21 @@ public class ScheduleParticipant {
     @Column(name = "responded_at")
     private Instant respondedAt;
 
-    public static ScheduleParticipant ofMember(Schedule schedule, Member member) {
+    public static ScheduleParticipant ofMember(Schedule schedule, Member member, Member inviter) {
         ScheduleParticipant sp = new ScheduleParticipant();
         sp.schedule = schedule;
         sp.member = member;
+        sp.inviter = inviter;
         sp.name = member.getName();
         sp.status = ScheduleParticipantStatus.INVITED;
         return sp;
     }
 
-    public static ScheduleParticipant ofName(Schedule schedule, String name) {
+    public static ScheduleParticipant ofName(Schedule schedule, String name, Member inviter) {
         ScheduleParticipant sp = new ScheduleParticipant();
         sp.schedule = schedule;
         sp.name = name;
+        sp.inviter = inviter;
         sp.status = ScheduleParticipantStatus.ACCEPTED;
         sp.respondedAt = Instant.now();
         return sp;

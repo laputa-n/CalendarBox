@@ -3,6 +3,7 @@ package com.calendarbox.backend.calendar.repository;
 import com.calendarbox.backend.calendar.domain.CalendarMember;
 import com.calendarbox.backend.calendar.dto.response.CalendarListItem;
 import com.calendarbox.backend.calendar.dto.response.CalendarMemberItem;
+import com.calendarbox.backend.calendar.dto.response.InvitedCalendarMemberItem;
 import com.calendarbox.backend.calendar.enums.CalendarMemberStatus;
 import com.calendarbox.backend.calendar.enums.CalendarType;
 import com.calendarbox.backend.calendar.enums.Visibility;
@@ -188,4 +189,20 @@ update CalendarMember cm
 """)
     int setDefault(@Param("memberId") Long memberId,
                    @Param("calendarId") Long calendarId);
+
+    @Query(value = """
+            select new com.calendarbox.backend.calendar.dto.response.InvitedCalendarMemberItem(
+                cm.id, c.id, c.name, c.type, i.name, cm.createdAt
+            ) from CalendarMember cm
+            join cm.calendar c
+            join cm.inviter i
+            where cm.member.id = :memberId
+            and cm.status = com.calendarbox.backend.calendar.enums.CalendarMemberStatus.INVITED  
+            """, countQuery = """
+            select count(cm)
+            from CalendarMember cm
+            where cm.member.id = :memberId
+            and cm.status = com.calendarbox.backend.calendar.enums.CalendarMemberStatus.INVITED  
+    """)
+    Page<InvitedCalendarMemberItem> findInvitedCalendarMemberList(@Param("memberId") Long memberId, Pageable pageable);
 }

@@ -1,6 +1,8 @@
 package com.calendarbox.backend.schedule.repository;
 
+import com.calendarbox.backend.calendar.dto.response.InvitedCalendarMemberItem;
 import com.calendarbox.backend.schedule.domain.ScheduleParticipant;
+import com.calendarbox.backend.schedule.dto.response.InvitedScheduleParticipantItem;
 import com.calendarbox.backend.schedule.enums.ScheduleParticipantStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -37,4 +39,20 @@ public interface ScheduleParticipantRepository extends JpaRepository<SchedulePar
     );
 
     Long countBySchedule_Id(Long scheduleId);
+
+    @Query(value = """
+        select new com.calendarbox.backend.schedule.dto.response.InvitedScheduleParticipantItem(
+            sp.id,s.id,s.title,s.startAt,s.endAt, i.id, i.name, sp.invitedAt
+        ) from ScheduleParticipant sp
+        join sp.schedule s
+        join sp.inviter i
+        where sp.member.id = :memberId
+            and sp.status = com.calendarbox.backend.schedule.enums.ScheduleParticipantStatus.INVITED
+        """, countQuery = """
+        select count(sp)
+        from ScheduleParticipant sp
+        where sp.member.id = :memberId
+            and sp.status = com.calendarbox.backend.schedule.enums.ScheduleParticipantStatus.INVITED
+    """)
+    Page<InvitedScheduleParticipantItem> findInvitedScheduleParticipantList(@Param("memberId") Long memberId, Pageable pageable);
 }

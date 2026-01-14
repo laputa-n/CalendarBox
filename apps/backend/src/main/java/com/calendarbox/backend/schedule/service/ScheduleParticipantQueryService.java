@@ -1,14 +1,17 @@
 package com.calendarbox.backend.schedule.service;
 
 import com.calendarbox.backend.calendar.domain.Calendar;
+import com.calendarbox.backend.calendar.dto.response.InvitedCalendarMemberItem;
 import com.calendarbox.backend.calendar.enums.CalendarMemberStatus;
 import com.calendarbox.backend.calendar.repository.CalendarMemberRepository;
+import com.calendarbox.backend.global.dto.PageResponse;
 import com.calendarbox.backend.global.error.BusinessException;
 import com.calendarbox.backend.global.error.ErrorCode;
 import com.calendarbox.backend.member.domain.Member;
 import com.calendarbox.backend.member.repository.MemberRepository;
 import com.calendarbox.backend.schedule.domain.Schedule;
 import com.calendarbox.backend.schedule.domain.ScheduleParticipant;
+import com.calendarbox.backend.schedule.dto.response.InvitedScheduleParticipantItem;
 import com.calendarbox.backend.schedule.dto.response.ScheduleParticipantResponse;
 import com.calendarbox.backend.schedule.enums.ScheduleParticipantStatus;
 import com.calendarbox.backend.schedule.repository.ScheduleParticipantRepository;
@@ -55,5 +58,12 @@ public class ScheduleParticipantQueryService {
                 sp.getRespondedAt(),
                 sp.getStatus()
         );
+    }
+
+    public PageResponse<InvitedScheduleParticipantItem> getInvited(Long userId, Pageable pageable){
+        Page<InvitedScheduleParticipantItem> page = scheduleParticipantRepository.findInvitedScheduleParticipantList(userId, pageable);
+
+        return PageResponse.of(page);
+
     }
 }

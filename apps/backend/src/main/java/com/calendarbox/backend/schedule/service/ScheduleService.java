@@ -210,12 +210,12 @@ public class ScheduleService {
                     case SERVICE_USER -> {
                         Member addressee = memberRepository.findById(participant.memberId()).orElseThrow(() ->new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
-                        ScheduleParticipant sp = ScheduleParticipant.ofMember(null,addressee);
+                        ScheduleParticipant sp = ScheduleParticipant.ofMember(null,addressee,user);
                         schedule.addParticipant(sp);
                     }
                     case NAME -> {
                         String normalized = participant.name().trim();
-                        ScheduleParticipant sp = ScheduleParticipant.ofName(null,normalized);
+                        ScheduleParticipant sp = ScheduleParticipant.ofName(null,normalized, user);
                         schedule.addParticipant(sp);
                     }
                 }

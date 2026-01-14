@@ -20,7 +20,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -239,5 +241,23 @@ public class CalendarController {
         var data = PageResponse.of(pageResult);
 
         return ResponseEntity.ok(ApiResponse.ok("캘린더 히스토리 조회 성공",data));
+    }
+
+    @Operation(
+            summary = "받은 캘린더 초대 목록 조회",
+            description = "받은 캘린더 초대 목록을 조회합니다."
+    )
+    @GetMapping("calendars/invited")
+    public ResponseEntity<ApiResponse<PageResponse<InvitedCalendarMemberItem>>> getInvitedCalendarMemberList(
+            @AuthenticationPrincipal(expression = "id") Long userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ){
+        size = Math.min(Math.max(size, 1), 100);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        var data = calendarMemberQueryService.getInvited(userId,pageable);
+
+        return ResponseEntity.ok(ApiResponse.ok("받은 캘린더 초대 목록 조회 성공", data));
     }
 }

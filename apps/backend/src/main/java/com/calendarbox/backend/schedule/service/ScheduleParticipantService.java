@@ -121,7 +121,7 @@ public class ScheduleParticipantService {
 
         if (scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatusIn(scheduleId, memberId, List.of(INVITED,ACCEPTED))) throw new BusinessException(ErrorCode.REINVITE_NOT_ALLOWED);
 
-        ScheduleParticipant sp = ScheduleParticipant.ofMember(s,addressee);
+        ScheduleParticipant sp = ScheduleParticipant.ofMember(s,addressee, requester);
         s.addParticipant(sp);
         scheduleParticipantRepository.save(sp);
         scheduleParticipantRepository.flush();
@@ -153,7 +153,7 @@ public class ScheduleParticipantService {
 
         Member user = memberRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
         Schedule s = scheduleRepository.findById(scheduleId).orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
-        ScheduleParticipant sp = ScheduleParticipant.ofName(s,name);
+        ScheduleParticipant sp = ScheduleParticipant.ofName(s,name, user);
         s.addParticipant(sp);
 
 

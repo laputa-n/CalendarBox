@@ -1,17 +1,21 @@
 package com.calendarbox.backend.schedule.controller;
 
+import com.calendarbox.backend.calendar.dto.response.InvitedCalendarMemberItem;
 import com.calendarbox.backend.global.dto.ApiResponse;
 import com.calendarbox.backend.global.dto.PageResponse;
 import com.calendarbox.backend.schedule.dto.request.CreateScheduleRequest;
 import com.calendarbox.backend.schedule.dto.request.EditScheduleRequest;
 import com.calendarbox.backend.schedule.dto.response.*;
+import com.calendarbox.backend.schedule.service.ScheduleParticipantQueryService;
 import com.calendarbox.backend.schedule.service.ScheduleQueryService;
 import com.calendarbox.backend.schedule.service.ScheduleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -29,6 +33,7 @@ import java.util.List;
 public class ScheduleController {
     private final ScheduleQueryService scheduleQueryService;
     private final ScheduleService scheduleService;
+    private final ScheduleParticipantQueryService scheduleParticipantQueryService;
 
     @Operation(
             summary = "스케줄 생성",
@@ -119,5 +124,23 @@ public class ScheduleController {
         var pageResult = scheduleQueryService.search(userId,calendarId,query,pageable);
         var data = PageResponse.of(pageResult);
         return ResponseEntity.ok(ApiResponse.ok("스케줄 검색 성공", data));
+    }
+
+    @Operation(
+            summary = "받은 스케줄 초대 목록 조회",
+            description = "받은 스케줄 초대 목록을 조회합니다."
+    )
+    @GetMapping("/schedules/invited")
+    public ResponseEntity<ApiResponse<PageResponse<InvitedScheduleParticipantItem>>> getInvitedCalendarMemberList(
+            @AuthenticationPrincipal(expression = "id") Long userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ){
+        size = Math.min(Math.max(size, 1), 100);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "invitedAt"));
+
+    var data = scheduleParticipantQueryService.getInvited(userId,pageable);
+
+        return ResponseEntity.ok(ApiResponse.ok("받은 스케줄 초대 목록 조회 성공", data));
     }
 }

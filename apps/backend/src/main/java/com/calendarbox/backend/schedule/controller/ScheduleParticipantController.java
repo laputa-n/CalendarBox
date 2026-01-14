@@ -1,5 +1,6 @@
 package com.calendarbox.backend.schedule.controller;
 
+import com.calendarbox.backend.calendar.dto.response.InvitedCalendarMemberItem;
 import com.calendarbox.backend.global.dto.ApiResponse;
 import com.calendarbox.backend.global.dto.PageResponse;
 import com.calendarbox.backend.schedule.dto.request.AddParticipantRequest;
@@ -13,7 +14,9 @@ import com.calendarbox.backend.schedule.service.ScheduleParticipantService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -96,4 +99,5 @@ public class ScheduleParticipantController {
         }
         return ResponseEntity.ok(ApiResponse.ok(message,data));
     }
+
 }

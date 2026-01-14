@@ -109,14 +109,14 @@ public class CalendarMemberService {
 
             if (existed == null){
                 Member target = foundMap.get(targetId);
-                toInsert.add(CalendarMember.invite(calendar, target)); // status=INVITED
+                toInsert.add(CalendarMember.invite(calendar, target, inviter)); // status=INVITED
                 successIds.add(targetId);
                 continue;
             }
 
             switch (existed.getStatus()){
                 case REJECTED -> {
-                    existed.reinvite();
+                    existed.reinvite(inviter);
                     successIds.add(targetId);
                 }
                 case INVITED, ACCEPTED -> {

@@ -1,9 +1,11 @@
 package com.calendarbox.backend.calendar.service;
 
 import com.calendarbox.backend.calendar.dto.response.CalendarMemberItem;
+import com.calendarbox.backend.calendar.dto.response.InvitedCalendarMemberItem;
 import com.calendarbox.backend.calendar.enums.CalendarMemberSort;
 import com.calendarbox.backend.calendar.enums.CalendarMemberStatus;
 import com.calendarbox.backend.calendar.repository.CalendarMemberRepository;
+import com.calendarbox.backend.global.dto.PageResponse;
 import com.calendarbox.backend.global.error.BusinessException;
 import com.calendarbox.backend.global.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -42,5 +44,12 @@ public class CalendarMemberQueryService {
         int page = (p == null) ? 0 : p.getPageNumber();
         int size = (p == null) ? 10 : p.getPageSize();
         return PageRequest.of(page, size);
+    }
+
+    public PageResponse<InvitedCalendarMemberItem> getInvited(Long userId, Pageable pageable){
+        Page<InvitedCalendarMemberItem> page = calendarMemberRepository.findInvitedCalendarMemberList(userId, pageable);
+
+        return PageResponse.of(page);
+
     }
 }
