@@ -139,7 +139,7 @@ public class ScheduleController {
         size = Math.min(Math.max(size, 1), 100);
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "invitedAt"));
 
-    var data = scheduleParticipantQueryService.getInvited(userId,pageable);
+        var data = scheduleParticipantQueryService.getInvited(userId,pageable);
 
         return ResponseEntity.ok(ApiResponse.ok("받은 스케줄 초대 목록 조회 성공", data));
     }
