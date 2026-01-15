@@ -1,9 +1,15 @@
 // src/pages/calendar/CalendarMemberList.jsx
+
+
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ApiService } from "../../services/apiService";
 
+
+
 export const CalendarMemberList = () => {
+  
+  
   const { calendarId } = useParams();
   const navigate = useNavigate();
   const [members, setMembers] = useState([]);
@@ -16,23 +22,40 @@ export const CalendarMemberList = () => {
   const [selectedMemberIds, setSelectedMemberIds] = useState([]);
   const [inviteLoading, setInviteLoading] = useState(false);
 
- const fetchMembers = async () => {
-    try {
-      const res = await ApiService.getCalendarMembers(calendarId);
-      setMembers(res?.data?.data?.content || []);
-    } catch (e) {
-      console.error("캘린더 멤버 조회 실패", e);
-    } finally {
-     setMembersLoading(false);
-    }
-  };
+  console.log("📌 CalendarMemberList 렌더됨");
+console.log("calendarId:", calendarId);
+console.log("members:", members);
+const fetchMembers = async () => {
+  try {
+    setMembersLoading(true);
+
+    const res = await ApiService.getCalendarMembers(calendarId);
+
+    // ✅ 여기 핵심 수정
+    const content = res?.data?.content ?? [];
+    console.log("📌 최종 members:", content);
+
+    setMembers(content);
+  } catch (e) {
+    console.error("캘린더 멤버 조회 실패", e);
+  } finally {
+    setMembersLoading(false);
+  }
+};
+
 
   useEffect(() => {
     fetchMembers();
   }, [calendarId]);
 
+  useEffect(() => {
+  console.log("🔁 members 변경됨:", members);
+}, [members]);
+
+
   const memberIdSet = useMemo(() => {
   return new Set(members.map((m) => m.memberId));
+   console.log("🔁 members 변경됨:", members);
 }, [members]);
 
 
@@ -298,7 +321,7 @@ export const CalendarMemberList = () => {
 const MemberRow = ({ member, onAccept, onReject, onRemove }) => {
   const isInvited = member.status === "INVITED";
   const isAccepted = member.status === "ACCEPTED";
-
+  const isOwner = member.role === "OWNER";
   const statusLabel = {
     INVITED: "📨 초대됨",
     ACCEPTED: "✅ 수락됨",
@@ -344,7 +367,7 @@ const MemberRow = ({ member, onAccept, onReject, onRemove }) => {
           </>
         )}
 
-        {isAccepted && (
+        {isAccepted && !isOwner && (
           <button
             onClick={onRemove}
             style={actionBtn("#ef4444")}
