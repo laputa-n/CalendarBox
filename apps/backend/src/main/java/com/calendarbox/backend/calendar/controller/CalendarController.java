@@ -247,7 +247,7 @@ public class CalendarController {
             summary = "받은 캘린더 초대 목록 조회",
             description = "받은 캘린더 초대 목록을 조회합니다."
     )
-    @GetMapping("calendars/invited")
+    @GetMapping("/calendars/invited")
     public ResponseEntity<ApiResponse<PageResponse<InvitedCalendarMemberItem>>> getInvitedCalendarMemberList(
             @AuthenticationPrincipal(expression = "id") Long userId,
             @RequestParam(defaultValue = "0") int page,
