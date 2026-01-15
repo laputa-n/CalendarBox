@@ -2,8 +2,13 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCalendars } from '../../contexts/CalendarContext';
+import { useInvitedCalendars } from '../../hooks/useInvitedCalendars';
 
-  const renderCalendarType = (type) => {
+/* =========================
+ *  Utils
+ * ========================= */
+
+const renderCalendarType = (type) => {
   switch (type) {
     case 'PERSONAL':
       return { label: '👤 개인', color: '#3b82f6' };
@@ -14,16 +19,38 @@ import { useCalendars } from '../../contexts/CalendarContext';
   }
 };
 
+const renderVisibilityLabel = (visibility) => {
+  switch (visibility) {
+    case 'PRIVATE':
+      return '🔒 PRIVATE';
+    case 'PROTECTED':
+      return '🛡 PROTECTED';
+    case 'PUBLIC':
+      return '🌍 PUBLIC';
+    default:
+      return visibility;
+  }
+};
+
+/* =========================
+ *  Page
+ * ========================= */
 
 export const CalendarBoardPage = () => {
   const { calendars, loading, setDefaultCalendar } = useCalendars();
+  const {
+    invites,
+    loading: inviteLoading,
+    respondInvite,
+  } = useInvitedCalendars();
+
   const navigate = useNavigate();
 
   if (loading) {
     return <p>캘린더를 불러오는 중...</p>;
   }
 
-  // ✅ 기본 캘린더 설정 핸들러 (컴포넌트 안!)
+  // ✅ 기본 캘린더 설정
   const handleSetDefault = async (calendar) => {
     if (calendar.isDefault) return;
 
@@ -39,8 +66,6 @@ export const CalendarBoardPage = () => {
     }
   };
 
-
-
   return (
     <div style={containerStyle}>
       <header style={headerStyle}>
@@ -50,6 +75,9 @@ export const CalendarBoardPage = () => {
         </p>
       </header>
 
+      {/* =========================
+          내 캘린더 목록
+      ========================= */}
       {calendars.length === 0 ? (
         <EmptyState />
       ) : (
@@ -60,26 +88,67 @@ export const CalendarBoardPage = () => {
               calendar={calendar}
               onOpen={() => navigate(`/calendar/${calendar.id}`)}
               onDetail={() => navigate(`/calendar/${calendar.id}/detail`)}
-              onSetDefault={handleSetDefault}   // ✅ 전달
+              onSetDefault={handleSetDefault}
             />
           ))}
         </div>
       )}
+
+      {/* =========================
+          받은 캘린더 초대
+      ========================= */}
+      {!inviteLoading && invites.length > 0 && (
+        <section style={{ marginTop: '3rem' }}>
+          <h2 style={sectionTitleStyle}>📩 받은 캘린더 초대</h2>
+
+          <div style={gridStyle}>
+            {invites.map((invite) => (
+              <div key={invite.calendarMemberId} style={cardStyle}>
+                <div>
+                  <h2 style={cardTitleStyle}>
+                    {invite.calendarName}
+                  </h2>
+
+                  <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                    <span style={cardSubtitleStyle}>
+                      {renderVisibilityLabel(invite.calendarVisibility)}
+                    </span>
+                    <span style={cardSubtitleStyle}>
+                      초대자: {invite.inviterName}
+                    </span>
+                  </div>
+
+                  <p style={inviteTimeStyle}>
+                    {new Date(invite.createdAt).toLocaleString()}
+                  </p>
+                </div>
+
+                <div style={cardButtonGroupStyle}>
+                  <button
+                    style={primaryButtonStyle}
+                    onClick={() =>
+                      respondInvite(invite.calendarMemberId, 'ACCEPT')
+                    }
+                  >
+                    수락
+                  </button>
+
+                  <button
+                    style={outlineButtonStyle}
+                    onClick={() =>
+                      respondInvite(invite.calendarMemberId, 'REJECT')
+                    }
+                  >
+                    거절
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
-};
-
-const renderVisibilityLabel = (visibility) => {
-  switch (visibility) {
-    case 'PRIVATE':
-      return '🔒 PRIVATE';
-    case 'PROTECTED':
-      return '🛡 PROTECTED';
-    case 'PUBLIC':
-      return '🌍 PUBLIC';
-    default:
-      return visibility;
-  }
 };
 
 /* =========================
@@ -99,7 +168,6 @@ const CalendarCard = ({ calendar, onOpen, onDetail, onSetDefault }) => {
           )}
         </h2>
 
-        {/* ✅ 타입 + 공개범위 */}
         <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
           <span
             style={{
@@ -145,7 +213,6 @@ const CalendarCard = ({ calendar, onOpen, onDetail, onSetDefault }) => {
   );
 };
 
-
 const EmptyState = () => (
   <div style={emptyStateStyle}>
     <p>아직 생성된 캘린더가 없습니다.</p>
@@ -166,6 +233,12 @@ const titleStyle = {
 };
 
 const subtitleStyle = { color: '#6b7280' };
+
+const sectionTitleStyle = {
+  fontSize: '1.25rem',
+  fontWeight: 600,
+  marginBottom: '1rem',
+};
 
 const gridStyle = {
   display: 'grid',
@@ -192,6 +265,12 @@ const cardSubtitleStyle = {
   fontSize: '0.875rem',
   color: '#6b7280',
   marginTop: '0.25rem',
+};
+
+const inviteTimeStyle = {
+  fontSize: '0.75rem',
+  color: '#9ca3af',
+  marginTop: 6,
 };
 
 const cardButtonGroupStyle = {

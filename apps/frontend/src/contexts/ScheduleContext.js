@@ -11,7 +11,8 @@ const ScheduleContext = createContext();
 export const ScheduleProvider = ({ children }) => {
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(false);
-
+  const [participants, setParticipants] = useState([]);
+  const [participantsLoading, setParticipantsLoading] = useState(false);
   const [scheduleDetail, setScheduleDetail] = useState(null);
   const [scheduleDetailLoading, setScheduleDetailLoading] = useState(false);
 
@@ -69,41 +70,59 @@ export const ScheduleProvider = ({ children }) => {
   /** =========================
    * 🔥 일정 상세 조회
    * ========================= */
-  const fetchScheduleDetail = useCallback(async (scheduleId) => {
-    if (!scheduleId) return;
+const fetchScheduleDetail = useCallback(async (scheduleId) => {
+  if (!scheduleId) return;
+    console.log('🧠 [Context] fetchScheduleDetail START, id =', scheduleId);
 
-    try {
-      // 🔥 이전 일정 상세 제거 (섞임 방지)
-      setScheduleDetail(null);
-      setScheduleDetailLoading(true);
+  try {
+    setScheduleDetailLoading(true);
 
-      const res = await ApiService.getScheduleDetail(scheduleId);
-      const data = res?.data;
+    const res = await ApiService.getScheduleDetail(scheduleId);
+    const data = res?.data;
+     console.log('🧠 [Context] fetchScheduleDetail RESPONSE =', data);
+    setScheduleDetail({
+      id: data.scheduleId,
+      calendarId: data.calendarId,
+      title: data.title,
+      memo: data.memo,
+      theme: data.theme,
+      color: THEME_TO_COLOR[data.theme] || '#3b82f6',
+      startAt: data.startAt,
+      endAt: data.endAt,
+      createdAt: data.createdAt,
+      updatedAt: data.updatedAt,
+      summary: data.summary,
+    });
 
-      setScheduleDetail({
-        id: data.scheduleId,
-        calendarId: data.calendarId,
-        title: data.title,
-        memo: data.memo,
-        theme: data.theme,
-        color: THEME_TO_COLOR[data.theme] || '#3b82f6',
-        startAt: data.startAt,
-        endAt: data.endAt,
-        createdAt: data.createdAt,
-        updatedAt: data.updatedAt,
-        summary: data.summary,
-      });
-    } catch (e) {
-      showError('일정 상세 조회 실패');
-    } finally {
-      setScheduleDetailLoading(false);
-    }
-  }, []);
+       console.log('🧠 [Context] fetchScheduleDetail SET 완료');
+  } catch (e) {
+    showError('일정 상세 조회 실패');
+  } finally {
+    setScheduleDetailLoading(false);
+  }
+}, []);
+
+
+  const fetchScheduleParticipants = useCallback(async (scheduleId) => {
+  if (!scheduleId) return;
+
+  try {
+    setParticipantsLoading(true);
+    const res = await ApiService.getScheduleParticipants(scheduleId);
+    setParticipants(res.data?.content || []);
+  } catch (e) {
+    showError('참여자 조회 실패');
+  } finally {
+    setParticipantsLoading(false);
+  }
+}, []);
+
 
   /** =========================
    * 🔥 일정 상세 초기화 (모달 닫을 때 사용)
    * ========================= */
   const clearScheduleDetail = useCallback(() => {
+     console.log('🧹 [Context] clearScheduleDetail CALLED');
     setScheduleDetail(null);
   }, []);
 
@@ -132,6 +151,15 @@ export const ScheduleProvider = ({ children }) => {
       setLoading(false);
     }
   };
+
+  const addScheduleParticipant = async (scheduleId, payload) => {
+  return ApiService.addScheduleParticipant(scheduleId, payload);
+};
+
+const respondToScheduleInvite = async (scheduleId, participantId, action) => {
+  return ApiService.respondToScheduleInvite(scheduleId, participantId, action);
+};
+
 
   /** =========================
    * 일정 수정
@@ -180,23 +208,34 @@ export const ScheduleProvider = ({ children }) => {
     }
   }, [currentCalendar]);
 
+  useEffect(() => {
+  console.log('📦 [Context] scheduleDetail CHANGED:', scheduleDetail);
+}, [scheduleDetail]);
+
   /** =========================
    * Context 제공
    * ========================= */
-  const contextValue = {
-    schedules,
-    loading,
+const contextValue = {
+  schedules,
+  loading,
 
-    fetchSchedules,
-    createSchedule,
-    updateSchedule,
+  fetchSchedules,
+  createSchedule,
+  updateSchedule,
 
-    // 🔥 상세
-    scheduleDetail,
-    scheduleDetailLoading,
-    fetchScheduleDetail,
-    clearScheduleDetail,
-  };
+  // 🔥 상세
+  scheduleDetail,
+  scheduleDetailLoading,
+  fetchScheduleDetail,
+  clearScheduleDetail,
+
+  // 🔥 참여자
+  participants,
+  participantsLoading,
+  fetchScheduleParticipants,
+  addScheduleParticipant,
+  respondToScheduleInvite,
+};
 
   return (
     <ScheduleContext.Provider value={contextValue}>

@@ -311,6 +311,20 @@ static async respondCalendarInvite(calendarMemberId, action) {
     }
   );
 }
+
+static async getInvitedCalendars({ page = 0, size = 20 } = {}) {
+  const query = new URLSearchParams({
+    page,
+    size,
+  }).toString();
+
+  return this.request(
+    `/calendars/invited?${query}`,
+    {
+      method: "GET",
+    }
+  );
+}
 // === 일정 관련 API ===
 static async getCalendarSchedules(calendarId, params = {}) {
   const queryString = new URLSearchParams(params).toString();

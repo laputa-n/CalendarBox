@@ -48,7 +48,8 @@ const linkStyle = {
 
 export default function EditScheduleModal({ isOpen, onClose, eventData }) {
  const { updateSchedule, fetchScheduleDetail, scheduleDetail, clearScheduleDetail } = useSchedules();
- const scheduleId = Number(eventData?.id || eventData?.scheduleId);
+ const scheduleId = scheduleDetail?.id;
+
 
   // ========== 상태 ==========
   const [formData, setFormData] = useState({
@@ -88,27 +89,15 @@ export default function EditScheduleModal({ isOpen, onClose, eventData }) {
   } catch (error) {
   }
 }, []);
-  // ========== 로드 ==========
-    const loadData = useCallback(async () => {
-    try {
-      await Promise.all([
-        loadTodos(scheduleId),
-        loadPlaces(scheduleId),
-        loadAttachments(scheduleId),
-        loadReminders(scheduleId),
-        loadRecurrences(scheduleId),
-        loadLinks(scheduleId)
-      ]);
-    } catch (error) {
-    }
-  }, [scheduleId, loadLinks]);
 
-  const loadTodos = useCallback(async () => {
-    const res = await ApiService.listTodos(scheduleId, 0, 50);
+  const loadTodos = useCallback(async (id) => {
+    const res = await ApiService.listTodos(id, 0, 50);
+     console.log('🧾 loadTodos raw res:', res);
     const data = res?.data ?? res;
+   
     const content = Array.isArray(data?.content) ? data.content : data;
     setTodoPage({ content });
-  }, [scheduleId]);
+  }, []);
 
   const reminderSelectToMinutes = (v) => {
   switch (v) {
@@ -181,6 +170,7 @@ const handleEditPlace = async (p) => {
     alert('장소 이름 수정 실패');
   }
 };
+
   const loadPlaces = useCallback(async () => {
     const res = await ApiService.listSchedulePlaces(scheduleId, 0, 20);
     console.log('📍 loadPlaces response:', res);
@@ -229,6 +219,7 @@ const loadExceptions = useCallback(async () => {
 const loadReminders = useCallback(async (scheduleId) => {
   try {
     const res = await ApiService.listReminders(scheduleId);
+    console.log('⏰ loadReminders raw res:', res);
     setReminders(res.data || []);
   } catch (error) {
     console.error('리마인더 조회 실패:', error);
@@ -263,16 +254,9 @@ const handleDeleteException = async (exceptionId) => {
     alert("삭제 실패!");
   }
 };
-
-
-function toValidISO(dt) {
-  if (!dt) return null;
-  if (dt.endsWith("Z")) return dt;
-  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(dt)) {
-    return dt + ":00Z";
-  }
-  return dt;
-}
+useEffect(() => {
+  console.log('🆔 [Modal] scheduleId =', scheduleId);
+}, [scheduleId]);
 
   const loadAttachments = useCallback(async () => {
     const [images, files] = await Promise.all([
@@ -285,48 +269,55 @@ function toValidISO(dt) {
     });
   }, [scheduleId]);
   
+function toValidISO(dt) {
+  if (!dt) return null;
+  if (dt.endsWith("Z")) return dt;
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(dt)) {
+    return dt + ":00Z";
+  }
+  return dt;
+}
+
 useEffect(() => {
-  if (!isOpen) return;
-  clearScheduleDetail();
+  if (!isOpen) {
+    clearScheduleDetail();
+  }
 }, [isOpen, clearScheduleDetail]);
-useEffect(() => {
-  if (!isOpen || !scheduleId) return;
-  fetchScheduleDetail(scheduleId);
-}, [isOpen, scheduleId, fetchScheduleDetail]);
 
-  // ========== 초기값 ==========
-useEffect(() => {
-  if (!isOpen || !eventData) return;
- console.log('🧾 EditScheduleModal eventData snapshot:', JSON.stringify(eventData));
-  setFormData({
-    title: eventData.title || '',
-    description:
-     eventData.memo ??
-     eventData.description ??
-     eventData.summary ??
-     '',
-    startDateTime: toLocalInputValue(eventData.startDateTime || eventData.startAt),
-    endDateTime: toLocalInputValue(eventData.endDateTime || eventData.endAt),
-    color: eventData.color || '#3b82f6',
-    recurrence: null,
-  });
-
-  loadData();
-
-}, [isOpen, eventData, loadData]);
 useEffect(() => {
   if (!scheduleDetail) return;
-  if (scheduleDetail.id !== scheduleId) return;
 
-  setFormData(prev => {
-    if (prev.description) return prev;
+  setFormData(prev => ({
+    ...prev,
+    title: scheduleDetail.title || '',
+    startDateTime: toLocalInputValue(scheduleDetail.startAt),
+    endDateTime: toLocalInputValue(scheduleDetail.endAt),
+    color: scheduleDetail.color || '#3b82f6',
+  }));
+}, [scheduleDetail]);
+  // ========== 초기값 ==========
+useEffect(() => {
+  if (!scheduleDetail?.id) return;
 
-    return {
-      ...prev,
-      description: scheduleDetail.memo ?? '',
-    };
-  });
-}, [scheduleDetail, scheduleId]);
+  const id = scheduleDetail.id;
+
+  loadTodos(id);
+  loadReminders(id);
+  loadPlaces(id);
+  loadAttachments(id);
+  loadRecurrences(id);
+  loadLinks(id);
+}, [scheduleDetail?.id]);
+
+useEffect(() => {
+  if (!scheduleDetail?.memo) return;
+
+  setFormData(prev => ({
+    ...prev,
+    description: scheduleDetail.memo,
+  }));
+}, [scheduleDetail?.memo]);
+
 
 useEffect(() => {
   if (!editingRecurrence) return;
@@ -367,7 +358,6 @@ const handleAddPlace = async () => {
     setIsSearchingPlace(false);
   }
 };
-
 
   const handleRemovePlace = async (p) => {
     if (!window.confirm('삭제할까요?')) return;

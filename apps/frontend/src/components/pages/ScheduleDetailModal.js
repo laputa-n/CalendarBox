@@ -4,34 +4,35 @@ import { formatDateTime } from '../../utils/dateUtils';
 import { useSchedules } from '../../contexts/ScheduleContext';
 
 export const ScheduleDetailModal = ({ scheduleId, onClose }) => {
-  /** =========================
+  /* =========================
    * 상태
    * ========================= */
-
   const [inviteName, setInviteName] = useState('');
   const [inviting, setInviting] = useState(false);
-  
-
   const [respondingId, setRespondingId] = useState(null);
-const {
-  scheduleDetail,
-  scheduleDetailLoading,
-  fetchScheduleDetail, // 🔥 추가
-  fetchScheduleParticipants,
-  participants,
-  participantsLoading,
-  addScheduleParticipant,
-  respondToScheduleInvite,
-} = useSchedules();
 
-useEffect(() => {
-  if (!scheduleId) return;
-  fetchScheduleDetail(scheduleId);          // 🔥 상세 조회
-  fetchScheduleParticipants(scheduleId);    // 🔥 참여자 조회
-}, [scheduleId, fetchScheduleDetail, fetchScheduleParticipants]);
+  const {
+    scheduleDetail,
+    scheduleDetailLoading,
+    fetchScheduleDetail,
+    fetchScheduleParticipants,
+    participants,
+    participantsLoading,
+    addScheduleParticipant,
+    respondToScheduleInvite,
+  } = useSchedules();
 
-  /** =========================
-   * 이름으로 멤버 초대
+  /* =========================
+   * 데이터 로드
+   * ========================= */
+  useEffect(() => {
+    if (!scheduleId) return;
+    fetchScheduleDetail(scheduleId);
+    fetchScheduleParticipants(scheduleId);
+  }, [scheduleId, fetchScheduleDetail, fetchScheduleParticipants]);
+
+  /* =========================
+   * 초대
    * ========================= */
   const handleInviteByName = async () => {
     if (!inviteName.trim()) {
@@ -41,42 +42,35 @@ useEffect(() => {
 
     try {
       setInviting(true);
-
       await addScheduleParticipant(scheduleId, {
-    mode: 'NAME',
-    name: inviteName.trim(),
-  });
+        mode: 'NAME',
+        name: inviteName.trim(),
+      });
       setInviteName('');
+      await fetchScheduleParticipants(scheduleId);
     } catch (e) {
-      console.error('멤버 초대 실패', e);
       alert(e.message || '멤버 초대 실패');
     } finally {
       setInviting(false);
     }
   };
 
-  /** =========================
-   * 초대 수락 / 거절
+  /* =========================
+   * 수락 / 거절
    * ========================= */
   const handleRespond = async (participantId, action) => {
     try {
       setRespondingId(participantId);
-
-      await respondToScheduleInvite(
-  scheduleId,
-  participantId,
-  action
-);
-
-    } catch (e) {
-      console.error('응답 처리 실패', e);
+      await respondToScheduleInvite(scheduleId, participantId, action);
+      await fetchScheduleParticipants(scheduleId);
+    } catch {
       alert('응답 처리 실패');
     } finally {
       setRespondingId(null);
     }
   };
 
-  /** =========================
+  /* =========================
    * 스타일
    * ========================= */
   const overlayStyle = {
@@ -109,30 +103,40 @@ useEffect(() => {
 
   const bodyStyle = {
     padding: '1.25rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1.25rem',
+  };
+
+  const cardStyle = {
+    background: '#f9fafb',
+    borderRadius: 10,
+    padding: '1rem',
+    border: '1px solid #e5e7eb',
   };
 
   const sectionTitleStyle = {
     fontSize: '0.95rem',
     fontWeight: 700,
     marginBottom: '0.5rem',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
   };
+
+  /* =========================
+   * 로딩 / 예외
+   * ========================= */
   if (scheduleDetailLoading) {
-  return (
-    <div style={overlayStyle}>
-      <Loader2 style={{ animation: 'spin 1s linear infinite' }} />
-    </div>
-  );
-}
+    return (
+      <div style={overlayStyle}>
+        <Loader2 style={{ animation: 'spin 1s linear infinite' }} />
+      </div>
+    );
+  }
 
-if (!scheduleDetail) return null;
+  if (!scheduleDetail) return null;
+  const schedule = scheduleDetail;
+  const summary = schedule.summary || {};
 
-const schedule = scheduleDetail;
-
-
-  /** =========================
+  /* =========================
    * 렌더
    * ========================= */
   return (
@@ -140,14 +144,12 @@ const schedule = scheduleDetail;
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div style={headerStyle}>
-          <div>
-            <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>
-              {schedule.isAllDay
-                ? '하루 종일'
-                : `${formatDateTime(schedule.startAt)} ~ ${formatDateTime(
-                    schedule.endAt
-                  )}`}
-            </div>
+          <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>
+            {schedule.isAllDay
+              ? '하루 종일'
+              : `${formatDateTime(schedule.startAt)} ~ ${formatDateTime(
+                  schedule.endAt
+                )}`}
           </div>
           <button onClick={onClose} style={{ border: 'none', background: 'none' }}>
             <X />
@@ -156,12 +158,65 @@ const schedule = scheduleDetail;
 
         {/* Body */}
         <div style={bodyStyle}>
-          {/* 참여자 */}
-          <div>
-            <div style={sectionTitleStyle}>
-              <Users size={18} />
-              참여자
+          {/* ================= 일정 기본 정보 ================= */}
+          <div style={cardStyle}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: 6 }}>
+              {schedule.title}
+            </h2>
+
+            {schedule.memo && (
+              <div
+                style={{
+                  fontSize: '0.9rem',
+                  color: '#374151',
+                  whiteSpace: 'pre-line',
+                }}
+              >
+                {schedule.memo}
+              </div>
+            )}
+          </div>
+
+          {/* ================= 요약 카드 (명세 반영) ================= */}
+          <div style={cardStyle}>
+            <div style={sectionTitleStyle}>📊 일정 요약</div>
+
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '0.75rem',
+                fontSize: '0.85rem',
+                color: '#374151',
+              }}
+            >
+              {summary.hasParticipants && (
+                <span>👥 참여자 {summary.participantCount}명</span>
+              )}
+              {summary.hasTodos && (
+                <span>🧾 투두 {summary.todoCount}개</span>
+              )}
+              {summary.hasPlaces && (
+                <span>📍 장소 {summary.placeCount}곳</span>
+              )}
+              {summary.hasRecurrences && (
+                <span>🔁 반복 {summary.recurrenceCount}회</span>
+              )}
+              {summary.hasReminders && (
+                <span>⏰ 리마인더 {summary.reminderCount}개</span>
+              )}
+              {summary.hasImg && (
+                <span>🖼 이미지 {summary.imgCount}개</span>
+              )}
+              {summary.hasFiles && (
+                <span>📎 파일 {summary.fileCount}개</span>
+              )}
             </div>
+          </div>
+
+          {/* ================= 참여자 카드 ================= */}
+          <div style={cardStyle}>
+            <div style={sectionTitleStyle}>👥 참여자</div>
 
             {/* 초대 */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
