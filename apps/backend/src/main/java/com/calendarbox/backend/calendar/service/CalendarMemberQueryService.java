@@ -33,10 +33,10 @@ public class CalendarMemberQueryService {
         Pageable p = fixSort(pageable);
 
         return switch(sort){
-            case NAME_ASC -> calendarMemberRepository.findMembersOrderByNameAsc(calendarId,status,p);
-            case NAME_DESC -> calendarMemberRepository.findMembersOrderByNameDesc(calendarId,status,p);
-            case CREATED_ASC -> calendarMemberRepository.findMembersOrderByCreatedAtAsc(calendarId,status,p);
-            case CREATED_DESC -> calendarMemberRepository.findMembersOrderByCreatedAtDesc(calendarId,status,p);
+            case NAME_ASC -> calendarMemberRepository.findMembersOrderByNameAsc(calendarId,status, viewerId,p);
+            case NAME_DESC -> calendarMemberRepository.findMembersOrderByNameDesc(calendarId,status,viewerId, p);
+            case CREATED_ASC -> calendarMemberRepository.findMembersOrderByCreatedAtAsc(calendarId,status,viewerId, p);
+            case CREATED_DESC -> calendarMemberRepository.findMembersOrderByCreatedAtDesc(calendarId,status,viewerId, p);
         };
     }
 

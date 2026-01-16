@@ -12,6 +12,8 @@ public record CalendarMemberItem(
         String memberName,
         CalendarMemberStatus status,
         Instant createdAt,
-        Instant respondedAt
+        Instant respondedAt,
+        Long myId,
+        Long ownerId
 ) {
 }

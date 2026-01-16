@@ -106,7 +106,7 @@ order by c.name asc, c.id desc
 
     @Query("""
         select new com.calendarbox.backend.calendar.dto.response.CalendarMemberItem(
-        cm.id, m.id, m.name, cm.status, cm.createdAt, cm.respondedAt
+        cm.id, m.id, m.name, cm.status, cm.createdAt, cm.respondedAt, :viewerId, cm.calendar.owner.id
         )
         from CalendarMember cm
         join cm.member m
@@ -114,11 +114,11 @@ order by c.name asc, c.id desc
         and (:status is null or cm.status = :status)
         order by m.name asc, cm.id asc
     """)
-    Page<CalendarMemberItem> findMembersOrderByNameAsc(@Param("calendarId") Long calendarId, @Param("status") CalendarMemberStatus status, Pageable pageable);
+    Page<CalendarMemberItem> findMembersOrderByNameAsc(@Param("calendarId") Long calendarId, @Param("status") CalendarMemberStatus status, @Param("viewerId") Long viewerId, Pageable pageable);
 
     @Query("""
         select new com.calendarbox.backend.calendar.dto.response.CalendarMemberItem(
-        cm.id, m.id, m.name, cm.status, cm.createdAt, cm.respondedAt
+        cm.id, m.id, m.name, cm.status, cm.createdAt, cm.respondedAt, :viewerId, cm.calendar.owner.id
         )
         from CalendarMember cm
         join cm.member m
@@ -126,11 +126,11 @@ order by c.name asc, c.id desc
         and (:status is null or cm.status = :status)
         order by m.name desc, cm.id asc
     """)
-    Page<CalendarMemberItem> findMembersOrderByNameDesc(@Param("calendarId") Long calendarId, @Param("status") CalendarMemberStatus status,Pageable pageable);
+    Page<CalendarMemberItem> findMembersOrderByNameDesc(@Param("calendarId") Long calendarId, @Param("status") CalendarMemberStatus status, @Param("viewerId") Long viewerId, Pageable pageable);
 
     @Query("""
         select new com.calendarbox.backend.calendar.dto.response.CalendarMemberItem(
-        cm.id, m.id, m.name, cm.status, cm.createdAt, cm.respondedAt
+        cm.id, m.id, m.name, cm.status, cm.createdAt, cm.respondedAt, :viewerId, cm.calendar.owner.id
         )
         from CalendarMember cm
         join cm.member m
@@ -138,11 +138,11 @@ order by c.name asc, c.id desc
         and (:status is null or cm.status = :status)
         order by cm.createdAt asc, cm.id asc
     """)
-    Page<CalendarMemberItem> findMembersOrderByCreatedAtAsc(@Param("calendarId") Long calendarId, @Param("status") CalendarMemberStatus status,Pageable pageable);
+    Page<CalendarMemberItem> findMembersOrderByCreatedAtAsc(@Param("calendarId") Long calendarId, @Param("status") CalendarMemberStatus status, @Param("viewerId") Long viewerId,Pageable pageable);
 
     @Query("""
         select new com.calendarbox.backend.calendar.dto.response.CalendarMemberItem(
-        cm.id, m.id, m.name, cm.status, cm.createdAt, cm.respondedAt
+        cm.id, m.id, m.name, cm.status, cm.createdAt, cm.respondedAt, :viewerId, cm.calendar.owner.id
         )
         from CalendarMember cm
         join cm.member m
@@ -150,7 +150,7 @@ order by c.name asc, c.id desc
         and (:status is null or cm.status = :status)
         order by cm.createdAt desc, cm.id asc
     """)
-    Page<CalendarMemberItem> findMembersOrderByCreatedAtDesc(@Param("calendarId") Long calendarId, @Param("status") CalendarMemberStatus status,Pageable pageable);
+    Page<CalendarMemberItem> findMembersOrderByCreatedAtDesc(@Param("calendarId") Long calendarId, @Param("status") CalendarMemberStatus status, @Param("viewerId") Long viewerId,Pageable pageable);
 
     @Query("""
     select cm.calendar.id

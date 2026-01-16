@@ -190,7 +190,7 @@ public class CalendarMemberService {
                         .actor(calendarMember.getMember())
                         .entityId(calendarMember.getCalendar().getId())
                         .type(CalendarHistoryType.CALENDAR_MEMBER_ADDED)
-                        .changedFields(Map.of("newCalendarMemberName: ", calendarMember.getMember().getName()))
+                        .changedFields(Map.of("newCalendarMemberName:", calendarMember.getMember().getName()))
                         .build()
                 );
             }
@@ -231,7 +231,7 @@ public class CalendarMemberService {
                         .actor(user)
                         .entityId(calendarMember.getCalendar().getId())
                         .type(CalendarHistoryType.CALENDAR_MEMBER_REMOVED)
-                        .changedFields(Map.of("removedCalendarMemberName: ", calendarMember.getMember().getName()))
+                        .changedFields(Map.of("removedCalendarMemberName:", calendarMember.getMember().getName()))
                         .build()
         );
 
