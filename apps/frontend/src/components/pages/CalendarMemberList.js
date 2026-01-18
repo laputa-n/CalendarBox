@@ -18,10 +18,12 @@ export const CalendarMemberList = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
-
+  const [myId, setMyId] = useState(null);
+  const [ownerId, setOwnerId] = useState(null);
   const [selectedMemberIds, setSelectedMemberIds] = useState([]);
   const [inviteLoading, setInviteLoading] = useState(false);
-
+  const [friends, setFriends] = useState([]);
+  const [friendsLoading, setFriendsLoading] = useState(true);
   console.log("📌 CalendarMemberList 렌더됨");
 console.log("calendarId:", calendarId);
 console.log("members:", members);
@@ -30,18 +32,22 @@ const fetchMembers = async () => {
     setMembersLoading(true);
 
     const res = await ApiService.getCalendarMembers(calendarId);
-
-    // ✅ 여기 핵심 수정
     const content = res?.data?.content ?? [];
-    console.log("📌 최종 members:", content);
 
     setMembers(content);
+
+    // 🔥 여기 핵심
+    if (content.length > 0) {
+      setMyId(Number(content[0].myId));
+      setOwnerId(Number(content[0].ownerId));
+    }
   } catch (e) {
     console.error("캘린더 멤버 조회 실패", e);
   } finally {
     setMembersLoading(false);
   }
 };
+
 
 
   useEffect(() => {
@@ -52,11 +58,33 @@ const fetchMembers = async () => {
   console.log("🔁 members 변경됨:", members);
 }, [members]);
 
+const fetchFriends = async () => {
+  try {
+    setFriendsLoading(true);
 
+    const res = await ApiService.getFriends(1, 50);
+
+    // 🔥 여기 중요
+    const content = res?.data?.content ?? [];
+
+    console.log("👥 친구 목록:", content);
+    setFriends(content);
+  } catch (e) {
+    console.error("친구 목록 조회 실패", e);
+  } finally {
+    setFriendsLoading(false);
+  }
+};
+
+
+useEffect(() => {
+  fetchFriends();
+}, []);
   const memberIdSet = useMemo(() => {
   return new Set(members.map((m) => m.memberId));
    console.log("🔁 members 변경됨:", members);
 }, [members]);
+
 
 
   const handleSearch = async (query) => {
@@ -155,27 +183,84 @@ const fetchMembers = async () => {
           />
         ) : (
           <div style={{ marginTop: "1rem", display: "grid", gap: 10 }}>
-            {members.map((m) => (
+        {members.map((m) => (
   <MemberRow
     key={m.calendarMemberId}
     member={m}
-    onAccept={() =>
-      ApiService.respondCalendarInvite(m.calendarMemberId, "ACCEPT")
-        .then(fetchMembers)
-    }
-    onReject={() =>
-      ApiService.respondCalendarInvite(m.calendarMemberId, "REJECT")
-        .then(fetchMembers)
-    }
+    myId={myId}
+    ownerId={ownerId}
     onRemove={() =>
       ApiService.removeCalendarMember(m.calendarMemberId)
         .then(fetchMembers)
     }
   />
 ))}
+
           </div>
         )}
       </section>
+
+      {/* ===== 친구 목록 초대 ===== */}
+<section style={{ marginTop: "3rem" }}>
+  <h2 style={{ fontSize: "1.1rem", fontWeight: 600 }}>
+    친구 목록에서 초대
+  </h2>
+
+  {friendsLoading ? (
+    <p>친구 목록 불러오는 중...</p>
+  ) : friends.length === 0 ? (
+    <EmptyBox
+      title="친구가 없습니다"
+      description="먼저 친구를 추가해보세요."
+    />
+  ) : (
+    <div style={{ marginTop: "1rem", display: "grid", gap: 8 }}>
+      {friends.map((f) => {
+        const alreadyMember = memberIdSet.has(f.memberId);
+        const checked = selectedMemberIds.includes(f.memberId);
+
+        return (
+          <label
+            key={f.memberId}
+            style={{
+              display: "flex",
+              gap: 10,
+              padding: "12px",
+              border: "1px solid #e5e7eb",
+              borderRadius: 12,
+              background: alreadyMember ? "#f9fafb" : "white",
+              opacity: alreadyMember ? 0.6 : 1,
+              cursor: alreadyMember ? "not-allowed" : "pointer",
+            }}
+          >
+            <input
+              type="checkbox"
+              disabled={alreadyMember}
+              checked={checked}
+              onChange={() => toggleSelect(f.memberId)}
+            />
+
+            <div>
+              <div style={{ fontWeight: 700 }}>
+                {f.friendName}
+                {alreadyMember && (
+                  <span style={{ marginLeft: 8, fontSize: 12, color: "#6b7280" }}>
+                    (이미 멤버)
+                  </span>
+                )}
+              </div>
+
+              <div style={{ fontSize: 12, color: "#6b7280" }}>
+                친구
+              </div>
+            </div>
+          </label>
+        );
+      })}
+    </div>
+  )}
+</section>
+
 
       {/* ===== 초대 영역 ===== */}
       <section style={{ marginTop: "3rem" }}>
@@ -318,67 +403,55 @@ const fetchMembers = async () => {
  * Sub Components
  * ========================= */
 
-const MemberRow = ({ member, onAccept, onReject, onRemove }) => {
-  const isInvited = member.status === "INVITED";
-  const isAccepted = member.status === "ACCEPTED";
-  const isOwner = member.role === "OWNER";
-  const statusLabel = {
-    INVITED: "📨 초대됨",
-    ACCEPTED: "✅ 수락됨",
-    REJECTED: "❌ 거절됨",
-  }[member.status] || member.status;
+const MemberRow = ({ member, myId, ownerId, onRemove }) => {
+  const my = Number(myId);
+  const owner = Number(ownerId);
+  const memberId = Number(member.memberId);
 
+  const isMe = memberId === my;
+  const isOwner = memberId === owner;
+  const amIOwner = my === owner;
+
+  const showKickButton = amIOwner && !isMe;   // 내가 소유주 + 다른 사람
+  const showLeaveButton = !amIOwner && isMe; // 내가 일반 멤버 + 나
+console.log({
+  memberId: member.memberId,
+  myId,
+  ownerId,
+  isMe,
+  isOwner,
+  amIOwner,
+});
   return (
-    <div
-      style={{
-        padding: "12px 14px",
-        border: "1px solid #e5e7eb",
-        borderRadius: 12,
-        background: "white",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        gap: 12,
-      }}
-    >
+    <div style={rowStyle}>
       <div>
-        <div style={{ fontWeight: 700 }}>{member.memberName}</div>
-        <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
-          상태: {statusLabel}
+        <strong>
+          {member.memberName}
+          {isMe && <span style={tagStyle}>(ME)</span>}
+          {isOwner && <span style={tagStyle}>👑</span>}
+        </strong>
+        <div style={{ fontSize: 12, color: "#6b7280" }}>
+          상태: {member.status}
         </div>
       </div>
 
-      {/* ✅ 액션 영역 */}
-      <div style={{ display: "flex", gap: 6 }}>
-        {isInvited && (
-          <>
-            <button
-              onClick={onAccept}
-              style={actionBtn("#2563eb")}
-            >
-              수락
-            </button>
-            <button
-              onClick={onReject}
-              style={actionBtn("#9ca3af")}
-            >
-              거절
-            </button>
-          </>
+      <div>
+        {showKickButton && (
+          <button onClick={onRemove} style={dangerBtn}>
+            강퇴
+          </button>
         )}
 
-        {isAccepted && !isOwner && (
-          <button
-            onClick={onRemove}
-            style={actionBtn("#ef4444")}
-          >
-            강퇴
+        {showLeaveButton && (
+          <button onClick={onRemove} style={dangerBtn}>
+            탈퇴
           </button>
         )}
       </div>
     </div>
   );
 };
+
 
 const actionBtn = (bg) => ({
   padding: "6px 10px",
@@ -390,6 +463,38 @@ const actionBtn = (bg) => ({
   color: "white",
   cursor: "pointer",
 });
+
+/* =========================
+ * MemberRow Styles
+ * ========================= */
+const rowStyle = {
+  padding: "12px 14px",
+  border: "1px solid #e5e7eb",
+  borderRadius: 12,
+  background: "white",
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: 12,
+};
+
+const tagStyle = {
+  marginLeft: 6,
+  fontSize: 12,
+  color: "#6b7280",
+};
+
+const dangerBtn = {
+  padding: "6px 10px",
+  fontSize: 12,
+  fontWeight: 600,
+  borderRadius: 8,
+  border: "none",
+  background: "#ef4444",
+  color: "white",
+  cursor: "pointer",
+};
+
 
 
 /* =========================

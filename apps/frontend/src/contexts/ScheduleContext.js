@@ -41,31 +41,33 @@ export const ScheduleProvider = ({ children }) => {
   /** =========================
    * 일정 목록 조회
    * ========================= */
-  const fetchSchedules = useCallback(async (params = {}) => {
-    if (!currentCalendar?.id || !user) return;
+const fetchSchedules = useCallback(async (params = {}) => {
+  if (!currentCalendar?.id || !user) return;
 
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      const now = new Date();
-      const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const to = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
+    // ✅ 기본을 '전체 조회용' 넓은 기간으로 잡기
+    const DEFAULT_FROM = '1970-01-01T00:00:00.000Z';
+    const DEFAULT_TO   = '2100-01-01T00:00:00.000Z';
 
-      const res = await ApiService.getSchedules({
-        calendarId: currentCalendar.id,
-        from,
-        to,
-        ...params,
-      });
+    const { from = DEFAULT_FROM, to = DEFAULT_TO, ...rest } = params;
 
-      const raw = res.data?.content || [];
-      setSchedules(raw.map(transformScheduleData));
-    } catch (e) {
-      showError('일정 조회 실패');
-    } finally {
-      setLoading(false);
-    }
-  }, [currentCalendar, user]);
+    const res = await ApiService.getSchedules({
+      calendarId: currentCalendar.id,
+      from,
+      to,
+      ...rest,
+    });
+
+    const raw = res.data?.content || [];
+    setSchedules(raw.map(transformScheduleData));
+  } catch (e) {
+    showError('일정 조회 실패');
+  } finally {
+    setLoading(false);
+  }
+}, [currentCalendar, user]);
 
   /** =========================
    * 🔥 일정 상세 조회
