@@ -14,6 +14,12 @@ export default function ScheduleModal({ isOpen, onClose, selectedDate }) {
     imageQueue, fileQueue, handleSelectFiles, uploadFiles,
   } = useAttachments();
 
+  const [isMonthlyRuleOpen, setIsMonthlyRuleOpen] = useState(false);
+const [monthlyOrdinal, setMonthlyOrdinal] = useState('');     // ByDay의 +/- 숫자 (예: 1, 2, -1). 빈값이면 ByMonthDay 사용
+const [monthlyWeekday, setMonthlyWeekday] = useState('MO');   // 요일
+const [monthlyMonthDay, setMonthlyMonthDay] = useState('');   // ByMonthDay 날짜 (1~31)
+
+
   
   // ====== 폼 상태 ======
   const [formData, setFormData] = useState({
@@ -26,7 +32,8 @@ export default function ScheduleModal({ isOpen, onClose, selectedDate }) {
    recurrence: {
     freq: '',       // 기본값 설정
     intervalCount: 1,     // 기본값 설정
-    byDay: [],            // 기본값 설정
+    byDay: [],             // 기본값 설정
+    byMonthDay: '',        
     until: ''             // 기본값 설정
   },        
     todos: [],              
@@ -70,22 +77,38 @@ const handleRecurrenceChange = (e) => {
   setFormData(prev => {
     const next = { ...prev.recurrence };
 
-   if (name === 'freq') {
+  if (name === 'freq') {
   if (!value) {
-    // ✅ 반복 없음 → 완전 초기화
     return {
       ...prev,
-      recurrence: {
-        freq: '',
-        intervalCount: 1,
-        byDay: [],
-        until: '',
-      },
+      recurrence: { freq: '', intervalCount: 1, byDay: [], byMonthDay: '', until: '' },
+    };
+  }
+
+  if (value === 'DAILY') {
+    return {
+      ...prev,
+      recurrence: { ...prev.recurrence, freq: 'DAILY', byDay: [], byMonthDay: '' },
+    };
+  }
+
+  if (value === 'WEEKLY') {
+    return {
+      ...prev,
+      recurrence: { ...prev.recurrence, freq: 'WEEKLY', byMonthDay: '', byDay: [] }, // ✅ 월 규칙/혼합 제거
+    };
+  }
+
+  if (value === 'MONTHLY') {
+    return {
+      ...prev,
+      recurrence: { ...prev.recurrence, freq: 'MONTHLY', byDay: [], byMonthDay: '' },
     };
   }
 
   next.freq = value;
 }
+
 else if (name === 'intervalCount') {
       next.intervalCount = Number(value) || 1;
     }
@@ -108,6 +131,75 @@ else if (name === 'intervalCount') {
   });
 };
 
+const saveMonthlyRule = () => {
+  // ByDay(+/-숫자) 우선
+  const ord = monthlyOrdinal.trim();
+  const monthDay = monthlyMonthDay.trim();
+
+  // 1) ByDay 규칙: (예: 1MO, -1FR)
+  if (ord !== '') {
+    const n = Number(ord);
+    if (!Number.isInteger(n) || n === 0 || n < -30 || n > 30) {
+      alert('ByDay 숫자는 -5 ~ -1 또는 1 ~ 5 형태로 입력하세요. (0 불가)');
+      return;
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      recurrence: {
+        ...prev.recurrence,
+        byDay: [`${n}${monthlyWeekday}`], // ✅ 예: "1MO", "-1FR"
+        byMonthDay: '',
+      },
+    }));
+
+    setIsMonthlyRuleOpen(false);
+    return;
+  }
+
+  // 2) ByMonthDay 규칙: (예: 매월 15일)
+  if (monthDay !== '') {
+    const d = Number(monthDay);
+    if (!Number.isInteger(d) || d < 1 || d > 31) {
+      alert('ByMonthDay는 1~31 날짜로 입력하세요.');
+      return;
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      recurrence: {
+        ...prev.recurrence,
+        byDay: [],
+        byMonthDay: d,
+      },
+    }));
+
+    setIsMonthlyRuleOpen(false);
+    return;
+  }
+
+  alert('ByDay(±숫자) 또는 ByMonthDay(날짜) 중 하나는 입력해야 합니다.');
+};
+
+const openMonthlyRuleModal = () => {
+  const rec = formData.recurrence;
+
+  // 기존 byDay가 "1MO" 형태면 파싱
+  const v = rec.byDay?.[0];
+  const m = typeof v === 'string' ? v.match(/^(-?\d+)(MO|TU|WE|TH|FR|SA|SU)$/) : null;
+
+  if (m) {
+    setMonthlyOrdinal(m[1]);      // "1" or "-1"
+    setMonthlyWeekday(m[2]);      // "MO" ...
+    setMonthlyMonthDay('');
+  } else {
+    setMonthlyOrdinal('');
+    setMonthlyWeekday('MO');
+    setMonthlyMonthDay(rec.byMonthDay ? String(rec.byMonthDay) : '');
+  }
+
+  setIsMonthlyRuleOpen(true);
+};
 
 const handleSubmit = async (e) => {
   e.preventDefault();
@@ -305,7 +397,7 @@ if (recurrenceId && exceptionDates.length > 0) {
         endDateTime:   `${selectedDate}T10:00`,
         color: '#3b82f6',
         places: [],
-        recurrence: { freq: '', intervalCount: 1, byDay: [], until: '' },
+        recurrence: { freq: '', intervalCount: 1, byDay: [], byMonthDay: '', until: '' },
         todos: [],
         reminders: [],
       }));
@@ -676,15 +768,15 @@ const extractScheduleId = (res) => {
           </div>
           
 
-          {/* 반복 설정 */}
+    {/* 반복 설정 */}
 <div style={sectionStyle}>
   <label style={labelStyle}>🔁 반복 주기</label>
   <select
-  name="freq"
-  value={formData.recurrence.freq || ''}  // ✅ 핵심
-  onChange={handleRecurrenceChange}
-  style={inputStyle}
->
+    name="freq"
+    value={formData.recurrence.freq || ''}
+    onChange={handleRecurrenceChange}
+    style={inputStyle}
+  >
     <option value="">없음</option>
     <option value="DAILY">매일</option>
     <option value="WEEKLY">매주</option>
@@ -701,85 +793,124 @@ const extractScheduleId = (res) => {
     style={inputStyle}
   />
 
-  {/* 반복 요일 */}
-  <label style={labelStyle}>반복 요일</label>
-<div style={{ display: 'flex', gap: '0.5rem' }}>
-  {['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'].map((day) => (
-    <label key={day} style={{ display: 'flex', alignItems: 'center' }}>
-      <input
-        type="checkbox"
-        name="byDay"
-        value={day}
-        checked={formData.recurrence.byDay.includes(day)}
-        onChange={handleRecurrenceChange} // 클릭 시 handleRecurrenceChange 호출
-        style={{ marginRight: '0.5rem' }}
-      />
-      {day}
-    </label>
-  ))}
-</div>
+  {/* 반복 규칙 */}
+  <label style={labelStyle}>반복 규칙</label>
+
+  {/* ✅ MONTHLY: 상세 설정 모달로만 입력 */}
+  {formData.recurrence.freq === 'MONTHLY' && (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      <button type="button" onClick={openMonthlyRuleModal} style={subButton}>
+        매월 상세 설정
+      </button>
+
+      <span style={{ fontSize: '0.85rem', color: '#6b7280' }}>
+        {Array.isArray(formData.recurrence.byDay) && formData.recurrence.byDay.length > 0
+          ? `ByDay: ${formData.recurrence.byDay[0]}`
+          : formData.recurrence.byMonthDay
+            ? `ByMonthDay: ${formData.recurrence.byMonthDay}`
+            : '설정 없음'}
+      </span>
+
+      <button
+        type="button"
+        onClick={() => {
+          // ✅ 월 규칙 초기화
+          setFormData(prev => ({
+            ...prev,
+            recurrence: { ...prev.recurrence, byDay: [], byMonthDay: '' },
+          }));
+        }}
+        style={subButton}
+        title="월 반복 규칙 초기화"
+      >
+        초기화
+      </button>
+    </div>
+  )}
+
+  {/* ✅ WEEKLY: 요일 체크박스 */}
+  {formData.recurrence.freq === 'WEEKLY' && (
+    <div style={{ display: 'flex', gap: '0.5rem' }}>
+      {['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'].map((day) => (
+        <label key={day} style={{ display: 'flex', alignItems: 'center' }}>
+          <input
+            type="checkbox"
+            name="byDay"
+            value={day}
+            checked={Array.isArray(formData.recurrence.byDay) ? formData.recurrence.byDay.includes(day) : false}
+            onChange={handleRecurrenceChange}
+            style={{ marginRight: '0.5rem' }}
+          />
+          {day}
+        </label>
+      ))}
+    </div>
+  )}
+
+  {/* ✅ DAILY/없음: 요일 규칙 표시 안 함 (필요하면 안내문만) */}
+  {(formData.recurrence.freq === 'DAILY' || !formData.recurrence.freq) && (
+    <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+      {formData.recurrence.freq === 'DAILY' ? '매일 반복은 요일 설정이 필요 없습니다.' : ''}
+    </div>
+  )}
+
   {/* 반복 종료일 */}
-<label style={labelStyle}>반복 종료일</label>
-<input
-  type="datetime-local"
-  name="until"
-  value={formData.recurrence.until || ''}
-  onChange={handleRecurrenceChange}
-  style={inputStyle}
-/>
-{/* 반복 예외 날짜 선택 */}
-{formData.recurrence.until && (
-  <div style={sectionStyle}>
-    <label style={labelStyle}>❌ 반복 예외 날짜 선택</label>
-    <p style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '0.5rem' }}>
-      반복 기간 중 제외할 날짜를 선택하세요.
-    </p>
+  <label style={labelStyle}>반복 종료일</label>
+  <input
+    type="datetime-local"
+    name="until"
+    value={formData.recurrence.until || ''}
+    onChange={handleRecurrenceChange}
+    style={inputStyle}
+  />
 
-    <input
-      type="date"
-      onChange={(e) => {
-        const d = e.target.value;
-        if (!d) return;
+  {/* 반복 예외 날짜 선택 */}
+  {formData.recurrence.until && (
+    <div style={sectionStyle}>
+      <label style={labelStyle}>❌ 반복 예외 날짜 선택</label>
+      <p style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '0.5rem' }}>
+        반복 기간 중 제외할 날짜를 선택하세요.
+      </p>
 
-        setExceptionDates(prev =>
-          prev.includes(d) ? prev : [...prev, d]
-        );
-      }}
-      style={inputStyle}
-    />
+      <input
+        type="date"
+        onChange={(e) => {
+          const d = e.target.value;
+          if (!d) return;
+          setExceptionDates(prev => (prev.includes(d) ? prev : [...prev, d]));
+        }}
+        style={inputStyle}
+      />
 
-    {/* 선택된 예외 날짜 리스트 */}
-    {exceptionDates.length > 0 && (
-      <ul style={{ marginTop: '0.5rem' }}>
-        {exceptionDates.map((d, i) => (
-          <li
-            key={i}
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              background: '#f9fafb',
-              padding: '4px 8px',
-              borderRadius: 6,
-              marginBottom: 4
-            }}
-          >
-            <span>{d}</span>
-            <button
-              type="button"
-              onClick={() =>
-                setExceptionDates(prev => prev.filter(x => x !== d))
-              }
-              style={{ ...iconButton, color: '#ef4444' }}
+      {exceptionDates.length > 0 && (
+        <ul style={{ marginTop: '0.5rem' }}>
+          {exceptionDates.map((d, i) => (
+            <li
+              key={i}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                background: '#f9fafb',
+                padding: '4px 8px',
+                borderRadius: 6,
+                marginBottom: 4,
+              }}
             >
-              삭제
-            </button>
-          </li>
-        ))}
-      </ul>
-    )}
-  </div>
-)}
+              <span>{d}</span>
+              <button
+                type="button"
+                onClick={() => setExceptionDates(prev => prev.filter(x => x !== d))}
+                style={{ ...iconButton, color: '#ef4444' }}
+              >
+                삭제
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )}
 </div>
 
           {/* 리마인더 */}
@@ -936,6 +1067,64 @@ const extractScheduleId = (res) => {
             <button type="submit" style={saveButton}>저장</button>
           </div>
         </form>
+        {/* ✅ MONTHLY RULE MODAL */}
+{isMonthlyRuleOpen && (
+  <div style={{ ...overlayStyle, zIndex: 1100 }}>
+    <div style={{ ...modalStyle, width: 420 }}>
+      <h3 style={{ marginBottom: 12 }}>매월 반복 상세 설정</h3>
+
+      <label style={labelStyle}>ByDay (±숫자) — 예: 1, 2, -1</label>
+      <input
+        type="number"
+        value={monthlyOrdinal}
+        onChange={(e) => {
+          const v = e.target.value;
+          setMonthlyOrdinal(v);
+          if (v !== '') setMonthlyMonthDay(''); // ByDay 입력 시 ByMonthDay 비움
+        }}
+        placeholder="예: 1 (첫째), -1 (마지막)"
+        style={inputStyle}
+      />
+
+      <label style={labelStyle}>요일 선택</label>
+      <select
+        value={monthlyWeekday}
+        onChange={(e) => setMonthlyWeekday(e.target.value)}
+        style={inputStyle}
+        disabled={monthlyOrdinal.trim() === ''} // ByDay 숫자 있을 때만 의미 있음
+      >
+        <option value="MO">월</option>
+        <option value="TU">화</option>
+        <option value="WE">수</option>
+        <option value="TH">목</option>
+        <option value="FR">금</option>
+        <option value="SA">토</option>
+        <option value="SU">일</option>
+      </select>
+
+      <hr style={{ margin: '12px 0' }} />
+
+      <label style={labelStyle}>ByMonthDay (날짜) — ByDay가 비어 있을 때만</label>
+      <input
+        type="number"
+        value={monthlyMonthDay}
+        onChange={(e) => setMonthlyMonthDay(e.target.value)}
+        placeholder="1~31"
+        style={inputStyle}
+        disabled={monthlyOrdinal.trim() !== ''} // ByDay 우선이므로 막기
+      />
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
+        <button type="button" onClick={() => setIsMonthlyRuleOpen(false)} style={cancelButton}>
+          닫기
+        </button>
+        <button type="button" onClick={saveMonthlyRule} style={saveButton}>
+          저장
+        </button>
+      </div>
+    </div>
+  </div>
+)}
       </div>
     </div>
   );

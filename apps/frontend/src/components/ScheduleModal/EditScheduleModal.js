@@ -56,15 +56,19 @@ export default function EditScheduleModal({ isOpen, onClose, eventData }) {
   } = useSchedules();
 
   // ✅ 1) scheduleId는 eventData에서 먼저 확보
-  const scheduleId =
-    eventData?.scheduleId ??
-    eventData?.id ??
-    eventData?.extendedProps?.scheduleId;
+const scheduleId =
+  eventData?.scheduleId ??
+  eventData?.id ??
+  eventData?.extendedProps?.scheduleId ??
+  eventData?.extendedProps?.id ??
+  eventData?._def?.publicId ??
+  eventData?._def?.extendedProps?.scheduleId ??
+  eventData?._def?.extendedProps?.id;
 
-  useEffect(() => {
-    console.log('🆔 [Modal] scheduleId =', scheduleId);
-  }, [scheduleId]);
-
+useEffect(() => {
+  console.log('🧩 [EditModal] eventData =', eventData);
+  console.log('🆔 [EditModal] scheduleId =', scheduleId);
+}, [eventData, scheduleId]);
   // ✅ 2) 모달 열릴 때마다 상세조회 강제 호출
   useEffect(() => {
     if (!isOpen) return;
@@ -109,17 +113,24 @@ export default function EditScheduleModal({ isOpen, onClose, eventData }) {
   const [newReminder, setNewReminder] = useState('none');
   const [placeSearchResults, setPlaceSearchResults] = useState([]);
   const [isSearchingPlace, setIsSearchingPlace] = useState(false);
+  const [isMonthlyRuleOpen, setIsMonthlyRuleOpen] = useState(false);
+  const [monthlyOrdinal, setMonthlyOrdinal] = useState('');   // 예: 1, 2, -1 (비면 byMonthday 사용)
+  const [monthlyWeekday, setMonthlyWeekday] = useState('MO'); // MO~SU
+  const [monthlyMonthDay, setMonthlyMonthDay] = useState(''); // 1~31
 
-// ✅ links
+const unwrapData = (res) => {
+  const body = res?.data ?? res;       // axios vs fetch
+  return body?.data ?? body;           // wrapper(data) vs plain
+};
+
+  // ✅ links
 const loadLinks = useCallback(async () => {
   if (!scheduleId) return;
 
   const res = await ApiService.getScheduleLinks(scheduleId);
-  console.log('🌐 loadLinks raw res:', res);
+  const data = unwrapData(res);
 
-  const list = Array.isArray(res?.data?.scheduleLinkDtos)
-    ? res.data.scheduleLinkDtos
-    : [];
+  const list = Array.isArray(data?.scheduleLinkDtos) ? data.scheduleLinkDtos : [];
   setLinks(list);
 }, [scheduleId]);
 
@@ -127,9 +138,9 @@ const loadTodos = useCallback(async () => {
   if (!scheduleId) return;
 
   const res = await ApiService.listTodos(scheduleId);
-  console.log('🧾 loadTodos raw res:', res);
+  const data = unwrapData(res);
 
-  const list = Array.isArray(res?.data) ? res.data : [];
+  const list = Array.isArray(data) ? data : [];
   list.sort((a, b) => (a.orderNo ?? 0) - (b.orderNo ?? 0));
   setTodoPage({ content: list });
 }, [scheduleId]);
@@ -143,6 +154,73 @@ const loadTodos = useCallback(async () => {
     default: return null;
   }
 };
+
+const openMonthlyRuleModal = () => {
+  const r = editingRecurrence;
+  if (!r) return;
+
+  // 월-주차: byDay[0]이 "1MO" 또는 "-1FR" 형태면 파싱
+  const v = Array.isArray(r.byDay) ? r.byDay[0] : null;
+  const m = typeof v === 'string' ? v.match(/^(-?\d+)(MO|TU|WE|TH|FR|SA|SU)$/) : null;
+
+  if (m) {
+    setMonthlyOrdinal(m[1]);
+    setMonthlyWeekday(m[2]);
+    setMonthlyMonthDay('');
+  } else {
+    setMonthlyOrdinal('');
+    setMonthlyWeekday('MO');
+    // ✅ byMonthday는 배열
+    const md = Array.isArray(r.byMonthday) && r.byMonthday.length ? String(r.byMonthday[0]) : '';
+    setMonthlyMonthDay(md);
+  }
+
+  setIsMonthlyRuleOpen(true);
+};
+
+const saveMonthlyRule = () => {
+  const ord = String(monthlyOrdinal ?? '').trim();
+  const md  = String(monthlyMonthDay ?? '').trim();
+
+  // 1) ByDay 우선: 1MO / -1FR
+  if (ord !== '') {
+    const n = Number(ord);
+    if (!Number.isInteger(n) || n === 0 || n < -5 || n > 5) {
+      alert('ByDay 숫자는 -5 ~ -1 또는 1 ~ 5 형태로 입력하세요. (0 불가)');
+      return;
+    }
+
+    setEditingRecurrence(prev => ({
+      ...prev,
+      byDay: [`${n}${monthlyWeekday}`],
+      byMonthday: [], // ✅ monthday 비움
+    }));
+
+    setIsMonthlyRuleOpen(false);
+    return;
+  }
+
+  // 2) ByMonthday: [15]
+  if (md !== '') {
+    const d = Number(md);
+    if (!Number.isInteger(d) || d < 1 || d > 31) {
+      alert('ByMonthday는 1~31 날짜로 입력하세요.');
+      return;
+    }
+
+    setEditingRecurrence(prev => ({
+      ...prev,
+      byDay: [],
+      byMonthday: [d], // ✅ 배열로 저장
+    }));
+
+    setIsMonthlyRuleOpen(false);
+    return;
+  }
+
+  alert('ByDay(±숫자) 또는 ByMonthday(날짜) 중 하나는 입력해야 합니다.');
+};
+
 
 const handleAddReminder = async () => {
   const minutes = reminderSelectToMinutes(newReminder);
@@ -214,23 +292,80 @@ const handleEditPlace = async (p) => {
     setPlacePage({ content });
   }, [scheduleId]);
 
-  const loadRecurrences = useCallback(async () => {
+const loadRecurrences = useCallback(async () => {
+  if (!scheduleId) return;
+
   try {
-    const res = await ApiService.getRecurrences(scheduleId);
-    const list = res?.data ?? [];
-     console.log("🔍 [loadRecurrences] 서버 응답 list:", list);
+    const listRes = await ApiService.getRecurrences(scheduleId);
+    const raw = unwrapData(listRes);
+
+    const list = Array.isArray(raw) ? raw : Array.isArray(raw?.content) ? raw.content : [];
     setRecurrenceList(list);
-   console.log("🔍 [loadRecurrences] setRecurrenceList 후 state:", list);
-   if (list.length > 0) {
-        setEditingRecurrence(list[0]);
-      } else {
-        setEditingRecurrence(null);
-        setExceptionList([]); // 반복 없으면 예외도 없음
-      }
-    } catch (err) {
-      console.error("반복 조회 실패", err);
+
+    const first = list.length ? list[0] : null;
+    const recurrenceId = first?.recurrenceId;
+
+    if (!recurrenceId) {
+      setEditingRecurrence(null);
+      setExceptionList([]);
+      return;
     }
-  }, [scheduleId]);
+
+    const detailRes = await ApiService.getRecurrenceDetail(scheduleId, recurrenceId);
+    const dto = unwrapData(detailRes);
+
+    setEditingRecurrence({
+      recurrenceId: dto.recurrenceId,
+      freq: dto.freq ?? 'DAILY',
+      intervalCount: dto.intervalCount ?? 1,
+      byDay: Array.isArray(dto.byDay) ? dto.byDay : [],
+      byMonthday: Array.isArray(dto.byMonthday) ? dto.byMonthday : [],
+      byMonth: Array.isArray(dto.byMonth) ? dto.byMonth : [],
+      until: dto.until ? toLocalInputValue(dto.until) : '',
+    });
+  } catch (err) {
+    console.error('반복 조회 실패', err);
+  }
+}, [scheduleId]);
+
+
+const buildRecurrencePutBody = () => {
+  const freq = editingRecurrence?.freq || null;
+  const intervalCount = Number(editingRecurrence?.intervalCount) || 1;
+
+  // datetime-local -> ISO
+  const untilISO = editingRecurrence?.until
+    ? localInputToISO(editingRecurrence.until)
+    : null;
+
+  // 예외 날짜는 PUT 명세에 'exceptions' (날짜 문자열 배열)
+  const exceptions = (exceptionList || [])
+    .map(ex => ex?.exceptionDate ?? ex)
+    .filter(Boolean);
+
+  const body = {
+    freq,
+    intervalCount,
+    byDay: [],
+    byMonthday: [],
+    byMonth: [],
+    until: untilISO,
+    exceptions,
+  };
+
+  if (freq === 'WEEKLY') {
+    body.byDay = Array.isArray(editingRecurrence?.byDay) ? editingRecurrence.byDay : [];
+  }
+
+  if (freq === 'MONTHLY') {
+    body.byDay = Array.isArray(editingRecurrence?.byDay) ? editingRecurrence.byDay : [];
+    body.byMonthday = Array.isArray(editingRecurrence?.byMonthday) ? editingRecurrence.byMonthday : [];
+  }
+
+  // DAILY면 byDay/byMonthday 비워둔 채로 OK
+  return body;
+};
+
 
 const loadExceptions = useCallback(async () => {
   if (!editingRecurrence) return;
@@ -255,11 +390,12 @@ const loadReminders = useCallback(async () => {
   if (!scheduleId) return;
 
   const res = await ApiService.listReminders(scheduleId);
-  console.log('⏰ loadReminders raw res:', res);
+  const data = unwrapData(res);
 
-  const list = Array.isArray(res?.data) ? res.data : [];
+  const list = Array.isArray(data) ? data : [];
   setReminders(list);
 }, [scheduleId]);
+
 
 const updateRecurrence = async (scheduleId, recurrenceId, recurrenceData) => {
   try {
@@ -842,24 +978,21 @@ return (
       style={inputStyle}
     />
 
+    {/* ✅ WEEKLY: 요일 체크박스 */}
+{editingRecurrence.freq === 'WEEKLY' && (
+  <>
     <label style={labelStyle}>반복 요일</label>
     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
       {['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'].map((day) => (
         <label key={day} style={{ display: 'flex', alignItems: 'center' }}>
           <input
             type="checkbox"
-            name="byDay"
-            value={day}
-            checked={editingRecurrence.byDay?.includes(day)}
+            checked={Array.isArray(editingRecurrence.byDay) ? editingRecurrence.byDay.includes(day) : false}
             onChange={() => {
               setEditingRecurrence(prev => {
-                const exists = prev.byDay.includes(day);
-                return {
-                  ...prev,
-                  byDay: exists
-                    ? prev.byDay.filter(d => d !== day)
-                    : [...prev.byDay, day]
-                };
+                const cur = Array.isArray(prev.byDay) ? prev.byDay : [];
+                const exists = cur.includes(day);
+                return { ...prev, byDay: exists ? cur.filter(d => d !== day) : [...cur, day] };
               });
             }}
             style={{ marginRight: '0.5rem' }}
@@ -868,6 +1001,44 @@ return (
         </label>
       ))}
     </div>
+  </>
+)}
+
+{/* ✅ MONTHLY: 상세 설정 모달 */}
+{editingRecurrence.freq === 'MONTHLY' && (
+  <>
+    <label style={labelStyle}>반복 규칙</label>
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      <button type="button" onClick={openMonthlyRuleModal} style={subButton}>
+        매월 상세 설정
+      </button>
+
+      <span style={{ fontSize: '0.85rem', color: '#6b7280' }}>
+        {Array.isArray(editingRecurrence.byDay) && editingRecurrence.byDay.length > 0
+          ? `ByDay: ${editingRecurrence.byDay[0]}`
+          : Array.isArray(editingRecurrence.byMonthday) && editingRecurrence.byMonthday.length > 0
+            ? `ByMonthday: ${editingRecurrence.byMonthday[0]}`
+            : '설정 없음'}
+      </span>
+
+      <button
+        type="button"
+        onClick={() => setEditingRecurrence(prev => ({ ...prev, byDay: [], byMonthday: [] }))}
+        style={subButton}
+      >
+        초기화
+      </button>
+    </div>
+  </>
+)}
+
+{/* ✅ DAILY: 요일/월 규칙 없음 */}
+{editingRecurrence.freq === 'DAILY' && (
+  <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+    매일 반복은 별도 규칙 입력이 필요 없습니다.
+  </div>
+)}
+
 
     <label style={labelStyle}>반복 종료일</label>
     <input
@@ -902,37 +1073,31 @@ return (
   )}
 </div>
 
-    {/* 저장 버튼 */}
-    <button
+<button
   type="button"
   style={{ ...subButton, background: '#3b82f6', color: '#fff', marginTop: 8 }}
-  onClick={() => {
-    if (!editingRecurrence.freq) {
-  alert('반복 유형을 선택하세요.');
-  return;
-}
-    const fixedData = {
-  freq: editingRecurrence.freq,
-  intervalCount: editingRecurrence.intervalCount,
-  byDay: editingRecurrence.byDay?.length ? editingRecurrence.byDay : null,
-  until: editingRecurrence.until
-    ? toValidISO(editingRecurrence.until)
-    : null,
-};
-    updateRecurrence(
-      scheduleId,
-      editingRecurrence.recurrenceId,
-      fixedData
-    );
-    
-    setIsRecurrenceEditing(false);
+  onClick={async () => {
+    if (!editingRecurrence?.recurrenceId) return alert('recurrenceId가 없습니다.');
+    if (!editingRecurrence?.freq) return alert('반복 유형을 선택하세요.');
+
+    try {
+      const body = buildRecurrencePutBody();
+      await ApiService.updateRecurrence(scheduleId, editingRecurrence.recurrenceId, body);
+
+      alert('반복이 수정되었습니다.');
+      await loadRecurrences();          // ✅ scheduleId 인자 넣지 말고 (함수 시그니처가 없음)
+      setIsRecurrenceEditing(false);
+    } catch (err) {
+      console.error('반복 수정 실패:', err);
+      alert('반복 수정 실패');
+    }
   }}
 >
   저장
 </button>
+
   </div>
 )}
-
       {/* 삭제 버튼 */}
       <button
         type="button"
@@ -941,10 +1106,9 @@ return (
   if (!window.confirm("반복을 삭제할까요?")) return;
 
   // 🔥 최신값 보장
-  await loadRecurrences(scheduleId);
-  console.log("🧪 삭제 후 다시 불러온 recurrenceList:", recurrenceList);
-
-  const target = editingRecurrence || recurrenceList[0];
+await loadRecurrences(scheduleId);
+console.log(recurrenceList); // <- 여기 stale 가능
+const target = editingRecurrence || recurrenceList[0];
   if (!target || !target.recurrenceId) {
     alert("반복 정보를 찾을 수 없습니다.");
     return;
@@ -1200,6 +1364,56 @@ return (
  
             </div>
           </form>
+          {/* ✅ MONTHLY RULE MODAL */}
+{isMonthlyRuleOpen && (
+  <div style={{ ...overlayStyle, zIndex: 1100 }}>
+    <div style={{ ...modalStyle, width: 420 }}>
+      <h3 style={{ marginBottom: 12 }}>매월 반복 상세 설정</h3>
+
+      <label style={labelStyle}>ByDay (±숫자) — 예: 1, 2, -1</label>
+      <input
+        type="number"
+        value={monthlyOrdinal}
+        onChange={(e) => {
+          const v = e.target.value;
+          setMonthlyOrdinal(v);
+          if (String(v).trim() !== '') setMonthlyMonthDay('');
+        }}
+        placeholder="예: 1(첫째), -1(마지막)"
+        style={inputStyle}
+      />
+
+      <label style={labelStyle}>요일</label>
+      <select
+        value={monthlyWeekday}
+        onChange={(e) => setMonthlyWeekday(e.target.value)}
+        style={inputStyle}
+        disabled={String(monthlyOrdinal).trim() === ''}
+      >
+        <option value="MO">월</option><option value="TU">화</option><option value="WE">수</option>
+        <option value="TH">목</option><option value="FR">금</option><option value="SA">토</option><option value="SU">일</option>
+      </select>
+
+      <hr style={{ margin: '12px 0' }} />
+
+      <label style={labelStyle}>ByMonthday (날짜) — ByDay가 비어 있을 때</label>
+      <input
+        type="number"
+        value={monthlyMonthDay}
+        onChange={(e) => setMonthlyMonthDay(e.target.value)}
+        placeholder="1~31"
+        style={inputStyle}
+        disabled={String(monthlyOrdinal).trim() !== ''}
+      />
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
+        <button type="button" onClick={() => setIsMonthlyRuleOpen(false)} style={cancelButton}>닫기</button>
+        <button type="button" onClick={saveMonthlyRule} style={saveButton}>저장</button>
+      </div>
+    </div>
+  </div>
+)}
+
         </>
       )}
     </div>
