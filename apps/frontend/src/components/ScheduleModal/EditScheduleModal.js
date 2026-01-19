@@ -47,10 +47,38 @@ const linkStyle = {
 };
 
 export default function EditScheduleModal({ isOpen, onClose, eventData }) {
- const { updateSchedule, fetchScheduleDetail, scheduleDetail, clearScheduleDetail } = useSchedules();
- const scheduleId = scheduleDetail?.id;
+  const {
+    updateSchedule,
+    fetchScheduleDetail,
+    scheduleDetail,
+    scheduleDetailLoading,
+    clearScheduleDetail,
+  } = useSchedules();
 
+  // ✅ 1) scheduleId는 eventData에서 먼저 확보
+  const scheduleId =
+    eventData?.scheduleId ??
+    eventData?.id ??
+    eventData?.extendedProps?.scheduleId;
 
+  useEffect(() => {
+    console.log('🆔 [Modal] scheduleId =', scheduleId);
+  }, [scheduleId]);
+
+  // ✅ 2) 모달 열릴 때마다 상세조회 강제 호출
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!scheduleId) return;
+
+    fetchScheduleDetail(scheduleId);
+  }, [isOpen, scheduleId, fetchScheduleDetail]);
+
+  // ✅ 3) 닫힐 때 상세 초기화
+  useEffect(() => {
+    if (!isOpen) {
+      clearScheduleDetail();
+    }
+  }, [isOpen, clearScheduleDetail]);
   // ========== 상태 ==========
   const [formData, setFormData] = useState({
     title: '',
@@ -82,22 +110,29 @@ export default function EditScheduleModal({ isOpen, onClose, eventData }) {
   const [placeSearchResults, setPlaceSearchResults] = useState([]);
   const [isSearchingPlace, setIsSearchingPlace] = useState(false);
 
-  const loadLinks = useCallback(async (scheduleId) => {
-  try {
-    const res = await ApiService.getScheduleLinks(scheduleId);
-     setLinks(res?.data?.scheduleLinkDtos || []);
-  } catch (error) {
-  }
-}, []);
+// ✅ links
+const loadLinks = useCallback(async () => {
+  if (!scheduleId) return;
 
-  const loadTodos = useCallback(async (id) => {
-    const res = await ApiService.listTodos(id, 0, 50);
-     console.log('🧾 loadTodos raw res:', res);
-    const data = res?.data ?? res;
-   
-    const content = Array.isArray(data?.content) ? data.content : data;
-    setTodoPage({ content });
-  }, []);
+  const res = await ApiService.getScheduleLinks(scheduleId);
+  console.log('🌐 loadLinks raw res:', res);
+
+  const list = Array.isArray(res?.data?.scheduleLinkDtos)
+    ? res.data.scheduleLinkDtos
+    : [];
+  setLinks(list);
+}, [scheduleId]);
+
+const loadTodos = useCallback(async () => {
+  if (!scheduleId) return;
+
+  const res = await ApiService.listTodos(scheduleId);
+  console.log('🧾 loadTodos raw res:', res);
+
+  const list = Array.isArray(res?.data) ? res.data : [];
+  list.sort((a, b) => (a.orderNo ?? 0) - (b.orderNo ?? 0));
+  setTodoPage({ content: list });
+}, [scheduleId]);
 
   const reminderSelectToMinutes = (v) => {
   switch (v) {
@@ -215,16 +250,16 @@ const loadExceptions = useCallback(async () => {
 }, [scheduleId, editingRecurrence]);
 
 
-  // 리마인더 목록 조회
-const loadReminders = useCallback(async (scheduleId) => {
-  try {
-    const res = await ApiService.listReminders(scheduleId);
-    console.log('⏰ loadReminders raw res:', res);
-    setReminders(res.data || []);
-  } catch (error) {
-    console.error('리마인더 조회 실패:', error);
-  }
-}, []);
+// ✅ reminders
+const loadReminders = useCallback(async () => {
+  if (!scheduleId) return;
+
+  const res = await ApiService.listReminders(scheduleId);
+  console.log('⏰ loadReminders raw res:', res);
+
+  const list = Array.isArray(res?.data) ? res.data : [];
+  setReminders(list);
+}, [scheduleId]);
 
 const updateRecurrence = async (scheduleId, recurrenceId, recurrenceData) => {
   try {

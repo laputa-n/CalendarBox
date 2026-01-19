@@ -153,9 +153,51 @@ try {
     }
 
      // 1️⃣ 일정 생성
+// 1️⃣ 일정 생성
 const res = await createSchedule(payload);
 const newId = extractScheduleId(res);
+
+console.log('✅ [CREATE] createSchedule res =', res);
+console.log('✅ [CREATE] newId =', newId);
+
 if (!newId) throw new Error('일정 생성 응답에 id가 없습니다.');
+
+// 2️⃣ 투두 저장 (Swagger: POST /api/schedules/{id}/todos { content })
+if (Array.isArray(formData.todos) && formData.todos.length > 0) {
+  for (const t of formData.todos) {
+    const content = (t?.content ?? '').trim();
+    if (!content) continue;
+
+    console.log('➡️ [TODO POST] scheduleId=', newId, 'content=', content);
+    const todoRes = await ApiService.addTodo(newId, content);
+    console.log('⬅️ [TODO POST] res=', todoRes);
+  }
+}
+
+// 3️⃣ 리마인더 저장 (Swagger: POST /api/schedules/{id}/reminders { minutesBefore })
+if (Array.isArray(formData.reminders) && formData.reminders.length > 0) {
+  for (const r of formData.reminders) {
+    const minutes = Number(r?.minutesBefore);
+    if (!Number.isFinite(minutes)) continue;
+
+    console.log('➡️ [REMINDER POST] scheduleId=', newId, 'minutesBefore=', minutes);
+    const remRes = await ApiService.createReminder(newId, minutes);
+    console.log('⬅️ [REMINDER POST] res=', remRes);
+  }
+}
+
+// 4️⃣ 링크 저장 (Swagger: POST /api/schedules/{id}/links { url, label })
+if (Array.isArray(formData.links) && formData.links.length > 0) {
+  for (const l of formData.links) {
+    const url = (l?.url ?? '').trim();
+    if (!url) continue;
+    const label = (l?.label ?? url).trim();
+
+    console.log('➡️ [LINK POST] scheduleId=', newId, { url, label });
+    const linkRes = await ApiService.createScheduleLink(newId, { url, label });
+    console.log('⬅️ [LINK POST] res=', linkRes);
+  }
+}
 
 // 2️⃣ 지출 생성 (세부 항목 있을 때만)
 if (expenseName && expenseLines.length > 0) {
@@ -396,15 +438,19 @@ const handleAddPlace = async () => {
     setFormData(prev => ({ ...prev, places: arr }));
   };
 
-  // ====== 제출(생성) ======
-  const extractScheduleId = (res) => {
-    if (!res) return undefined;
-    if (res?.data?.id) return res.data.id;
-    if (res?.id) return res.id;
-    if (res?.data?.scheduleId) return res.data.scheduleId;
-    if (res?.scheduleId) return res.scheduleId;
-    return undefined;
-  };
+const extractScheduleId = (res) => {
+  if (!res) return undefined;
+  if (res?.scheduleId) return res.scheduleId;
+  if (res?.id) return res.id;
+  if (res?.data?.scheduleId) return res.data.scheduleId;
+  if (res?.data?.id) return res.data.id;
+  if (res?.data?.data?.scheduleId) return res.data.data.scheduleId; // axios 형태 대비
+  if (res?.data?.data?.id) return res.data.data.id;
+  return undefined;
+};
+
+
+  
 
   if (!isOpen) return null;
 
