@@ -118,10 +118,10 @@ useEffect(() => {
   const [monthlyWeekday, setMonthlyWeekday] = useState('MO'); // MO~SU
   const [monthlyMonthDay, setMonthlyMonthDay] = useState(''); // 1~31
 
-const unwrapData = (res) => {
-  const body = res?.data ?? res;       // axios vs fetch
-  return body?.data ?? body;           // wrapper(data) vs plain
-};
+const unwrapData = useCallback((res) => {
+  const body = res?.data ?? res;   // axios vs fetch
+  return body?.data ?? body;       // wrapper(data) vs plain
+}, []);
 
   // ✅ links
 const loadLinks = useCallback(async () => {
@@ -594,43 +594,57 @@ const {
     await loadAttachments();
   };
 
-  // ========== 지출 조회 ==========
+// ✅ EditScheduleModal 내부에 추가 (unwrapData는 이미 있음)
+const reloadExpenseSummary = useCallback(async () => {
+  if (!scheduleId) return;
+
+  try {
+    // 1) 지출 목록
+    const res = await ApiService.listExpenses(scheduleId);
+    const raw = unwrapData(res);
+
+    const expenseList = Array.isArray(raw?.content)
+      ? raw.content
+      : Array.isArray(raw)
+        ? raw
+        : [];
+
+    const first = expenseList[0];
+    if (!first?.expenseId) {
+      setExpense(null);
+      setLines([]);
+      return;
+    }
+
+    // 2) 지출 상세 (선택사항: 서버가 lines 포함 안할 수도 있어)
+    const detailRes = await ApiService.getExpenseDetail(scheduleId, first.expenseId);
+    const detail = unwrapData(detailRes);
+    setExpense(detail);
+
+    // 3) ✅ 라인 목록은 GET /expenses/{expenseId}/lines 로 확실히 가져오기
+    const linesRes = await ApiService.listExpenseLines(first.expenseId);
+    const linesRaw = unwrapData(linesRes);
+
+    const lineList = Array.isArray(linesRaw?.lines)
+      ? linesRaw.lines
+      : Array.isArray(linesRaw?.content)
+        ? linesRaw.content
+        : Array.isArray(linesRaw)
+          ? linesRaw
+          : [];
+
+    setLines(lineList);
+  } catch (err) {
+    console.error('지출 재조회 실패:', err);
+  }
+}, [scheduleId, unwrapData]);
+
+// ✅ 기존 "지출 조회 useEffect"를 이걸로 교체
 useEffect(() => {
   if (!isOpen || !scheduleId) return;
+  reloadExpenseSummary();
+}, [isOpen, scheduleId, reloadExpenseSummary]);
 
-  const loadExpense = async () => {
-    try {
-      // 1️⃣ 지출 목록
-      const res = await ApiService.listExpenses(scheduleId);
-
-      const expenseList = res?.data?.content ?? [];
-      console.log('💰 expense list:', expenseList);
-
-      const firstExpense = expenseList[0];
-      if (!firstExpense) {
-        setExpense(null);
-        setLines([]);
-        return;
-      }
-
-      // 2️⃣ 지출 상세 (🔥 lines 포함)
-      const detailRes = await ApiService.getExpenseDetail(
-        scheduleId,
-        firstExpense.expenseId
-      );
-
-      const detail = detailRes?.data;
-      console.log('🧾 expense detail:', detail);
-
-      setExpense(detail);
-      setLines(detail.lines ?? []);
-    } catch (err) {
-      console.error('지출 조회 실패:', err);
-    }
-  };
-
-  loadExpense();
-}, [isOpen, scheduleId]);
 
 // 🔁 투두 재정렬
 const handleMoveTodo = async (index, direction) => {
@@ -1230,27 +1244,14 @@ const target = editingRecurrence || recurrenceList[0];
     ))}
   </div>
 )}
-       <ExpenseModal
+<ExpenseModal
   isOpen={expenseModalOpen}
-  onClose={() => {
+  onClose={async () => {
     setExpenseModalOpen(false);
-    // 🔥 지출 다시 로드
-    ApiService.listExpenses(scheduleId).then(res => {
-      const e = res.data?.[0];
-      if (!e) {
-        setExpense(null);
-        setLines([]);
-        return;
-      }
-      setExpense(e);
-      ApiService.listExpenseLines(e.expenseId).then(r =>
-        setLines(r.data?.content ?? [])
-      );
-    });
+    await reloadExpenseSummary(); // ✅ 이것만
   }}
   scheduleId={scheduleId}
 />
-
 {/* 기존 첨부파일 */}
 <div style={sectionStyle}>
   <label style={labelStyle}>📂 기존 첨부파일</label>

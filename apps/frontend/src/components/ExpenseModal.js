@@ -1,5 +1,5 @@
 // src/components/ExpenseModal.js
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { ApiService } from '../services/apiService';
 
 const overlayStyle = {
@@ -21,25 +21,64 @@ const btn = {
 };
 const btnPrimary = { ...btn, background: '#2563eb', color: '#fff' };
 const btnDanger = { ...btn, background: '#ef4444', color: '#fff' };
+const btnGhost = { ...btn, background: '#f3f4f6', color: '#111' };
+
 const listRow = {
-  display: 'grid', gridTemplateColumns: '1fr 120px 180px 96px', gap: 8,
+  display: 'grid', gridTemplateColumns: '1fr 120px 180px 160px', gap: 8,
   alignItems: 'center', background: '#f9fafb', padding: '8px 10px', borderRadius: 10,
 };
 
+const lineRow = {
+  display: 'grid', gridTemplateColumns: '1fr 120px 180px', gap: 8,
+  alignItems: 'center', background: '#f8fafc', padding: '8px 10px', borderRadius: 10,
+};
+
 export default function ExpenseModal({ isOpen, onClose, scheduleId }) {
+  const unwrapData = useCallback((res) => {
+    const body = res?.data ?? res;
+    return body?.data ?? body;
+  }, []);
+
   const [loading, setLoading] = useState(false);
   const [pageData, setPageData] = useState({ count: 0, expenses: [] });
 
-  // 등록 폼
+  // 등록 폼(기존)
   const [name, setName] = useState('');
-  const [amount, setAmount] = useState(''); // string로 받아서 parseInt
-  const [paidAt, setPaidAt] = useState(''); // datetime-local
-  const [receiptFile, setReceiptFile] = useState(null); // 영수증(옵션)
+  const [amount, setAmount] = useState('');
+  const [paidAt, setPaidAt] = useState('');
+  const [receiptFile, setReceiptFile] = useState(null);
+
+  // ✅ 선택된 지출 + 라인
+  const [selectedExpenseId, setSelectedExpenseId] = useState(null);
+  const [loadingLines, setLoadingLines] = useState(false);
+  const [lines, setLines] = useState([]);
+
+  // ✅ 라인 추가/수정
+  const [newLineLabel, setNewLineLabel] = useState('');
+  const [newLineAmount, setNewLineAmount] = useState('');
+
+  const [editingLineId, setEditingLineId] = useState(null);
+  const [editingLineLabel, setEditingLineLabel] = useState('');
+  const [editingLineAmount, setEditingLineAmount] = useState('');
+
+  // ✅ 상위 expense 수정 상태
+  const [editingExpenseId, setEditingExpenseId] = useState(null);
+  const [editingExpenseName, setEditingExpenseName] = useState('');
+  const [editingExpenseAmount, setEditingExpenseAmount] = useState('');
+  const [editingExpensePaidAt, setEditingExpensePaidAt] = useState('');
 
   const totalAmount = useMemo(
     () => (pageData.expenses || []).reduce((sum, e) => sum + (Number(e.amount) || 0), 0),
     [pageData.expenses]
   );
+
+  const selectedExpense = useMemo(() => {
+    return (pageData.expenses || []).find(e => e.expenseId === selectedExpenseId) ?? null;
+  }, [pageData.expenses, selectedExpenseId]);
+
+  const linesTotal = useMemo(() => {
+    return (lines || []).reduce((sum, l) => sum + (Number(l.lineAmount) || 0), 0);
+  }, [lines]);
 
   const resetForm = () => {
     setName('');
@@ -48,18 +87,28 @@ export default function ExpenseModal({ isOpen, onClose, scheduleId }) {
     setReceiptFile(null);
   };
 
+  // ====== 조회 ======
   const loadExpenses = async () => {
     if (!scheduleId) return;
     setLoading(true);
     try {
-      // GET /api/schedules/{scheduleId}/expenses
       const res = await ApiService.listExpenses(scheduleId);
-      // 명세: data: { count, expenses: [] }
-      const data = res?.data ?? res; // 래핑 대비
-      setPageData({
-        count: data?.data?.count ?? data?.count ?? 0,
-        expenses: data?.data?.expenses ?? data?.expenses ?? [],
-      });
+      const data = unwrapData(res);
+
+      const next = {
+        count: data?.count ?? 0,
+        expenses: data?.expenses ?? [],
+      };
+      setPageData(next);
+
+      // 선택 유지/정리
+      if (selectedExpenseId) {
+        const exists = (next.expenses || []).some(e => e.expenseId === selectedExpenseId);
+        if (!exists) {
+          setSelectedExpenseId(null);
+          setLines([]);
+        }
+      }
     } catch (err) {
       console.error('[expenses:list] error', err);
       alert('지출 목록을 불러오지 못했습니다.');
@@ -68,49 +117,46 @@ export default function ExpenseModal({ isOpen, onClose, scheduleId }) {
     }
   };
 
+  const loadLines = async (expenseId) => {
+    if (!expenseId) return;
+    setLoadingLines(true);
+    try {
+      const res = await ApiService.listExpenseLines(expenseId, 0, 200);
+      const data = unwrapData(res);
+
+      const list =
+        Array.isArray(data?.content) ? data.content :
+        Array.isArray(data?.lines) ? data.lines :
+        Array.isArray(data) ? data :
+        [];
+
+      setLines(list);
+    } catch (err) {
+      console.error('[lines:list] error', err);
+      alert('세부 목록을 불러오지 못했습니다.');
+      setLines([]);
+    } finally {
+      setLoadingLines(false);
+    }
+  };
+
   useEffect(() => {
     if (!isOpen) return;
     loadExpenses();
+    setSelectedExpenseId(null);
+    setLines([]);
+    setEditingLineId(null);
+    setEditingExpenseId(null);
   }, [isOpen]); // eslint-disable-line
-const handleCreate = async () => {
-  try {
-    // ✅ 1️⃣ 영수증 파일(OCR 자동 모드)
-    if (receiptFile && (!name || !amount)) {
-      console.log('[ExpenseModal] OCR 모드 - 영수증 업로드 시작:', receiptFile);
 
-      const presign = await ApiService.getPresignedUrl(scheduleId, receiptFile, true);
-      const { uploadId, objectKey, presignedUrl } = presign.data;
+  // ====== 생성 ======
+  const handleCreate = async (e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
 
-      await fetch(presignedUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': receiptFile.type },
-        body: receiptFile,
-        mode: 'cors',
-        credentials: 'omit',
-      });
-      console.log('[ExpenseModal] S3 업로드 완료:', { uploadId, objectKey });
-
-      const completeRes = await ApiService.completeUpload(uploadId, objectKey);
-      console.log('[ExpenseModal] OCR 완료 및 DB 반영 결과:', completeRes);
-
-      await loadExpenses();
-      resetForm();
-      alert('🧾 OCR 인식 요청이 완료되었습니다!');
-      return;
-    }
-
-    // ✅ 2️⃣ 수동 입력 모드 (name, amount 모두 있을 때)
-    if (name && amount) {
-      const payload = {
-        name,
-        amount: parseInt(amount, 10),
-        paidAt: paidAt ? new Date(paidAt).toISOString() : null,
-      };
-      const res = await ApiService.createExpense(scheduleId, payload);
-      console.log('[ExpenseModal] 수동 지출 등록 완료:', res);
-
-      // 선택적으로 영수증도 같이 업로드
-      if (receiptFile) {
+    try {
+      // 1) OCR 자동 모드: 영수증만 첨부했고 name/amount 비었을 때
+      if (receiptFile && (!name || !amount)) {
         const presign = await ApiService.getPresignedUrl(scheduleId, receiptFile, true);
         const { uploadId, objectKey, presignedUrl } = presign.data;
 
@@ -121,33 +167,214 @@ const handleCreate = async () => {
           mode: 'cors',
           credentials: 'omit',
         });
-        const completeRes = await ApiService.completeUpload(uploadId, objectKey);
-        console.log('[ExpenseModal] 수동 + 영수증 OCR 완료:', completeRes);
+
+        await ApiService.completeUpload(uploadId, objectKey, true);
+
+        await loadExpenses();
+        resetForm();
+        alert('🧾 OCR 인식 요청이 완료되었습니다!');
+        return;
       }
 
-      await loadExpenses();
-      resetForm();
-      alert('✅ 지출이 등록되었습니다.');
-      return;
+      // 2) 수동 입력 모드
+      if (name && amount) {
+        const payload = {
+          name,
+          amount: parseInt(amount, 10),
+          paidAt: paidAt ? new Date(paidAt).toISOString() : null,
+        };
+        await ApiService.createExpense(scheduleId, payload);
+
+        if (receiptFile) {
+          const presign = await ApiService.getPresignedUrl(scheduleId, receiptFile, true);
+          const { uploadId, objectKey, presignedUrl } = presign.data;
+
+          await fetch(presignedUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': receiptFile.type },
+            body: receiptFile,
+            mode: 'cors',
+            credentials: 'omit',
+          });
+
+          await ApiService.completeUpload(uploadId, objectKey, true);
+        }
+
+        await loadExpenses();
+        resetForm();
+        alert('✅ 지출이 등록되었습니다.');
+        return;
+      }
+
+      alert('지출명/금액을 입력하거나 영수증 파일을 첨부해주세요.');
+    } catch (err) {
+      console.error('[expenses:create] error', err);
+      alert('지출 등록에 실패했습니다.');
     }
+  };
 
-    // ✅ 3️⃣ 아무 입력도 없는 경우
-    alert('지출명/금액을 입력하거나 영수증 파일을 첨부해주세요.');
-  } catch (err) {
-    console.error('[expenses:create] error', err);
-    alert('지출 등록에 실패했습니다.');
-  }
-};
+  // ====== 삭제 ======
+  const handleDelete = async (expenseId, e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
 
-
-  const handleDelete = async (expenseId) => {
     if (!window.confirm('이 지출을 삭제할까요?')) return;
     try {
       await ApiService.deleteExpense(scheduleId, expenseId);
       await loadExpenses();
+      if (selectedExpenseId === expenseId) {
+        setSelectedExpenseId(null);
+        setLines([]);
+      }
+      if (editingExpenseId === expenseId) {
+        cancelEditExpense();
+      }
     } catch (err) {
       console.error('[expenses:delete] error', err);
       alert('삭제에 실패했습니다.');
+    }
+  };
+
+  // ====== 선택 ======
+  const handleSelectExpense = async (expenseId) => {
+    setSelectedExpenseId(expenseId);
+    setEditingLineId(null);
+    await loadLines(expenseId);
+  };
+
+  // ====== 상위 expense 수정 ======
+  const startEditExpense = (exp, e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+
+    setEditingExpenseId(exp.expenseId);
+    setEditingExpenseName(exp.name ?? '');
+    setEditingExpenseAmount(String(exp.amount ?? ''));
+    // paidAt은 datetime-local 값으로 보여줘야 해서 local 변환
+    if (exp.paidAt) {
+      const d = new Date(exp.paidAt);
+      const pad = (n) => String(n).padStart(2, '0');
+      const local = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      setEditingExpensePaidAt(local);
+    } else {
+      setEditingExpensePaidAt('');
+    }
+  };
+
+  const cancelEditExpense = (e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+
+    setEditingExpenseId(null);
+    setEditingExpenseName('');
+    setEditingExpenseAmount('');
+    setEditingExpensePaidAt('');
+  };
+
+  const handleUpdateExpense = async (expenseId, e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+
+    if (!expenseId) return;
+    if (!editingExpenseName.trim()) return alert('지출명을 입력하세요.');
+    const amt = Number(editingExpenseAmount);
+    if (!Number.isFinite(amt) || amt <= 0) return alert('금액을 올바르게 입력하세요.');
+
+    try {
+      await ApiService.updateExpense(scheduleId, expenseId, {
+        name: editingExpenseName.trim(),
+        amount: amt,
+        paidAt: editingExpensePaidAt ? new Date(editingExpensePaidAt).toISOString() : null,
+      });
+      cancelEditExpense();
+      await loadExpenses();
+
+      // 선택된 지출이면 라인 패널 표시 값도 최신으로 보이게 유지
+      // (lines는 별도라 그대로 둬도 되지만, UX상 재선택 유지)
+    } catch (err) {
+      console.error('[expenses:update] error', err);
+      alert('지출 수정 실패');
+    }
+  };
+
+  // ===== 라인 CRUD =====
+  const handleAddLine = async (e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+
+    if (!selectedExpenseId) return alert('먼저 지출을 선택하세요.');
+    if (!newLineLabel.trim()) return alert('세부 항목명을 입력하세요.');
+    const amt = Number(newLineAmount);
+    if (!Number.isFinite(amt) || amt <= 0) return alert('세부 금액을 올바르게 입력하세요.');
+
+    try {
+      await ApiService.createExpenseLine(selectedExpenseId, {
+        label: newLineLabel.trim(),
+        lineAmount: amt,
+      });
+      setNewLineLabel('');
+      setNewLineAmount('');
+      await loadLines(selectedExpenseId);
+    } catch (err) {
+      console.error('[lines:create] error', err);
+      alert('세부 항목 추가 실패');
+    }
+  };
+
+  const startEditLine = (line, e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+
+    const id = line.expenseLineId ?? line.id;
+    setEditingLineId(id);
+    setEditingLineLabel(line.label ?? '');
+    setEditingLineAmount(String(line.lineAmount ?? ''));
+  };
+
+  const cancelEditLine = (e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+
+    setEditingLineId(null);
+    setEditingLineLabel('');
+    setEditingLineAmount('');
+  };
+
+  const handleUpdateLine = async (e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+
+    if (!selectedExpenseId || !editingLineId) return;
+    if (!editingLineLabel.trim()) return alert('항목명을 입력하세요.');
+    const amt = Number(editingLineAmount);
+    if (!Number.isFinite(amt) || amt <= 0) return alert('금액을 올바르게 입력하세요.');
+
+    try {
+      await ApiService.updateExpenseLine(selectedExpenseId, editingLineId, {
+        label: editingLineLabel.trim(),
+        lineAmount: amt,
+      });
+      cancelEditLine();
+      await loadLines(selectedExpenseId);
+    } catch (err) {
+      console.error('[lines:update] error', err);
+      alert('세부 항목 수정 실패');
+    }
+  };
+
+  const handleDeleteLine = async (lineId, e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+
+    if (!selectedExpenseId) return;
+    if (!window.confirm('이 세부 항목을 삭제할까요?')) return;
+
+    try {
+      await ApiService.deleteExpenseLine(selectedExpenseId, lineId);
+      await loadLines(selectedExpenseId);
+    } catch (err) {
+      console.error('[lines:delete] error', err);
+      alert('세부 항목 삭제 실패');
     }
   };
 
@@ -158,10 +385,10 @@ const handleCreate = async () => {
       <div style={modalStyle}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
           <h3 style={{ margin: 0, fontSize: 18 }}>💰 지출 관리</h3>
-          <button onClick={onClose} style={btn}>닫기</button>
+          <button type="button" onClick={onClose} style={btn}>닫기</button>
         </div>
 
-        {/* 등록 폼 */}
+        {/* 등록 폼(기존 그대로) */}
         <div style={sectionStyle}>
           <label style={labelStyle}>새 지출 등록</label>
           <input
@@ -193,13 +420,13 @@ const handleCreate = async () => {
               onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)}
               style={{ flex: 1 }}
             />
-            <button onClick={handleCreate} style={btnPrimary}>등록</button>
+            <button type="button" onClick={handleCreate} style={btnPrimary}>등록</button>
           </div>
         </div>
 
-        {/* 리스트 */}
+        {/* 지출 목록 (선택 + 수정 가능) */}
         <div style={sectionStyle}>
-          <label style={labelStyle}>지출 목록</label>
+          <label style={labelStyle}>지출 목록 (클릭하면 세부 목록 조회)</label>
 
           <div style={{ ...listRow, background: 'transparent', padding: '4px 10px', fontWeight: 600 }}>
             <span>지출명</span>
@@ -213,23 +440,107 @@ const handleCreate = async () => {
           ) : (pageData.expenses || []).length === 0 ? (
             <div style={{ padding: 12, color: '#9ca3af' }}>지출이 없습니다.</div>
           ) : (
-            (pageData.expenses || []).map((e) => (
-              <div key={e.expenseId} style={listRow}>
-                <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {e.name}
+            (pageData.expenses || []).map((e) => {
+              const selected = e.expenseId === selectedExpenseId;
+              const isEditingExpense = e.expenseId === editingExpenseId;
+
+              return (
+                <div
+                  key={e.expenseId}
+                  style={{
+                    ...listRow,
+                    cursor: 'pointer',
+                    outline: selected ? '2px solid #93c5fd' : 'none',
+                    background: selected ? '#eff6ff' : '#f9fafb',
+                  }}
+                  onClick={() => handleSelectExpense(e.expenseId)}
+                  title="클릭하면 세부 항목이 아래에 표시됩니다"
+                >
+                  {/* 지출명 */}
+                  <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {isEditingExpense ? (
+                      <input
+                        value={editingExpenseName}
+                        onChange={(ev) => setEditingExpenseName(ev.target.value)}
+                        style={{ ...inputStyle, marginBottom: 0 }}
+                        onClick={(ev) => ev.stopPropagation()}
+                      />
+                    ) : (
+                      e.name
+                    )}
+                  </div>
+
+                  {/* 금액 */}
+                  <div style={{ textAlign: 'right' }}>
+                    {isEditingExpense ? (
+                      <input
+                        type="number"
+                        value={editingExpenseAmount}
+                        onChange={(ev) => setEditingExpenseAmount(ev.target.value)}
+                        style={{ ...inputStyle, marginBottom: 0 }}
+                        onClick={(ev) => ev.stopPropagation()}
+                      />
+                    ) : (
+                      `${Number(e.amount).toLocaleString()}원`
+                    )}
+                  </div>
+
+                  {/* 결제일시 */}
+                  <div>
+                    {isEditingExpense ? (
+                      <input
+                        type="datetime-local"
+                        value={editingExpensePaidAt}
+                        onChange={(ev) => setEditingExpensePaidAt(ev.target.value)}
+                        style={{ ...inputStyle, marginBottom: 0 }}
+                        onClick={(ev) => ev.stopPropagation()}
+                      />
+                    ) : (
+                      e.paidAt ? new Date(e.paidAt).toLocaleString() : '-'
+                    )}
+                  </div>
+
+                  {/* 작업 */}
+                  <div style={{ textAlign: 'right', display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+                    {isEditingExpense ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={(ev) => handleUpdateExpense(e.expenseId, ev)}
+                          style={btnPrimary}
+                        >
+                          저장
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelEditExpense}
+                          style={btnGhost}
+                        >
+                          취소
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={(ev) => startEditExpense(e, ev)}
+                          style={btnGhost}
+                        >
+                          수정
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(ev) => handleDelete(e.expenseId, ev)}
+                          style={btnDanger}
+                        >
+                          삭제
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  {Number(e.amount).toLocaleString()}원
-                </div>
-                <div>
-                  {e.paidAt ? new Date(e.paidAt).toLocaleString() : '-'}
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  {/* (선택) 상세 보기/수정은 추후 ExpenseDetailModal로 확장 */}
-                  <button onClick={() => handleDelete(e.expenseId)} style={btnDanger}>삭제</button>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
@@ -237,6 +548,101 @@ const handleCreate = async () => {
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 6 }}>
           <div style={{ fontWeight: 700 }}>합계:</div>
           <div style={{ fontWeight: 700 }}>{totalAmount.toLocaleString()}원</div>
+        </div>
+
+        {/* 세부 목록(라인) */}
+        <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid #e5e7eb' }}>
+          <label style={labelStyle}>세부 목록 (라인)</label>
+
+          {!selectedExpenseId ? (
+            <div style={{ color: '#9ca3af', fontSize: 13, padding: 8 }}>
+              지출 목록에서 항목을 클릭하면 세부 목록이 표시됩니다.
+            </div>
+          ) : (
+            <>
+              <div style={{ fontSize: 13, color: '#374151', marginBottom: 10 }}>
+                <div><b>선택 지출:</b> {selectedExpense?.name ?? '-'}</div>
+                <div><b>지출 금액:</b> {Number(selectedExpense?.amount ?? 0).toLocaleString()}원</div>
+                <div><b>세부 합계:</b> {linesTotal.toLocaleString()}원</div>
+              </div>
+
+              {/* 라인 추가 */}
+              <div style={{ ...sectionStyle, marginBottom: 10 }}>
+                <div style={row}>
+                  <input
+                    type="text"
+                    placeholder="세부 항목명 (예: 아메리카노)"
+                    value={newLineLabel}
+                    onChange={(e) => setNewLineLabel(e.target.value)}
+                    style={{ ...inputStyle, marginBottom: 0 }}
+                  />
+                  <input
+                    type="number"
+                    placeholder="세부 금액"
+                    value={newLineAmount}
+                    onChange={(e) => setNewLineAmount(e.target.value)}
+                    style={{ ...inputStyle, marginBottom: 0, width: 160 }}
+                  />
+                  <button type="button" onClick={handleAddLine} style={btnPrimary}>추가</button>
+                </div>
+              </div>
+
+              {/* 라인 목록 */}
+              {loadingLines ? (
+                <div style={{ padding: 12, color: '#6b7280' }}>세부 목록 불러오는 중…</div>
+              ) : (lines || []).length === 0 ? (
+                <div style={{ padding: 12, color: '#9ca3af' }}>세부 항목이 없습니다.</div>
+              ) : (
+                (lines || []).map((l) => {
+                  const lineId = l.expenseLineId ?? l.id;
+                  const isEditing = lineId === editingLineId;
+
+                  return (
+                    <div key={lineId} style={lineRow}>
+                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {isEditing ? (
+                          <input
+                            value={editingLineLabel}
+                            onChange={(e) => setEditingLineLabel(e.target.value)}
+                            style={{ ...inputStyle, marginBottom: 0 }}
+                          />
+                        ) : (
+                          l.label
+                        )}
+                      </div>
+
+                      <div style={{ textAlign: 'right' }}>
+                        {isEditing ? (
+                          <input
+                            type="number"
+                            value={editingLineAmount}
+                            onChange={(e) => setEditingLineAmount(e.target.value)}
+                            style={{ ...inputStyle, marginBottom: 0 }}
+                          />
+                        ) : (
+                          `${Number(l.lineAmount ?? 0).toLocaleString()}원`
+                        )}
+                      </div>
+
+                      <div style={{ textAlign: 'right', display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+                        {isEditing ? (
+                          <>
+                            <button type="button" onClick={handleUpdateLine} style={btnPrimary}>저장</button>
+                            <button type="button" onClick={cancelEditLine} style={btnGhost}>취소</button>
+                          </>
+                        ) : (
+                          <>
+                            <button type="button" onClick={(ev) => startEditLine(l, ev)} style={btnGhost}>수정</button>
+                            <button type="button" onClick={(ev) => handleDeleteLine(lineId, ev)} style={btnDanger}>삭제</button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>
