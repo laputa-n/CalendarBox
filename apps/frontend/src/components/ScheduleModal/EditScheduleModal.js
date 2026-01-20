@@ -49,6 +49,7 @@ const linkStyle = {
 export default function EditScheduleModal({ isOpen, onClose, eventData }) {
   const {
     updateSchedule,
+    deleteSchedule,
     fetchScheduleDetail,
     scheduleDetail,
     scheduleDetailLoading,
@@ -672,6 +673,30 @@ const handleMoveTodo = async (index, direction) => {
   } catch (err) {
     console.error('투두 재정렬 실패:', err);
     alert('투두 순서 변경 실패');
+  }
+};
+
+const [deleting, setDeleting] = useState(false);
+
+const handleDeleteSchedule = async () => {
+  if (!scheduleId) return;
+
+  const ok = window.confirm('정말 삭제하시겠습니까?');
+  if (!ok) return;
+
+  try {
+    setDeleting(true);
+
+    // ✅ Context 사용 (권장)
+    await deleteSchedule(scheduleId);
+
+    alert('일정이 삭제되었습니다.');
+    onClose(); // 모달 닫기
+  } catch (err) {
+    console.error('일정 삭제 실패:', err);
+    alert('일정 삭제 실패');
+  } finally {
+    setDeleting(false);
   }
 };
 
@@ -1354,16 +1379,39 @@ const target = editingRecurrence || recurrenceList[0];
               style={{ ...inputStyle, height: '80px' }}
             />
             {/* 하단 버튼 */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16 }}>
-              <button type="button" onClick={onClose} style={cancelButton}>
-                닫기
-              </button>
-              <button type="submit" style={saveButton}>
-                저장
-              </button>
+<div style={{ marginTop: 16 }}>
+  {/* 1) 상단: 닫기/저장 */}
+  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+    <button type="button" onClick={onClose} style={cancelButton}>
+      닫기
+    </button>
+    <button type="submit" style={saveButton}>
+      저장
+    </button>
+  </div>
 
- 
-            </div>
+  {/* 2) 하단: 풀폭 삭제 */}
+  <button
+    type="button"
+    onClick={handleDeleteSchedule}
+    disabled={deleting}
+    style={{
+      width: '100%',
+      marginTop: 12,
+      padding: '0.75rem 1rem',
+      borderRadius: '0.75rem',
+      border: '1px solid #fecaca',
+      backgroundColor: '#fee2e2',
+      color: '#b91c1c',
+      fontWeight: 700,
+      cursor: deleting ? 'not-allowed' : 'pointer',
+      opacity: deleting ? 0.7 : 1,
+    }}
+  >
+    {deleting ? '삭제 중...' : '일정 삭제'}
+  </button>
+</div>
+
           </form>
           {/* ✅ MONTHLY RULE MODAL */}
 {isMonthlyRuleOpen && (

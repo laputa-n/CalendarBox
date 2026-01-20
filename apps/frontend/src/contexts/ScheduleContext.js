@@ -201,6 +201,59 @@ const respondToScheduleInvite = async (scheduleId, participantId, action) => {
   };
 
   /** =========================
+ * 일정 삭제
+ * ========================= */
+const deleteSchedule = async (scheduleId) => {
+  if (!scheduleId) return;
+
+  try {
+    setLoading(true);
+
+    // ApiService에 삭제 함수가 있다고 가정: deleteSchedule(scheduleId)
+    await ApiService.deleteSchedule(scheduleId);
+
+    // 목록 갱신
+    await fetchSchedules();
+
+    // 만약 삭제한 일정이 상세로 열려있으면 상세도 초기화
+    if (scheduleDetail?.id === scheduleId) {
+      clearScheduleDetail();
+    }
+  } catch (e) {
+    showError('일정 삭제 실패');
+    throw e;
+  } finally {
+    setLoading(false);
+  }
+};
+/** =========================
+ * 일정 검색
+ * ========================= */
+const searchSchedules = useCallback(async (keyword, params = {}) => {
+  if (!currentCalendar?.id || !user) return;
+
+  const q = String(keyword ?? '').trim();
+  if (!q) {
+    await fetchSchedules(); 
+    return;
+  }
+  try {
+    setLoading(true);
+    const res = await ApiService.searchSchedules({
+      calendarId: currentCalendar.id,
+      query: q, 
+      ...params, 
+    });
+    const raw = res?.data?.data?.content || res?.data?.content || [];
+    setSchedules(raw.map(transformScheduleData));
+  } catch (e) {
+    showError('일정 검색 실패');
+  } finally {
+    setLoading(false);
+  }
+}, [currentCalendar, user, fetchSchedules]);
+
+  /** =========================
    * 캘린더 변경 시 자동 갱신
    * ========================= */
   useEffect(() => {
@@ -214,9 +267,6 @@ const respondToScheduleInvite = async (scheduleId, participantId, action) => {
   console.log('📦 [Context] scheduleDetail CHANGED:', scheduleDetail);
 }, [scheduleDetail]);
 
-  /** =========================
-   * Context 제공
-   * ========================= */
 const contextValue = {
   schedules,
   loading,
@@ -224,14 +274,13 @@ const contextValue = {
   fetchSchedules,
   createSchedule,
   updateSchedule,
-
-  // 🔥 상세
+  deleteSchedule, // ✅ 추가
+  searchSchedules,
   scheduleDetail,
   scheduleDetailLoading,
   fetchScheduleDetail,
   clearScheduleDetail,
 
-  // 🔥 참여자
   participants,
   participantsLoading,
   fetchScheduleParticipants,
