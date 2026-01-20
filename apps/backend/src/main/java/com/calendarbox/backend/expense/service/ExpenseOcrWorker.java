@@ -109,7 +109,7 @@ public class ExpenseOcrWorker {
                 norm.asMap()
         ));
         var lines = norm.items().stream()
-                .map(i -> ExpenseLine.of(expense, cut(i.label(),255), i.qty(), i.unitAmount(), i.lineAmount()))
+                .map(i -> ExpenseLine.of(expense, cut(i.label(),255), i.qty(), i.unitAmount()))
                 .toList();
         expenseLineRepository.saveAll(lines);
         expenseAttachmentRepository.save(ExpenseAttachment.of(expense, att));
@@ -179,7 +179,7 @@ public class ExpenseOcrWorker {
                 norm.asMap()
         ));
         var lines = norm.items().stream()
-                .map(i -> ExpenseLine.of(expense, cut(i.label(),255), i.qty(), i.unitAmount(), i.lineAmount()))
+                .map(i -> ExpenseLine.of(expense, cut(i.label(),255), i.qty(), i.unitAmount()))
                 .toList();
         expenseLineRepository.saveAll(lines);
         expenseAttachmentRepository.save(ExpenseAttachment.of(expense, att));
