@@ -28,8 +28,9 @@ const listRow = {
   alignItems: 'center', background: '#f9fafb', padding: '8px 10px', borderRadius: 10,
 };
 
+// ✅ 라인(세부항목) 컬럼: 항목명 / 수량 / 개당금액 / 총금액 / 작업
 const lineRow = {
-  display: 'grid', gridTemplateColumns: '1fr 120px 180px', gap: 8,
+  display: 'grid', gridTemplateColumns: '1fr 80px 120px 120px 140px', gap: 8,
   alignItems: 'center', background: '#f8fafc', padding: '8px 10px', borderRadius: 10,
 };
 
@@ -37,6 +38,14 @@ export default function ExpenseModal({ isOpen, onClose, scheduleId }) {
   const unwrapData = useCallback((res) => {
     const body = res?.data ?? res;
     return body?.data ?? body;
+  }, []);
+
+  const calcLineAmount = useCallback((q, u) => {
+    const quantity = parseInt(q, 10);
+    const unitAmount = Number(u);
+    if (!Number.isInteger(quantity) || quantity <= 0) return 0;
+    if (!Number.isFinite(unitAmount) || unitAmount < 0) return 0;
+    return quantity * unitAmount;
   }, []);
 
   const [loading, setLoading] = useState(false);
@@ -53,13 +62,16 @@ export default function ExpenseModal({ isOpen, onClose, scheduleId }) {
   const [loadingLines, setLoadingLines] = useState(false);
   const [lines, setLines] = useState([]);
 
-  // ✅ 라인 추가/수정
+  // ✅ 라인 추가(명세 반영)
   const [newLineLabel, setNewLineLabel] = useState('');
-  const [newLineAmount, setNewLineAmount] = useState('');
+  const [newLineQuantity, setNewLineQuantity] = useState(1);
+  const [newLineUnitAmount, setNewLineUnitAmount] = useState(0);
 
+  // ✅ 라인 수정(명세 반영)
   const [editingLineId, setEditingLineId] = useState(null);
   const [editingLineLabel, setEditingLineLabel] = useState('');
-  const [editingLineAmount, setEditingLineAmount] = useState('');
+  const [editingLineQuantity, setEditingLineQuantity] = useState(1);
+  const [editingLineUnitAmount, setEditingLineUnitAmount] = useState(0);
 
   // ✅ 상위 expense 수정 상태
   const [editingExpenseId, setEditingExpenseId] = useState(null);
@@ -79,6 +91,14 @@ export default function ExpenseModal({ isOpen, onClose, scheduleId }) {
   const linesTotal = useMemo(() => {
     return (lines || []).reduce((sum, l) => sum + (Number(l.lineAmount) || 0), 0);
   }, [lines]);
+
+  const newLineComputedAmount = useMemo(() => {
+    return calcLineAmount(newLineQuantity, newLineUnitAmount);
+  }, [newLineQuantity, newLineUnitAmount, calcLineAmount]);
+
+  const editingLineComputedAmount = useMemo(() => {
+    return calcLineAmount(editingLineQuantity, editingLineUnitAmount);
+  }, [editingLineQuantity, editingLineUnitAmount, calcLineAmount]);
 
   const resetForm = () => {
     setName('');
@@ -130,7 +150,17 @@ export default function ExpenseModal({ isOpen, onClose, scheduleId }) {
         Array.isArray(data) ? data :
         [];
 
-      setLines(list);
+      // ✅ 숫자 필드 정리(방어)
+      const normalized = list.map((l) => ({
+        ...l,
+        expenseLineId: l.expenseLineId ?? l.id,
+        label: l.label ?? '',
+        quantity: Number.isFinite(Number(l.quantity)) ? parseInt(l.quantity, 10) : 1,
+        unitAmount: Number.isFinite(Number(l.unitAmount)) ? Number(l.unitAmount) : 0,
+        lineAmount: Number.isFinite(Number(l.lineAmount)) ? Number(l.lineAmount) : 0,
+      }));
+
+      setLines(normalized);
     } catch (err) {
       console.error('[lines:list] error', err);
       alert('세부 목록을 불러오지 못했습니다.');
@@ -147,6 +177,11 @@ export default function ExpenseModal({ isOpen, onClose, scheduleId }) {
     setLines([]);
     setEditingLineId(null);
     setEditingExpenseId(null);
+
+    // 라인 입력 초기화
+    setNewLineLabel('');
+    setNewLineQuantity(1);
+    setNewLineUnitAmount(0);
   }, [isOpen]); // eslint-disable-line
 
   // ====== 생성 ======
@@ -239,6 +274,12 @@ export default function ExpenseModal({ isOpen, onClose, scheduleId }) {
   const handleSelectExpense = async (expenseId) => {
     setSelectedExpenseId(expenseId);
     setEditingLineId(null);
+
+    // 라인 입력 초기화
+    setNewLineLabel('');
+    setNewLineQuantity(1);
+    setNewLineUnitAmount(0);
+
     await loadLines(expenseId);
   };
 
@@ -288,32 +329,40 @@ export default function ExpenseModal({ isOpen, onClose, scheduleId }) {
       });
       cancelEditExpense();
       await loadExpenses();
-
-      // 선택된 지출이면 라인 패널 표시 값도 최신으로 보이게 유지
-      // (lines는 별도라 그대로 둬도 되지만, UX상 재선택 유지)
     } catch (err) {
       console.error('[expenses:update] error', err);
       alert('지출 수정 실패');
     }
   };
 
-  // ===== 라인 CRUD =====
+  // ===== 라인 CRUD (명세 반영) =====
   const handleAddLine = async (e) => {
     e?.preventDefault?.();
     e?.stopPropagation?.();
 
     if (!selectedExpenseId) return alert('먼저 지출을 선택하세요.');
     if (!newLineLabel.trim()) return alert('세부 항목명을 입력하세요.');
-    const amt = Number(newLineAmount);
-    if (!Number.isFinite(amt) || amt <= 0) return alert('세부 금액을 올바르게 입력하세요.');
+
+    const q = parseInt(newLineQuantity, 10);
+    if (!Number.isInteger(q) || q <= 0) return alert('수량(quantity)을 1 이상 정수로 입력하세요.');
+
+    const u = Number(newLineUnitAmount);
+    if (!Number.isFinite(u) || u < 0) return alert('개당 금액(unitAmount)을 올바르게 입력하세요.');
+
+    const lineAmount = q * u;
 
     try {
       await ApiService.createExpenseLine(selectedExpenseId, {
         label: newLineLabel.trim(),
-        lineAmount: amt,
+        quantity: q,
+        unitAmount: u,
+        lineAmount,
       });
+
       setNewLineLabel('');
-      setNewLineAmount('');
+      setNewLineQuantity(1);
+      setNewLineUnitAmount(0);
+
       await loadLines(selectedExpenseId);
     } catch (err) {
       console.error('[lines:create] error', err);
@@ -328,7 +377,8 @@ export default function ExpenseModal({ isOpen, onClose, scheduleId }) {
     const id = line.expenseLineId ?? line.id;
     setEditingLineId(id);
     setEditingLineLabel(line.label ?? '');
-    setEditingLineAmount(String(line.lineAmount ?? ''));
+    setEditingLineQuantity(Number.isFinite(Number(line.quantity)) ? parseInt(line.quantity, 10) : 1);
+    setEditingLineUnitAmount(Number.isFinite(Number(line.unitAmount)) ? Number(line.unitAmount) : 0);
   };
 
   const cancelEditLine = (e) => {
@@ -337,7 +387,8 @@ export default function ExpenseModal({ isOpen, onClose, scheduleId }) {
 
     setEditingLineId(null);
     setEditingLineLabel('');
-    setEditingLineAmount('');
+    setEditingLineQuantity(1);
+    setEditingLineUnitAmount(0);
   };
 
   const handleUpdateLine = async (e) => {
@@ -346,13 +397,21 @@ export default function ExpenseModal({ isOpen, onClose, scheduleId }) {
 
     if (!selectedExpenseId || !editingLineId) return;
     if (!editingLineLabel.trim()) return alert('항목명을 입력하세요.');
-    const amt = Number(editingLineAmount);
-    if (!Number.isFinite(amt) || amt <= 0) return alert('금액을 올바르게 입력하세요.');
+
+    const q = parseInt(editingLineQuantity, 10);
+    if (!Number.isInteger(q) || q <= 0) return alert('수량(quantity)을 1 이상 정수로 입력하세요.');
+
+    const u = Number(editingLineUnitAmount);
+    if (!Number.isFinite(u) || u < 0) return alert('개당 금액(unitAmount)을 올바르게 입력하세요.');
+
+    const lineAmount = q * u;
 
     try {
       await ApiService.updateExpenseLine(selectedExpenseId, editingLineId, {
         label: editingLineLabel.trim(),
-        lineAmount: amt,
+        quantity: q,
+        unitAmount: u,
+        lineAmount,
       });
       cancelEditLine();
       await loadLines(selectedExpenseId);
@@ -571,20 +630,41 @@ export default function ExpenseModal({ isOpen, onClose, scheduleId }) {
                 <div style={row}>
                   <input
                     type="text"
-                    placeholder="세부 항목명 (예: 아메리카노)"
+                    placeholder="항목명(label) (예: 아메리카노)"
                     value={newLineLabel}
                     onChange={(e) => setNewLineLabel(e.target.value)}
                     style={{ ...inputStyle, marginBottom: 0 }}
                   />
                   <input
                     type="number"
-                    placeholder="세부 금액"
-                    value={newLineAmount}
-                    onChange={(e) => setNewLineAmount(e.target.value)}
-                    style={{ ...inputStyle, marginBottom: 0, width: 160 }}
+                    min="1"
+                    placeholder="수량"
+                    value={newLineQuantity}
+                    onChange={(e) => setNewLineQuantity(e.target.value === '' ? '' : parseInt(e.target.value, 10))}
+                    style={{ ...inputStyle, marginBottom: 0, width: 90 }}
                   />
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="개당금액"
+                    value={newLineUnitAmount}
+                    onChange={(e) => setNewLineUnitAmount(e.target.value === '' ? '' : Number(e.target.value))}
+                    style={{ ...inputStyle, marginBottom: 0, width: 120 }}
+                  />
+                  <div style={{ width: 120, textAlign: 'right', fontWeight: 700 }}>
+                    {newLineComputedAmount.toLocaleString()}원
+                  </div>
                   <button type="button" onClick={handleAddLine} style={btnPrimary}>추가</button>
                 </div>
+              </div>
+
+              {/* 라인 헤더 */}
+              <div style={{ ...lineRow, background: 'transparent', padding: '4px 10px', fontWeight: 600 }}>
+                <span>항목명</span>
+                <span style={{ textAlign: 'right' }}>수량</span>
+                <span style={{ textAlign: 'right' }}>개당</span>
+                <span style={{ textAlign: 'right' }}>총액</span>
+                <span style={{ textAlign: 'right' }}>작업</span>
               </div>
 
               {/* 라인 목록 */}
@@ -599,6 +679,7 @@ export default function ExpenseModal({ isOpen, onClose, scheduleId }) {
 
                   return (
                     <div key={lineId} style={lineRow}>
+                      {/* label */}
                       <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {isEditing ? (
                           <input
@@ -611,19 +692,44 @@ export default function ExpenseModal({ isOpen, onClose, scheduleId }) {
                         )}
                       </div>
 
+                      {/* quantity */}
                       <div style={{ textAlign: 'right' }}>
                         {isEditing ? (
                           <input
                             type="number"
-                            value={editingLineAmount}
-                            onChange={(e) => setEditingLineAmount(e.target.value)}
+                            min="1"
+                            value={editingLineQuantity}
+                            onChange={(e) => setEditingLineQuantity(e.target.value === '' ? '' : parseInt(e.target.value, 10))}
                             style={{ ...inputStyle, marginBottom: 0 }}
                           />
                         ) : (
-                          `${Number(l.lineAmount ?? 0).toLocaleString()}원`
+                          Number(l.quantity ?? 0).toLocaleString()
                         )}
                       </div>
 
+                      {/* unitAmount */}
+                      <div style={{ textAlign: 'right' }}>
+                        {isEditing ? (
+                          <input
+                            type="number"
+                            min="0"
+                            value={editingLineUnitAmount}
+                            onChange={(e) => setEditingLineUnitAmount(e.target.value === '' ? '' : Number(e.target.value))}
+                            style={{ ...inputStyle, marginBottom: 0 }}
+                          />
+                        ) : (
+                          `${Number(l.unitAmount ?? 0).toLocaleString()}`
+                        )}
+                      </div>
+
+                      {/* lineAmount */}
+                      <div style={{ textAlign: 'right', fontWeight: 700 }}>
+                        {isEditing
+                          ? `${editingLineComputedAmount.toLocaleString()}원`
+                          : `${Number(l.lineAmount ?? 0).toLocaleString()}원`}
+                      </div>
+
+                      {/* actions */}
                       <div style={{ textAlign: 'right', display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
                         {isEditing ? (
                           <>

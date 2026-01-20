@@ -31,12 +31,14 @@ const fetchMembers = async () => {
   try {
     setMembersLoading(true);
 
-    const res = await ApiService.getCalendarMembers(calendarId);
-    const content = res?.data?.content ?? [];
+    const res = await ApiService.getCalendarMembers(calendarId, {
+      status: "ACCEPTED",
+    });
 
+    const content = res?.data?.content ?? [];
     setMembers(content);
 
-    // 🔥 여기 핵심
+    // content 안에 중복 포함된 메타 정보
     if (content.length > 0) {
       setMyId(Number(content[0].myId));
       setOwnerId(Number(content[0].ownerId));
@@ -47,8 +49,6 @@ const fetchMembers = async () => {
     setMembersLoading(false);
   }
 };
-
-
 
   useEffect(() => {
     fetchMembers();

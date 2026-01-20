@@ -293,10 +293,10 @@ if (Array.isArray(formData.links) && formData.links.length > 0) {
 
 // 2️⃣ 지출 생성 (세부 항목 있을 때만)
 if (expenseName && expenseLines.length > 0) {
-  const totalAmount = expenseLines.reduce(
-    (sum, l) => sum + Number(l.amount || 0),
-    0
-  );
+const totalAmount = expenseLines.reduce(
+  (sum, l) => sum + Number(l.lineAmount || 0),
+  0
+);
 
   const expenseRes = await ApiService.createExpense(newId, {
     name: expenseName,
@@ -306,15 +306,27 @@ if (expenseName && expenseLines.length > 0) {
 
   const expenseId = expenseRes?.data?.expenseId;
 
-  // 3️⃣ ExpenseLine 생성
-  for (const line of expenseLines) {
-    if (!line.title || !line.amount) continue;
+for (const line of expenseLines) {
+  const label = (line.label ?? '').trim();
+  const quantity = Number(line.quantity);
+  const unitAmount = Number(line.unitAmount);
+  const lineAmount = Number(line.lineAmount);
 
-    await ApiService.createExpenseLine(expenseId, {
-      label: line.title,
-      lineAmount: Number(line.amount),
-    });
-  }
+  if (!label) continue;
+  if (!Number.isInteger(quantity) || quantity <= 0) continue;
+  if (!Number.isFinite(unitAmount) || unitAmount < 0) continue;
+
+  // lineAmount는 프론트에서 계산했지만 안전하게 한 번 더 맞춤
+  const safeLineAmount = quantity * unitAmount;
+
+  await ApiService.createExpenseLine(expenseId, {
+    label,
+    quantity,
+    unitAmount,
+    lineAmount: safeLineAmount,
+  });
+}
+
 }
 // 2️⃣ recurrenceId 조회
 let recurrenceId = null;
@@ -514,12 +526,45 @@ const handleAddPlace = async () => {
       places: prev.places.filter((_, i) => i !== index),
     }));
   };
-  const handleAddExpenseLine = () => {
+
+  const calcLineAmount = (q, u) => {
+  const quantity = Number(q);
+  const unitAmount = Number(u);
+  if (!Number.isFinite(quantity) || quantity <= 0) return 0;
+  if (!Number.isFinite(unitAmount) || unitAmount < 0) return 0;
+  return quantity * unitAmount;
+};
+
+const handleAddExpenseLine = () => {
   setExpenseLines(prev => [
     ...prev,
-    { title: '', amount: '' },
+    { label: '', quantity: 1, unitAmount: 0, lineAmount: 0 },
   ]);
 };
+
+const handleChangeExpenseLine = (idx, key, value) => {
+  setExpenseLines(prev => {
+    const next = [...prev];
+    const cur = { ...next[idx] };
+
+    if (key === 'label') cur.label = value;
+    if (key === 'quantity') cur.quantity = value === '' ? '' : Number(value);
+    if (key === 'unitAmount') cur.unitAmount = value === '' ? '' : Number(value);
+
+    // ✅ lineAmount는 자동 계산 (quantity * unitAmount)
+    const q = cur.quantity === '' ? 0 : cur.quantity;
+    const u = cur.unitAmount === '' ? 0 : cur.unitAmount;
+    cur.lineAmount = calcLineAmount(q, u);
+
+    next[idx] = cur;
+    return next;
+  });
+};
+
+const handleRemoveExpenseLine = (idx) => {
+  setExpenseLines(prev => prev.filter((_, i) => i !== idx));
+};
+
   const handleReorderPlaces = (direction, index) => {
     const target = direction === 'up' ? index - 1 : index + 1;
     if (target < 0 || target >= formData.places.length) return;
@@ -975,8 +1020,6 @@ const extractScheduleId = (res) => {
             />
           </div>
 
-       
-          {/* 💰 지출 등록 */}
 {/* 💰 지출 등록 */}
 <div style={sectionStyle}>
   <label style={labelStyle}>💰 지출 등록</label>
@@ -989,52 +1032,75 @@ const extractScheduleId = (res) => {
     style={inputStyle}
   />
 
-  {/* ➕ 세부 지출 항목 추가 */}
-  <button
-    type="button"
-    onClick={handleAddExpenseLine}
-    style={subButton}
-  >
+  <button type="button" onClick={handleAddExpenseLine} style={subButton}>
     + 세부 지출 추가
   </button>
 
   {expenseLines.map((line, idx) => (
     <div
       key={idx}
-      style={{ display: 'flex', gap: 8, marginBottom: '0.5rem' }}
+      style={{
+        background: '#f9fafb',
+        border: '1px solid #e5e7eb',
+        borderRadius: 8,
+        padding: 10,
+        marginTop: 8,
+      }}
     >
-      <input
-        type="text"
-        placeholder="항목명"
-        value={line.title}
-        onChange={(e) => {
-          const next = [...expenseLines];
-          next[idx].title = e.target.value;
-          setExpenseLines(next);
-        }}
-        style={inputStyle}
-      />
-      <input
-        type="number"
-        placeholder="금액"
-        value={line.amount}
-        onChange={(e) => {
-          const next = [...expenseLines];
-          next[idx].amount = e.target.value;
-          setExpenseLines(next);
-        }}
-        style={inputStyle}
-      />
+      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+        <input
+          type="text"
+          placeholder="항목명 (label)"
+          value={line.label}
+          onChange={(e) => handleChangeExpenseLine(idx, 'label', e.target.value)}
+          style={{ ...inputStyle, marginBottom: 0, flex: 1 }}
+        />
+
+        <button
+          type="button"
+          onClick={() => handleRemoveExpenseLine(idx)}
+          style={{ ...subButton, color: '#ef4444' }}
+          title="세부 항목 삭제"
+        >
+          삭제
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input
+          type="number"
+          min="1"
+          placeholder="수량 (quantity)"
+          value={line.quantity}
+          onChange={(e) => handleChangeExpenseLine(idx, 'quantity', e.target.value)}
+          style={{ ...inputStyle, marginBottom: 0, width: 120 }}
+        />
+        <input
+          type="number"
+          min="0"
+          placeholder="개당 금액 (unitAmount)"
+          value={line.unitAmount}
+          onChange={(e) => handleChangeExpenseLine(idx, 'unitAmount', e.target.value)}
+          style={{ ...inputStyle, marginBottom: 0, width: 180 }}
+        />
+
+        <div style={{ flex: 1, textAlign: 'right', fontWeight: 600, alignSelf: 'center' }}>
+          합계: {Number(line.lineAmount || 0).toLocaleString()}원
+        </div>
+      </div>
     </div>
   ))}
 
+  {/* ✅ 전체 지출 합계(라인 합) */}
+  {expenseLines.length > 0 && (
+    <div style={{ marginTop: 10, textAlign: 'right', fontWeight: 700 }}>
+      총 지출: {expenseLines.reduce((sum, l) => sum + Number(l.lineAmount || 0), 0).toLocaleString()}원
+    </div>
+  )}
+
   {/* 📷 영수증 첨부 */}
-  <label style={labelStyle}>📷 영수증 첨부</label>
-  <input
-    type="file"
-    onChange={handleReceiptUpload}
-    style={inputStyle}
-  />
+  <label style={{ ...labelStyle, marginTop: 10 }}>📷 영수증 첨부</label>
+  <input type="file" onChange={handleReceiptUpload} style={inputStyle} />
 </div>
 
 
