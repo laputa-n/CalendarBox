@@ -5,7 +5,6 @@ import io.micrometer.common.lang.Nullable;
 public record EditExpenseLineRequest(
         @Nullable String label,
         @Nullable Integer quantity,
-        @Nullable Long unitAmount,
-        @Nullable Long lineAmount
+        @Nullable Long unitAmount
 ) {
 }

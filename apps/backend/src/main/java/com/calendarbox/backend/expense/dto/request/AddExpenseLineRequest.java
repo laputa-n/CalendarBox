@@ -3,18 +3,11 @@ package com.calendarbox.backend.expense.dto.request;
 import io.micrometer.common.lang.Nullable;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import org.springframework.boot.context.properties.bind.DefaultValue;
 
 public record AddExpenseLineRequest(
         @NotBlank String label,
-        @Nullable Integer quantity,
-        @Nullable Long unitAmount,
-        @NotNull Long lineAmount
+        @NotNull Integer quantity,
+        @NotNull Long unitAmount
         ) {
-    public int resolvedQuantity() {
-        return (quantity == null || quantity <= 0) ? 1 : quantity;
-    }
-
-    public long resolvedUnitAmount() {
-        return (unitAmount != null) ? unitAmount : lineAmount / resolvedQuantity();
-    }
 }

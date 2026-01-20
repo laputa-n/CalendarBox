@@ -47,13 +47,15 @@ public class ExpenseLine {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    public static ExpenseLine of(Expense expense, String label, Integer quantity, Long unitAmount, Long lineAmount) {
+    public static ExpenseLine of(Expense expense, String label, Integer quantity, Long unitAmount) {
         ExpenseLine expenseLine = new ExpenseLine();
         expenseLine.expense = expense;
         expenseLine.label = label;
-        expenseLine.quantity = (quantity == null || quantity <= 0) ? 1 : quantity;
-        expenseLine.unitAmount = (unitAmount != null) ? unitAmount : lineAmount / expenseLine.quantity;
-        expenseLine.lineAmount = lineAmount;
+        int q = (quantity == null || quantity < 0) ? 0:quantity;
+        long u = (unitAmount == null) ? 0L : unitAmount;
+        expenseLine.quantity = q;
+        expenseLine.unitAmount = u;
+        expenseLine.lineAmount = Math.multiplyExact((long) q, u);
         return expenseLine;
     }
 

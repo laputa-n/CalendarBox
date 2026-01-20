@@ -40,7 +40,7 @@ public class ExpenseLineService {
         if(!schedule.getCreatedBy().getId().equals(userId) && !scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatus(schedule.getId(),userId, ScheduleParticipantStatus.ACCEPTED))
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
 
-        ExpenseLine expenseLine = ExpenseLine.of(expense, request.label(),request.resolvedQuantity(),request.resolvedUnitAmount(),request.lineAmount());
+        ExpenseLine expenseLine = ExpenseLine.of(expense, request.label(),request.quantity(),request.unitAmount());
 
         expense.addLine(expenseLine);
         expenseLineRepository.save(expenseLine);
@@ -64,15 +64,13 @@ public class ExpenseLineService {
             expenseLine.changeQuantity(request.quantity());
         if (!Objects.equals(request.unitAmount(), expenseLine.getUnitAmount()))
             expenseLine.changeUnitAmount(request.unitAmount());
-        if (!Objects.equals(request.lineAmount(), expenseLine.getLineAmount()))
-            expenseLine.changeLineAmount(request.lineAmount());
 
-        long lineAmount = Optional.ofNullable(expenseLine.getLineAmount()).orElse(0L);
         long unitAmount = Optional.ofNullable(expenseLine.getUnitAmount()).orElse(0L);
         int qty = Optional.ofNullable(expenseLine.getQuantity()).orElse(1);
+        long lineAmount = Math.multiplyExact(unitAmount, (long) qty);
+        expenseLine.changeLineAmount(lineAmount);
 
-        if (lineAmount != unitAmount * qty)
-            throw new BusinessException(ErrorCode.LINE_AMOUNT_NOT_MATCH);
+
 
         return ExpenseLineDto.of(expenseLine);
     }
