@@ -1,11 +1,12 @@
 // src/components/EditScheduleModal.js
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, Trash2 } from 'lucide-react';
+import { Search, Plus, Trash2 , Loader2 } from 'lucide-react';
 import { useSchedules } from '../../contexts/ScheduleContext';
 import { ApiService } from '../../services/apiService';
 import { toLocalInputValue, localInputToISO } from '../../utils/datetime';
 import { useAttachments } from '../../hooks/useAttachments';
 import ExpenseModal from '../ExpenseModal';
+import ScheduleParticipantsModal from '../schedule/ScheduleParticipantsModal';
 
 /* ====== 스타일 ====== */
 const overlayStyle = {
@@ -93,7 +94,7 @@ useEffect(() => {
     color: '#3b82f6',
     recurrence: null,
   });
-
+  const [participantsModalOpen, setParticipantsModalOpen] = useState(false);
   const [todoPage, setTodoPage] = useState({ content: [] });
   const [placePage, setPlacePage] = useState({ content: [] });
   const [attachments, setAttachments] = useState({ images: [], files: [] });
@@ -123,6 +124,13 @@ const unwrapData = useCallback((res) => {
   const body = res?.data ?? res;   // axios vs fetch
   return body?.data ?? body;       // wrapper(data) vs plain
 }, []);
+// ✅ host(삭제 불가) 판별: 서버 필드명에 맞춰 유연하게
+const hostMemberId =
+  scheduleDetail?.hostMemberId ??
+  scheduleDetail?.ownerId ??
+  scheduleDetail?.creatorId ??
+  scheduleDetail?.createdBy?.id ??
+  null;
 
   // ✅ links
 const loadLinks = useCallback(async () => {
@@ -893,6 +901,28 @@ return (
   </div>
 )}
 
+{/* ====== 참여자 ====== */}
+<div style={sectionStyle}>
+ <div style={sectionStyle}>
+  <label style={labelStyle}>👥 참여자</label>
+  <button
+    type="button"
+    onClick={() => setParticipantsModalOpen(true)}
+    style={subButton}
+    disabled={!scheduleId}
+  >
+    참여자 보기(ACCEPTED)
+  </button>
+</div>
+
+<ScheduleParticipantsModal
+  isOpen={participantsModalOpen}
+  onClose={() => setParticipantsModalOpen(false)}
+  scheduleId={scheduleId}
+  hostMemberId={hostMemberId}
+/>
+
+</div>
 
 
             {/* 투두 */}

@@ -7,7 +7,9 @@ import { localInputToISO } from '../../utils/datetime';
 import { validateSchedulePayload } from '../../utils/scheduleValidator';
 import { useAttachments } from '../../hooks/useAttachments';
 import { buildRecurrencePayload } from '../../utils/recurrenceBuilder';
-// ✅ 생성 전용 모달 (첨부/지출은 수정 모달에서 처리)
+import ScheduleParticipantsSection from '../schedule/ScheduleParticipantsSection';
+import { useCalendars } from '../../contexts/CalendarContext';
+
 export default function ScheduleModal({ isOpen, onClose, selectedDate }) {
   const { createSchedule } = useSchedules();
   const {
@@ -19,6 +21,12 @@ const [monthlyOrdinal, setMonthlyOrdinal] = useState('');     // ByDay의 +/- �
 const [monthlyWeekday, setMonthlyWeekday] = useState('MO');   // 요일
 const [monthlyMonthDay, setMonthlyMonthDay] = useState('');   // ByMonthDay 날짜 (1~31)
 const [monthlyMode, setMonthlyMode] = useState('BYDAY'); 
+const { currentCalendar } = useCalendars();
+const [calendarMembers, setCalendarMembers] = useState([]);
+const [friends, setFriends] = useState([]);
+const [serviceUserResults, setServiceUserResults] = useState([]);
+const [searchingServiceUser, setSearchingServiceUser] = useState(false);
+
 
   // ====== 폼 상태 ======
   const [formData, setFormData] = useState({
@@ -39,14 +47,10 @@ const [monthlyMode, setMonthlyMode] = useState('BYDAY');
     reminders: [],          
     links: [],
   });
-
- // 생성 모드 전용 로컬 입력
   const [newTodo, setNewTodo] = useState('');
-
-  // 장소 검색 결과 상태
-const [placeSearchResults, setPlaceSearchResults] = useState([]);
-const [isSearchingPlace, setIsSearchingPlace] = useState(false);
- 
+  const [placeSearchResults, setPlaceSearchResults] = useState([]);
+  const [isSearchingPlace, setIsSearchingPlace] = useState(false);
+  const [invitees, setInvitees] = useState([]);
   // ====== 지출 & 첨부파일 관련 상태 ======
   const [expenseName, setExpenseName] = useState('');
   const [expenseReceiptFile, setExpenseReceiptFile] = useState(null);
@@ -159,9 +163,30 @@ const addMonthlyByDayRule = () => {
     };
   });
 
-  // 입력 초기화(여러 개 추가하기 편하게)
   setMonthlyOrdinal('');
   setMonthlyWeekday('MO');
+};
+const handleSearchServiceUser = async (q) => {
+  const query = String(q || '').trim();
+  if (!query) {
+    setServiceUserResults([]);
+    return;
+  }
+  try {
+    setSearchingServiceUser(true);
+    const res = await ApiService.searchMembers(query, 0, 20);
+    const payload = res?.data ?? res;        
+    const page = payload?.data ?? payload;  
+    const list = page?.content ?? [];       
+
+    setServiceUserResults(Array.isArray(list) ? list : []);
+  } catch (e) {
+    console.error('[searchMembers] failed', e);
+    setServiceUserResults([]);
+    alert('회원 검색 실패');
+  } finally {
+    setSearchingServiceUser(false);
+  }
 };
 
 const applyMonthlyByMonthDay = () => {
@@ -251,16 +276,36 @@ try {
     if (errs.length) {
       console.warn('[Schedule] payload validation warnings:', errs);
     }
-
-     // 1️⃣ 일정 생성
 // 1️⃣ 일정 생성
 const res = await createSchedule(payload);
 const newId = extractScheduleId(res);
-
 console.log('✅ [CREATE] createSchedule res =', res);
 console.log('✅ [CREATE] newId =', newId);
 
 if (!newId) throw new Error('일정 생성 응답에 id가 없습니다.');
+
+if (Array.isArray(invitees) && invitees.length > 0) {
+  const toBody = (inv) => {
+    if (inv.type === 'SERVICE_USER') {
+      const body = { mode: 'SERVICE_USER', memberId: inv.memberId };
+      if (inv.nameOverride && String(inv.nameOverride).trim()) {
+        body.name = String(inv.nameOverride).trim();
+      }
+      return body;
+    }
+    // NAME
+    return { mode: 'NAME', name: String(inv.name).trim() };
+  };
+
+  const results = await Promise.allSettled(
+    invitees.map((inv) => ApiService.addScheduleParticipant(newId, toBody(inv)))
+  );
+
+  const failCount = results.filter(r => r.status === 'rejected').length;
+  if (failCount > 0) {
+    alert(`참가자 초대 ${failCount}건 실패했습니다. (일정은 생성됨)`);
+  }
+}
 
 // 2️⃣ 투두 저장 (Swagger: POST /api/schedules/{id}/todos { content })
 if (Array.isArray(formData.todos) && formData.todos.length > 0) {
@@ -424,6 +469,31 @@ if (recurrenceId && exceptionDates.length > 0) {
       setNewTodo('');
     }
   }, [isOpen, selectedDate]);
+
+  useEffect(() => {
+  if (!isOpen) return;
+  setServiceUserResults([]);
+  setInvitees([]);
+  if (!currentCalendar?.id) return;
+
+  (async () => {
+    try {
+      const [mRes, fRes] = await Promise.all([
+        ApiService.getCalendarMembers(currentCalendar.id),
+        ApiService.getFriends(),
+      ]);
+
+      const members = mRes?.data?.data?.content || mRes?.data?.content || [];
+      const friends = fRes?.data?.data?.content || fRes?.data?.content || [];
+
+      setCalendarMembers(Array.isArray(members) ? members : []);
+      setFriends(Array.isArray(friends) ? friends : []);
+    } catch (e) {
+      setCalendarMembers([]);
+      setFriends([]);
+    }
+  })();
+}, [isOpen, currentCalendar?.id]);
 
   // ====== 리마인더 변환 헬퍼 ======
   const reminderSelectToMinutes = (v) => {
@@ -754,8 +824,14 @@ const extractScheduleId = (res) => {
     </div>
   )}
 </div>
-
-
+<ScheduleParticipantsSection
+  invitees={invitees}
+  setInvitees={setInvitees}
+  calendarMembers={calendarMembers}
+  friends={friends}
+  serviceUserResults={serviceUserResults}
+  searchingServiceUser={searchingServiceUser}
+  onSearchServiceUser={handleSearchServiceUser}  />
            {/* 투두 (생성 중 로컬로만 관리) */}
           <div style={sectionStyle}>
             <label style={labelStyle}>🧾 투두리스트</label>

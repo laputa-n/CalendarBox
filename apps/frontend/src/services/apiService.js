@@ -169,26 +169,22 @@ export class ApiService {
   // === 회원 검색 기능 관련 ===
 static async searchMembers(q, page = 0, size = 20, sort = null) {
   let endpoint = `/members/search?q=${encodeURIComponent(q)}&page=${page}&size=${size}`;
-
   if (sort && Array.isArray(sort)) {
     sort.forEach(s => {
       endpoint += `&sort=${encodeURIComponent(s)}`;
     });
   }
-
   return this.request(endpoint);
 }
 
   // === 캘린더 관련 API ===
 static async getCalendars(page = 1, size = 20) {
-  // ✅ 페이지 계산 및 안전한 URL 구성
   const endpoint = `/calendars?page=${page - 1}&size=${size}`;
   const response = await this.request(endpoint);
   return response;
 }
 
 static async createCalendar(calendarData) {
-  // ✅ 요청 데이터 정리
   const requestData = {
     name: calendarData.name,
     type: calendarData.type || 'PERSONAL',
@@ -266,10 +262,6 @@ static async getCalendarMembers(
   );
 }
 
-/**
- * POST /api/calendars/{calendarId}/members
- * 캘린더 멤버 초대
- */
 static async inviteCalendarMembers(calendarId, memberIds) {
   return this.request(
     `/calendars/${calendarId}/members`,
@@ -282,10 +274,6 @@ static async inviteCalendarMembers(calendarId, memberIds) {
   );
 }
 
-/**
- * DELETE /api/calendar-members/{calendarMemberId}
- * 캘린더 멤버 강퇴 / 탈퇴
- */
 static async removeCalendarMember(calendarMemberId) {
   return this.request(
     `/calendar-members/${calendarMemberId}`,
@@ -295,11 +283,6 @@ static async removeCalendarMember(calendarMemberId) {
   );
 }
 
-/**
- * PATCH /api/calendar-members/{calendarMemberId}
- * 캘린더 멤버 초대 응답 (수락 / 거절)
- * action: "ACCEPT" | "REJECT"
- */
 static async respondCalendarInvite(calendarMemberId, action) {
   return this.request(
     `/calendar-members/${calendarMemberId}`,
@@ -393,6 +376,12 @@ static async respondToScheduleInvite(scheduleId, participantId, action) {
     }
   );
 }
+// schedules 초대 목록 조회
+static async getInvitedSchedules(page = 0, size = 20) {
+  return this.request(`/schedules/invited?page=${page}&size=${size}`, {
+    method: 'GET',
+  });
+}
 
   // 🔍 일정 검색
 static async searchSchedules({ query, calendarId }) {
@@ -408,23 +397,10 @@ static async searchSchedules({ query, calendarId }) {
       params.append('calendarId', calendarId);
     }
   }
-
   return this.request(`/schedules/search?${params.toString()}`, {
     method: 'GET',
   });
 }
-
-// 📋 일정 복제
-static async cloneSchedule(calendarId, sourceScheduleId, targetDate) {
-  return this.request(`/calendars/${calendarId}/schedules`, {
-    method: 'POST',
-    body: JSON.stringify({
-      sourceScheduleId,
-      targetDate,
-    }),
-  });
-}
-
   // === 장소 관련 ===
   static async searchPlaces(query) {
     return this.request(`/places/search?query=${encodeURIComponent(query)}`);
@@ -684,6 +660,24 @@ static async createRecurrence(scheduleId, recurrenceData) {
   });
   return response;
 }
+// ✅ 반복 단건 조회 추가 (GET /schedules/{scheduleId}/recurrences/{recurrenceId})
+static async getRecurrenceDetail(scheduleId, recurrenceId) {
+  return this.request(
+    `/schedules/${scheduleId}/recurrences/${recurrenceId}`,
+    { method: 'GET' }
+  );
+}
+
+// ✅ 일정 참가자 초대
+static async addScheduleParticipant(scheduleId, body) {
+  if (!scheduleId) throw new Error('scheduleId가 없습니다.');
+  return this.request(`/schedules/${scheduleId}/participants`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
 
 static async getRecurrences(scheduleId) {
   return this.request(`/schedules/${scheduleId}/recurrences`, { method: 'GET' });

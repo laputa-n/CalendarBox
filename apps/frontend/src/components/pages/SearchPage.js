@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Clock, MapPin, Calendar as CalendarIcon, Filter, X } from 'lucide-react';
+import { Check , Calendar , Loader2 , Plus , Edit , Trash2 , Search, Clock, MapPin, Calendar as CalendarIcon, Filter, X } from 'lucide-react';
 import { useSchedules } from '../../contexts/ScheduleContext';
-import { formatDate, formatTime } from '../../utils/dateUtils';
+import { formatDate, formatTime , formatDateTime } from '../../utils/dateUtils';
 import { LoadingSpinner } from '../common/LoadingSpinner';
+import { ApiService } from '../../services/apiService';
+import { useCalendars } from '../../contexts/CalendarContext';
 
 export const SearchPage = () => {
   const { searchSchedules, loading } = useSchedules();
+  const { currentCalendar } = useCalendars();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [filters, setFilters] = useState({
@@ -16,6 +19,11 @@ export const SearchPage = () => {
   });
   const [showFilters, setShowFilters] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [invited, setInvited] = useState([]);
+  const [invitedLoading, setInvitedLoading] = useState(false);
+  const [invitedPage, setInvitedPage] = useState({ page: 0, size: 20, totalPages: 0, totalElements: 0 });
+  const [respondingId, setRespondingId] = useState(null);
+  const [selectedSchedule, setSelectedSchedule] = useState(null);
 
   useEffect(() => {
     if (searchQuery.trim()) {
@@ -46,6 +54,48 @@ export const SearchPage = () => {
     }
   };
 
+  const fetchInvited = async (page = 0) => {
+  try {
+    setInvitedLoading(true);
+
+    const res = await ApiService.getInvitedSchedules(page, invitedPage.size);
+
+    const payload = res?.data ?? res;
+    const data = payload?.data ?? payload;
+    const content = data?.content ?? [];
+    setInvited(Array.isArray(content) ? content : []);
+
+    setInvitedPage({
+      page: data?.page ?? page,
+      size: data?.size ?? invitedPage.size,
+      totalPages: data?.totalPages ?? 0,
+      totalElements: data?.totalElements ?? 0,
+    });
+  } catch (e) {
+    console.error('[getInvitedSchedules] failed', e);
+    setInvited([]);
+  } finally {
+    setInvitedLoading(false);
+  }
+};
+
+// ✅ 수락/거절
+const handleRespondInvite = async (inv, action) => {
+  try {
+    setRespondingId(inv.scheduleParticipantId);
+    await ApiService.respondScheduleInvite(inv.scheduleId, inv.scheduleParticipantId, action);
+
+    // 화면에서 제거
+    setInvited((prev) => prev.filter((x) => x.scheduleParticipantId !== inv.scheduleParticipantId));
+
+  } catch (e) {
+    console.error('[respondScheduleInvite] failed', e);
+    alert('초대 응답 실패');
+  } finally {
+    setRespondingId(null);
+  }
+};
+
   const clearFilters = () => {
     setFilters({
       dateFrom: '',
@@ -65,6 +115,14 @@ export const SearchPage = () => {
     border: '1px solid #e5e7eb'
   };
 
+  useEffect(() => {
+  if (!currentCalendar?.id) {
+    setInvited([]);
+    return;
+  }
+  fetchInvited(0);
+}, [currentCalendar?.id]);
+
   return (
     <div>
       <div style={{ marginBottom: '1.5rem' }}>
@@ -75,7 +133,141 @@ export const SearchPage = () => {
           일정을 빠르게 찾아보세요
         </p>
       </div>
-      
+      {/* ✅ 받은 초대 목록 (캘린더 선택 시에만 표시) */}
+{currentCalendar && (
+  <div style={{ ...cardStyle, marginBottom: '1rem' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+      <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>받은 일정 초대</h3>
+      <button
+        type="button"
+        onClick={() => fetchInvited(0)}
+        style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer' }}
+        disabled={invitedLoading}
+      >
+        새로고침
+      </button>
+    </div>
+
+    {invitedLoading ? (
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', color: '#6b7280' }}>
+        <Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} />
+        불러오는 중...
+      </div>
+    ) : invited.length === 0 ? (
+      <div style={{ color: '#6b7280', fontSize: 14 }}>받은 초대가 없습니다.</div>
+    ) : (
+      <>
+        {invited.map((inv) => (
+          <div
+            key={inv.scheduleParticipantId}
+            style={{
+              border: '1px solid #e5e7eb',
+              borderRadius: 10,
+              padding: 12,
+              marginBottom: 8,
+              display: 'flex',
+              justifyContent: 'space-between',
+              gap: 12,
+              background: '#fafafa',
+            }}
+          >
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: 700, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {inv.scheduleTitle}
+              </div>
+              <div style={{ fontSize: 13, color: '#6b7280' }}>
+                초대자: {inv.inviterName} (id: {inv.inviterId})
+              </div>
+              <div style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>
+                {formatDateTime(inv.startAt)} - {formatDateTime(inv.endAt)}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedSchedule(inv.scheduleId)} // ✅ 상세 보기 열기(이미 있는 모달 재사용)
+                style={{
+                  marginTop: 8,
+                  padding: '6px 10px',
+                  borderRadius: 8,
+                  border: '1px solid #e5e7eb',
+                  background: '#fff',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                }}
+              >
+                상세 보기
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button
+                type="button"
+                onClick={() => handleRespondInvite(inv, 'ACCEPT')}
+                disabled={respondingId === inv.scheduleParticipantId}
+                style={{
+                  padding: '8px 10px',
+                  borderRadius: 8,
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: '#2563eb',
+                  color: '#fff',
+                  opacity: respondingId === inv.scheduleParticipantId ? 0.6 : 1,
+                }}
+                title="수락"
+              >
+                <Check size={16} />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleRespondInvite(inv, 'REJECT')}
+                disabled={respondingId === inv.scheduleParticipantId}
+                style={{
+                  padding: '8px 10px',
+                  borderRadius: 8,
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: '#ef4444',
+                  color: '#fff',
+                  opacity: respondingId === inv.scheduleParticipantId ? 0.6 : 1,
+                }}
+                title="거절"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+        ))}
+
+        {/* ✅ 간단 페이징 */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+          <button
+            type="button"
+            onClick={() => fetchInvited(Math.max(0, invitedPage.page - 1))}
+            disabled={invitedPage.page <= 0 || invitedLoading}
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff' }}
+          >
+            이전
+          </button>
+
+          <div style={{ fontSize: 12, color: '#6b7280' }}>
+            {invitedPage.page + 1} / {Math.max(1, invitedPage.totalPages)}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => fetchInvited(invitedPage.page + 1)}
+            disabled={invitedPage.page + 1 >= invitedPage.totalPages || invitedLoading}
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff' }}
+          >
+            다음
+          </button>
+        </div>
+      </>
+    )}
+  </div>
+)}
+
       <div style={cardStyle}>
         {/* 검색 입력 */}
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
