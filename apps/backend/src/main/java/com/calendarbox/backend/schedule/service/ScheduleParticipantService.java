@@ -66,9 +66,34 @@ public class ScheduleParticipantService {
         Member user = memberRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
         Schedule s = scheduleRepository.findById(scheduleId).orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
         Calendar c = s.getCalendar();
-        ScheduleParticipant sp = scheduleParticipantRepository.findById(participantId).orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_PARTICIPANT_NOT_FOUND));
+        ScheduleParticipant sp = scheduleParticipantRepository
+                .findByIdAndSchedule_Id(participantId, scheduleId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_PARTICIPANT_NOT_FOUND));
         //권한 체크
-        if(!sp.getMember().getId().equals(userId)&&!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(c.getId(),userId, CalendarMemberStatus.ACCEPTED)) throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+        boolean isOwner = s.getCreatedBy().getId().equals(userId);
+        boolean isInviter = sp.getInviter() != null && sp.getInviter().getId().equals(userId);
+        boolean isSelf = sp.getMember() != null && sp.getMember().getId().equals(userId);
+
+        if (sp.getMember() == null) {
+            if (!isOwner) throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+
+        } else if (isSelf) {
+            if (!sp.getStatus().equals(ACCEPTED)) throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+
+        } else {
+            if (sp.getStatus().equals(ACCEPTED)) {
+                if (!isOwner) throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+
+            } else if (sp.getStatus().equals(INVITED)) {
+                // ✅ inviter가 null이면 isInviter=false라서 owner만 가능
+                if (!isOwner && !isInviter) throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+
+            } else {
+                // ✅ 나머지 상태는 명시적으로 차단
+                throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+            }
+        }
+
 
         s.removeParticipant(sp);
 

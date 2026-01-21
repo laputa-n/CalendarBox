@@ -11,8 +11,10 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ScheduleParticipantRepository extends JpaRepository<ScheduleParticipant, Long> {
+    Optional<ScheduleParticipant> findByIdAndSchedule_Id(Long participantId, Long scheduleId);
     boolean existsBySchedule_IdAndMember_IdAndStatus(Long scheduleId, Long memberId, ScheduleParticipantStatus status);
     boolean existsBySchedule_IdAndMember_IdAndStatusIn(Long scheduleId, Long memberId, List<ScheduleParticipantStatus> statuses);
     boolean existsBySchedule_IdAndMember_Id(Long scheduleId, Long memberId);
