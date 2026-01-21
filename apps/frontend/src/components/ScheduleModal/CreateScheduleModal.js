@@ -26,7 +26,7 @@ const [calendarMembers, setCalendarMembers] = useState([]);
 const [friends, setFriends] = useState([]);
 const [serviceUserResults, setServiceUserResults] = useState([]);
 const [searchingServiceUser, setSearchingServiceUser] = useState(false);
-
+const [myMemberId, setMyMemberId] = useState(null);
 
   // ====== 폼 상태 ======
   const [formData, setFormData] = useState({
@@ -470,30 +470,70 @@ if (recurrenceId && exceptionDates.length > 0) {
     }
   }, [isOpen, selectedDate]);
 
-  useEffect(() => {
+useEffect(() => {
   if (!isOpen) return;
+
   setServiceUserResults([]);
   setInvitees([]);
+
   if (!currentCalendar?.id) return;
 
   (async () => {
     try {
       const [mRes, fRes] = await Promise.all([
-        ApiService.getCalendarMembers(currentCalendar.id),
-        ApiService.getFriends(),
+        // ✅ 캘린더 멤버: status=ACCEPTED로 요청 (ApiService가 opts 지원해야 함)
+        ApiService.getCalendarMembers(currentCalendar.id, {
+          status: 'ACCEPTED',
+          sort: 'NAME_ASC',
+          page: 0,
+          size: 200,
+        }),
+        // ✅ 친구: 이미 ACCEPTED만 오므로 페이징만 명시적으로
+        ApiService.getFriends(0, 200),
       ]);
 
-      const members = mRes?.data?.data?.content || mRes?.data?.content || [];
-      const friends = fRes?.data?.data?.content || fRes?.data?.content || [];
+      const rawMembers = mRes?.data?.data?.content || mRes?.data?.content || [];
+      const rawFriends = fRes?.data?.data?.content || fRes?.data?.content || [];
 
-      setCalendarMembers(Array.isArray(members) ? members : []);
-      setFriends(Array.isArray(friends) ? friends : []);
+      // ✅ 내 id 추론 (응답에 myId가 같이 내려온다고 했으니 여기서 뽑아둠)
+      const inferredMyId =
+        (Array.isArray(rawMembers) && rawMembers.find((x) => x?.myId != null)?.myId) ?? null;
+      setMyMemberId(inferredMyId);
+
+      // ✅ 캘린더 멤버: ACCEPTED만 + 이름은 memberName → name으로 + 내 자신 제외
+      const normalizedCalendarMembers = (Array.isArray(rawMembers) ? rawMembers : [])
+        .filter((m) => m?.status === 'ACCEPTED') // 서버에서 이미 필터해도 안전망
+        .filter((m) =>
+          inferredMyId == null ? true : String(m?.memberId) !== String(inferredMyId)
+        )
+        .map((m) => ({
+          memberId: m.memberId,
+          name: m.memberName,   // ✅ 화면 표시용
+          // email/phoneNumber가 있으면 같이 붙여도 됨(없으면 생략 가능)
+          email: m.email,
+          phoneNumber: m.phoneNumber,
+        }));
+
+      // ✅ 친구: friendName → name으로 + (원하면) 내 자신 제외 방어
+      const normalizedFriends = (Array.isArray(rawFriends) ? rawFriends : [])
+        .filter((f) =>
+          inferredMyId == null ? true : String(f?.memberId) !== String(inferredMyId)
+        )
+        .map((f) => ({
+          memberId: f.memberId,
+          name: f.friendName,   // ✅ 화면 표시용
+        }));
+
+      setCalendarMembers(normalizedCalendarMembers);
+      setFriends(normalizedFriends);
     } catch (e) {
       setCalendarMembers([]);
       setFriends([]);
+      setMyMemberId(null);
     }
   })();
 }, [isOpen, currentCalendar?.id]);
+
 
   // ====== 리마인더 변환 헬퍼 ======
   const reminderSelectToMinutes = (v) => {
@@ -831,7 +871,8 @@ const extractScheduleId = (res) => {
   friends={friends}
   serviceUserResults={serviceUserResults}
   searchingServiceUser={searchingServiceUser}
-  onSearchServiceUser={handleSearchServiceUser}  />
+  onSearchServiceUser={handleSearchServiceUser}
+  myMemberId={myMemberId}  />
            {/* 투두 (생성 중 로컬로만 관리) */}
           <div style={sectionStyle}>
             <label style={labelStyle}>🧾 투두리스트</label>

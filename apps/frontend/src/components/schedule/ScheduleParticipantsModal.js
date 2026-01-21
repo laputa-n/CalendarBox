@@ -1,6 +1,6 @@
 // src/components/schedule/ScheduleParticipantsModal.js
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { X, Loader2, Search, Plus, Trash2 } from 'lucide-react';
+import { X, Loader2, Search, Plus } from 'lucide-react';
 import { ApiService } from '../../services/apiService';
 
 const overlayStyle = {
@@ -59,119 +59,104 @@ export default function ScheduleParticipantsModal({
   onClose,
   scheduleId,
   hostMemberId = null, // host 강퇴 방지용(없으면 host 방지 로직은 약하게 동작)
-  calendarId = null,   // ✅ 캘린더 멤버 조회용
 }) {
   const unwrapData = useCallback((res) => {
     const body = res?.data ?? res; // axios vs fetch
-    return body?.data ?? body;     // wrapper(data) vs plain
+    return body?.data ?? body; // wrapper(data) vs plain
   }, []);
 
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  // ====== ACCEPTED participants ======
-  const [participants, setParticipants] = useState([]); // ACCEPTED만
-
-  // ====== calendar members ======
-  const [calendarMembersLoading, setCalendarMembersLoading] = useState(false);
-  const [calendarMembers, setCalendarMembers] = useState([]);
-  const [calendarMemberQuery, setCalendarMemberQuery] = useState('');
-
-  // ====== service user search ======
+  // ✅ 이제 ACCEPTED만이 아니라, ACCEPTED/INVITED 모두 보여주기
+  const [participants, setParticipants] = useState([]);
   const [serviceUserQuery, setServiceUserQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [serviceUserResults, setServiceUserResults] = useState([]);
-
-  // ====== name invite ======
   const [nameInvite, setNameInvite] = useState('');
 
-  const acceptedSet = useMemo(() => {
+  const getParticipantId = (p) => p?.scheduleParticipantId ?? p?.id ?? null;
+
+  const deriveStatus = (p) => {
+    // status가 없으면 NAME 초대(not user)는 수락됨처럼 보이게 처리(UI 깨짐 방지)
+    const st = p?.status;
+    if (st) return String(st).toUpperCase();
+    if (p?.memberId == null) return 'ACCEPTED';
+    return '';
+  };
+
+  const statusLabel = (st) => {
+    const s = String(st || '').toUpperCase();
+    if (s === 'ACCEPTED') return '수락됨';
+    if (s === 'INVITED') return '초대됨';
+    if (s === 'REJECTED') return '거절됨';
+    return s || '-';
+  };
+
+  const displayName = (p) => {
+    const name = p?.name ?? p?.memberName ?? p?.inviteeName ?? p?.friendName ?? '';
+    const isNotUser = p?.memberId == null; // ✅ not user
+    return `${name || '이름없음'}${isNotUser ? '(not user)' : ''}`;
+  };
+
+  // ✅ 이미 참여중(수락/초대 포함)인 memberId Set -> 중복 초대 방지
+  const existingMemberIdSet = useMemo(() => {
     const s = new Set();
     (participants || []).forEach((p) => {
-      const mid = p?.memberId ?? null;
+      const mid = p?.memberId;
       if (mid != null) s.add(String(mid));
     });
     return s;
   }, [participants]);
 
-  // ✅ ACCEPTED 로드
-  const loadAccepted = useCallback(async () => {
+  // ✅ ACCEPTED + INVITED 둘 다 불러오기 (API가 status 필수인 경우를 대비해 2번 호출)
+  const loadParticipants = useCallback(async () => {
     if (!scheduleId) return;
 
     try {
       setLoading(true);
 
-      const res = await ApiService.getScheduleParticipants(scheduleId, {
-        status: 'ACCEPTED',
-        page: 0,
-        size: 100,
+      const [aRes, iRes] = await Promise.allSettled([
+        ApiService.getScheduleParticipants(scheduleId, { status: 'ACCEPTED', page: 0, size: 200 }),
+        ApiService.getScheduleParticipants(scheduleId, { status: 'INVITED', page: 0, size: 200 }),
+      ]);
+
+      const toList = (r) => {
+        if (!r || r.status !== 'fulfilled') return [];
+        const data = unwrapData(r.value);
+        if (Array.isArray(data?.content)) return data.content;
+        if (Array.isArray(data)) return data;
+        return [];
+      };
+
+      const list = [...toList(aRes), ...toList(iRes)];
+
+      // ✅ 중복 제거 + 정렬(수락됨 먼저)
+      const map = new Map();
+      list.forEach((p) => {
+        const pid = getParticipantId(p);
+        if (pid != null) map.set(String(pid), p);
       });
 
-      const data = unwrapData(res);
-      const list = Array.isArray(data?.content)
-        ? data.content
-        : Array.isArray(data)
-          ? data
-          : [];
+      const merged = Array.from(map.values()).sort((x, y) => {
+        const rx = deriveStatus(x) === 'ACCEPTED' ? 0 : 1;
+        const ry = deriveStatus(y) === 'ACCEPTED' ? 0 : 1;
+        return rx - ry;
+      });
 
-      setParticipants(list);
+      setParticipants(merged);
     } catch (e) {
-      console.error('[getScheduleParticipants/ACCEPTED] failed', e);
+      console.error('[getScheduleParticipants] failed', e);
       setParticipants([]);
     } finally {
       setLoading(false);
     }
   }, [scheduleId, unwrapData]);
 
-  // ✅ 캘린더 멤버 로드
-  const loadCalendarMembers = useCallback(async () => {
-    if (!calendarId) {
-      setCalendarMembers([]);
-      return;
-    }
-
-    try {
-      setCalendarMembersLoading(true);
-
-      const res = await ApiService.getCalendarMembers(calendarId, 0, 200);
-      const data = unwrapData(res);
-
-      // 서버 형태가 {data:{content:[]}} / {content:[]} / [] 등 모두 대응
-      const list = Array.isArray(data?.content)
-        ? data.content
-        : Array.isArray(data)
-          ? data
-          : [];
-
-      setCalendarMembers(list);
-    } catch (e) {
-      console.error('[getCalendarMembers] failed', e);
-      setCalendarMembers([]);
-    } finally {
-      setCalendarMembersLoading(false);
-    }
-  }, [calendarId, unwrapData]);
-
-  // 모달 열릴 때 ACCEPTED + 캘린더 멤버 로드
   useEffect(() => {
     if (!isOpen) return;
-    loadAccepted();
-    loadCalendarMembers();
-  }, [isOpen, loadAccepted, loadCalendarMembers]);
-
-  // ✅ 캘린더 멤버 필터링
-  const filteredCalendarMembers = useMemo(() => {
-    const q = String(calendarMemberQuery || '').trim().toLowerCase();
-    const list = Array.isArray(calendarMembers) ? calendarMembers : [];
-    if (!q) return list;
-
-    return list.filter((m) => {
-      const name = String(m?.name ?? m?.nickname ?? '').toLowerCase();
-      const email = String(m?.email ?? '').toLowerCase();
-      const phone = String(m?.phoneNumber ?? '').toLowerCase();
-      return name.includes(q) || email.includes(q) || phone.includes(q);
-    });
-  }, [calendarMembers, calendarMemberQuery]);
+    loadParticipants();
+  }, [isOpen, loadParticipants]);
 
   // 서비스 유저 검색 debounce
   useEffect(() => {
@@ -205,13 +190,13 @@ export default function ScheduleParticipantsModal({
     }, 300);
 
     return () => clearTimeout(t);
-  }, [isOpen, serviceUserQuery, acceptedSet]);
+  }, [isOpen, serviceUserQuery]);
 
   const addServiceUser = async (u) => {
     const memberId = u?.memberId ?? u?.id;
     if (!memberId) return alert('memberId를 찾을 수 없습니다.');
 
-    if (acceptedSet.has(String(memberId))) return;
+    if (existingMemberIdSet.has(String(memberId))) return;
 
     try {
       setBusy(true);
@@ -221,8 +206,9 @@ export default function ScheduleParticipantsModal({
         memberId,
       });
 
-      // UX: 초대 후 최신 반영
-      await loadAccepted();
+      setServiceUserQuery('');
+      setServiceUserResults([]);
+      await loadParticipants();
       alert('초대(추가) 완료');
     } catch (e) {
       console.error('[addScheduleParticipant/SERVICE_USER] failed', e);
@@ -245,7 +231,7 @@ export default function ScheduleParticipantsModal({
       });
 
       setNameInvite('');
-      await loadAccepted();
+      await loadParticipants();
       alert('이름 초대 완료');
     } catch (e) {
       console.error('[addScheduleParticipant/NAME] failed', e);
@@ -255,28 +241,37 @@ export default function ScheduleParticipantsModal({
     }
   };
 
-  const kick = async (p) => {
-    const participantId = p?.scheduleParticipantId ?? p?.id;
+  const removeOrCancel = async (p) => {
+    const participantId = getParticipantId(p);
     if (!participantId) return;
 
-    // host 삭제 방지
+    const st = deriveStatus(p); // ACCEPTED / INVITED / ...
     const mid = p?.memberId ?? null;
+
+    // host 삭제 방지
     if (hostMemberId && mid != null && String(mid) === String(hostMemberId)) {
       alert('호스트는 삭제할 수 없습니다.');
       return;
     }
 
-    const ok = window.confirm(`${p?.name ?? '참여자'} 님을 강퇴할까요?`);
+    const who = displayName(p);
+    const msg =
+      st === 'ACCEPTED'
+        ? `${who} 님을 강퇴하시겠습니까?`
+        : `${who} 님의 초대를 취소하시겠습니까?`;
+
+    const ok = window.confirm(msg);
     if (!ok) return;
 
     try {
       setBusy(true);
+      // ✅ 정식: removeScheduleParticipant (수락자=강퇴 / 초대자=초대취소 동일 API로 처리)
       await ApiService.removeScheduleParticipant(scheduleId, participantId);
-      await loadAccepted();
-      alert('강퇴 완료');
+      await loadParticipants();
+      alert(st === 'ACCEPTED' ? '강퇴 완료' : '초대 취소 완료');
     } catch (e) {
       console.error('[removeScheduleParticipant] failed', e);
-      alert('강퇴 실패');
+      alert(st === 'ACCEPTED' ? '강퇴 실패' : '초대 취소 실패');
     } finally {
       setBusy(false);
     }
@@ -287,15 +282,28 @@ export default function ScheduleParticipantsModal({
   return (
     <div style={overlayStyle}>
       <div style={modalStyle}>
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>참여자 (ACCEPTED)</h3>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }} title="닫기" type="button">
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 12,
+          }}
+        >
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>
+            참여자
+          </h3>
+          <button
+            onClick={onClose}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
+            title="닫기"
+            type="button"
+          >
             <X />
           </button>
         </div>
 
-        {/* ACCEPTED 목록 */}
+        {/* 목록 */}
         <div style={{ marginBottom: 14 }}>
           {loading ? (
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', color: '#6b7280' }}>
@@ -303,27 +311,54 @@ export default function ScheduleParticipantsModal({
               불러오는 중...
             </div>
           ) : participants.length === 0 ? (
-            <div style={{ fontSize: 13, color: '#6b7280' }}>ACCEPTED 참여자가 없습니다.</div>
+            <div style={{ fontSize: 13, color: '#6b7280' }}>참여자가 없습니다.</div>
           ) : (
             participants.map((p) => {
-              const isHost = hostMemberId && String(p?.memberId ?? '') === String(hostMemberId);
+              const pid = getParticipantId(p);
+              const st = deriveStatus(p);
+              const isHost =
+                hostMemberId && String(p?.memberId ?? '') === String(hostMemberId);
+
               return (
-                <div key={p.scheduleParticipantId ?? p.id} style={itemRow}>
+                <div key={pid ?? `${p?.name}-${Math.random()}`} style={itemRow}>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {p.name ?? `memberId:${p.memberId ?? '-'}`}{isHost ? ' (HOST)' : ''}
+                    <div
+                      style={{
+                        fontWeight: 800,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {displayName(p)} {isHost ? '(HOST)' : ''}
                     </div>
-                    <div style={{ fontSize: 12, color: '#6b7280' }}>memberId: {p.memberId ?? '-'}</div>
+
+                    {/* ✅ memberId 대신 상태 표시 */}
+                    <div style={{ fontSize: 12, color: '#6b7280' }}>
+                      상태: {statusLabel(st)}
+                    </div>
                   </div>
 
                   <button
                     type="button"
-                    onClick={() => kick(p)}
+                    onClick={() => removeOrCancel(p)}
                     disabled={busy || isHost}
-                    style={{ ...btn, borderColor: '#fecaca', background: '#fee2e2', color: '#b91c1c' }}
-                    title="강퇴"
+                    style={{
+                      ...btn,
+                      borderColor: '#fecaca',
+                      background: '#fee2e2',
+                      color: '#b91c1c',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 36,
+                      height: 32,
+                      padding: 0,
+                    }}
+                    title={st === 'ACCEPTED' ? '강퇴' : '초대 취소'}
                   >
-                    <Trash2 size={16} />
+                    {/* ✅ 휴지통 -> X */}
+                    <X size={16} />
                   </button>
                 </div>
               );
@@ -331,86 +366,33 @@ export default function ScheduleParticipantsModal({
           )}
 
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={loadAccepted} style={btn} disabled={loading}>
+            <button type="button" onClick={loadParticipants} style={btn} disabled={loading}>
               새로고침
             </button>
           </div>
-        </div>
-
-        <hr style={{ margin: '14px 0' }} />
-
-        {/* ✅ 캘린더 멤버 초대 */}
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <div style={{ fontSize: 13, fontWeight: 700 }}>캘린더 멤버 초대</div>
-            <button type="button" onClick={loadCalendarMembers} style={btn} disabled={calendarMembersLoading || busy || !calendarId}>
-              새로고침
-            </button>
-          </div>
-
-          {!calendarId ? (
-            <div style={{ fontSize: 12, color: '#6b7280' }}>
-           
-            </div>
-          ) : (
-            <>
-              <input
-                value={calendarMemberQuery}
-                onChange={(e) => setCalendarMemberQuery(e.target.value)}
-                placeholder="캘린더 멤버 필터(이름/이메일/전화)"
-                style={{ ...inputStyle, marginBottom: 8 }}
-                disabled={calendarMembersLoading || busy}
-              />
-
-              {calendarMembersLoading ? (
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', color: '#6b7280' }}>
-                  <Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} />
-                  캘린더 멤버 불러오는 중...
-                </div>
-              ) : filteredCalendarMembers.length === 0 ? (
-                <div style={{ fontSize: 12, color: '#6b7280' }}>표시할 캘린더 멤버가 없습니다.</div>
-              ) : (
-                filteredCalendarMembers.map((m, idx) => {
-                  const memberId = m?.memberId ?? m?.id;
-                  const already = memberId != null && acceptedSet.has(String(memberId));
-
-                  return (
-                    <div key={memberId ?? idx} style={itemRow}>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {m?.name ?? m?.nickname ?? m?.email ?? m?.phoneNumber ?? `memberId:${memberId ?? '-'}`}
-                        </div>
-                        <div style={{ fontSize: 12, color: '#6b7280' }}>
-                          id: {memberId ?? '-'} {m?.email ? ` · ${m.email}` : ''} {m?.phoneNumber ? ` · ${m.phoneNumber}` : ''}
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => addServiceUser({ memberId })}
-                        disabled={busy || already || memberId == null}
-                        style={{ ...btn, background: already ? '#f3f4f6' : '#dbeafe' }}
-                        title={already ? '이미 참여 중' : '추가'}
-                      >
-                        <Plus size={16} />
-                      </button>
-                    </div>
-                  );
-                })
-              )}
-            </>
-          )}
         </div>
 
         <hr style={{ margin: '14px 0' }} />
 
         {/* 서비스 유저 검색 */}
         <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>서비스 유저 검색 초대</div>
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
+            서비스 유저 검색 초대
+          </div>
 
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
             <div style={{ position: 'relative', flex: 1 }}>
-              <Search style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', width: 16, height: 16, color: '#6b7280' }} />
+              <Search
+                style={{
+                  position: 'absolute',
+                  left: 10,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: 16,
+                  height: 16,
+                  color: '#6b7280',
+                }}
+              />
               <input
                 value={serviceUserQuery}
                 onChange={(e) => setServiceUserQuery(e.target.value)}
@@ -429,15 +411,25 @@ export default function ScheduleParticipantsModal({
           ) : serviceUserResults.length > 0 ? (
             serviceUserResults.map((u, idx) => {
               const memberId = u?.memberId ?? u?.id;
-              const disabled = memberId != null && acceptedSet.has(String(memberId));
+              const disabled = memberId != null && existingMemberIdSet.has(String(memberId));
 
               return (
                 <div key={memberId ?? idx} style={itemRow}>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div
+                      style={{
+                        fontWeight: 700,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
                       {u.name ?? u.nickname ?? u.email ?? u.phoneNumber ?? '사용자'}
                     </div>
-                    <div style={{ fontSize: 12, color: '#6b7280' }}>id: {memberId ?? '-'}</div>
+                    <div style={{ fontSize: 12, color: '#6b7280' }}>
+                      {/* 여기서는 id 표시해도 되지만 원하시면 제거 가능 */}
+                      id: {memberId ?? '-'}
+                    </div>
                   </div>
 
                   <button
@@ -445,7 +437,7 @@ export default function ScheduleParticipantsModal({
                     onClick={() => addServiceUser(u)}
                     disabled={busy || disabled}
                     style={{ ...btn, background: disabled ? '#f3f4f6' : '#dbeafe' }}
-                    title={disabled ? '이미 참여 중' : '추가'}
+                    title={disabled ? '이미 참여/초대됨' : '추가'}
                   >
                     <Plus size={16} />
                   </button>
@@ -457,22 +449,27 @@ export default function ScheduleParticipantsModal({
 
         {/* 이름 초대 */}
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>이름으로 초대</div>
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
+            이름으로 초대
+          </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <input
               value={nameInvite}
               onChange={(e) => setNameInvite(e.target.value)}
-              placeholder="예: 엄마"
+              placeholder="예: 아빠"
               style={inputStyle}
               disabled={busy}
             />
-            <button type="button" onClick={addByName} disabled={busy} style={{ ...btn, background: '#dbeafe' }}>
+            <button
+              type="button"
+              onClick={addByName}
+              disabled={busy}
+              style={{ ...btn, background: '#dbeafe' }}
+            >
               추가
             </button>
           </div>
-          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 6 }}>
-            이름 초대는 상대가 수락하기 전까지 ACCEPTED 목록에 보이지 않을 수 있습니다.
-          </div>
+          
         </div>
       </div>
     </div>

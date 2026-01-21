@@ -131,6 +131,11 @@ const hostMemberId =
   scheduleDetail?.creatorId ??
   scheduleDetail?.createdBy?.id ??
   null;
+const calendarId =
+  scheduleDetail?.calendarId ??
+  scheduleDetail?.calendar?.id ??
+  scheduleDetail?.calendar?.calendarId ??
+  null;
 
   // ✅ links
 const loadLinks = useCallback(async () => {
@@ -911,7 +916,7 @@ return (
     style={subButton}
     disabled={!scheduleId}
   >
-    참여자 보기(ACCEPTED)
+    참여자 보기
   </button>
 </div>
 
@@ -920,6 +925,7 @@ return (
   onClose={() => setParticipantsModalOpen(false)}
   scheduleId={scheduleId}
   hostMemberId={hostMemberId}
+  calendarId={calendarId}
 />
 
 </div>

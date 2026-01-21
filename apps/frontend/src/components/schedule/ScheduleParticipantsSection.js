@@ -13,13 +13,69 @@ export default function ScheduleParticipantsSection({
   // 검색 콜백 (부모에서 API 연동)
   onSearchServiceUser,
   searchingServiceUser = false,
+   myMemberId = null,
 }) {
   const [activeTab, setActiveTab] = useState('CALENDAR'); // CALENDAR | FRIEND | SEARCH | NAME
   const [nameInput, setNameInput] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [nameOverrideMap, setNameOverrideMap] = useState({}); // memberId -> nameOverride
 
-  const inviteeKeySet = useMemo(() => {
+// ✅ memberId 추출을 최대한 유연하게
+  const getMemberId = (m) =>
+    m?.memberId ??
+    m?.id ??
+    m?.userId ??
+    m?.targetMemberId ??
+    m?.friendMemberId ??
+    m?.member?.id ??
+    null;
+
+  // ✅ 화면 표시용 이름 우선순위
+  const getDisplayName = (m) =>
+    m?.name ??
+    m?.friendName ?? 
+    m?.nickname ??
+    m?.memberName ??
+    m?.member?.name ??
+    m?.profileName ??
+    m?.email ??
+    m?.phoneNumber ??
+    '이름없음';
+
+  // ✅ 친구 ACCEPTED 판별(필드명이 다를 수 있어 여러 후보 대응)
+const isAcceptedFriend = (f) => {
+  const st =
+    f?.status ??
+    f?.friendStatus ??
+    f?.relationStatus ??
+    f?.requestStatus ??
+    '';
+
+  if (!st) return true; // ✅ 친구 API가 ACCEPTED만 주는 케이스 대응
+  return String(st).toUpperCase() === 'ACCEPTED';
+};
+const filteredCalendarMembers = useMemo(() => {
+  return (Array.isArray(calendarMembers) ? calendarMembers : [])
+    .filter((m) => {
+      const st = m?.status;
+      return !st || String(st).toUpperCase() === 'ACCEPTED';
+    });
+}, [calendarMembers]);
+
+
+  // ✅ (3) 내 아이디 제외 + (1) ACCEPTED만
+  const filteredFriends = useMemo(() => {
+    const mid = myMemberId == null ? null : String(myMemberId);
+    return (Array.isArray(friends) ? friends : [])
+      .filter(isAcceptedFriend)
+      .filter((f) => {
+        const fid = getMemberId(f);
+        if (mid == null || fid == null) return true;
+        return String(fid) !== mid;
+      });
+  }, [friends, myMemberId]);
+
+ const inviteeKeySet = useMemo(() => {
     const s = new Set();
     (invitees || []).forEach((inv) => {
       if (inv?.type === 'SERVICE_USER') s.add(`U:${inv.memberId}`);
@@ -28,65 +84,39 @@ export default function ScheduleParticipantsSection({
     return s;
   }, [invitees]);
 
-const getMemberId = (m) => m?.memberId ?? m?.id; // ✅ 여기 추가
+  const addServiceUser = (member) => {
+    const mid = getMemberId(member);
+    if (!mid) return;
 
-const addServiceUser = (member) => {
-  const mid = getMemberId(member);
-  if (!mid) return;
+    // ✅ (3) 내 자신은 추가 금지 (UI에서 제외했더라도 안전장치)
+    if (myMemberId != null && String(mid) === String(myMemberId)) return;
 
-  const key = `U:${mid}`;
-  if (inviteeKeySet.has(key)) return;
-
-  setInvitees((prev) => [
-    ...(prev || []),
-    {
-      type: 'SERVICE_USER',
-      memberId: mid,
-      // ✅ (아래 3번과 연결) 화면 표시용 이름도 저장 추천
-      displayName: member?.name || member?.nickname || '',
-      nameOverride: '',
-    },
-  ]);
-};
-
-  const addNameInvitee = () => {
-    const n = String(nameInput || '').trim();
-    if (!n) return;
-
-    const key = `N:${n}`;
+    const key = `U:${mid}`;
     if (inviteeKeySet.has(key)) return;
 
-    setInvitees((prev) => [...(prev || []), { type: 'NAME', name: n }]);
-    setNameInput('');
-  };
-
-  const removeInvitee = (inv) => {
-    setInvitees((prev) =>
-      (prev || []).filter((x) => {
-        if (inv.type === 'SERVICE_USER') return !(x.type === 'SERVICE_USER' && x.memberId === inv.memberId);
-        if (inv.type === 'NAME') return !(x.type === 'NAME' && x.name === inv.name);
-        return true;
-      })
-    );
-  };
-
-  const setNameOverride = (memberId, value) => {
-    setNameOverrideMap((prev) => ({ ...prev, [memberId]: value }));
-    setInvitees((prev) =>
-      (prev || []).map((x) => {
-        if (x.type === 'SERVICE_USER' && x.memberId === memberId) {
-          return { ...x, nameOverride: value };
-        }
-        return x;
-      })
-    );
+    setInvitees((prev) => [
+      ...(prev || []),
+      {
+        type: 'SERVICE_USER',
+        memberId: mid,
+        displayName: getDisplayName(member), // ✅ (2) 이름 저장
+        nameOverride: '',
+      },
+    ]);
   };
 
   const renderCandidateRow = (m) => {
-    const disabled = inviteeKeySet.has(`U:${m.memberId}`);
+    const mid = getMemberId(m);
+    if (!mid) return null;
+
+    // ✅ (3) 내 자신은 목록에서 제외(한 번 더)
+    if (myMemberId != null && String(mid) === String(myMemberId)) return null;
+
+    const disabled = inviteeKeySet.has(`U:${mid}`);
+    const displayName = getDisplayName(m);
     return (
       <div
-        key={m.memberId}
+        key={mid}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -101,9 +131,12 @@ const addServiceUser = (member) => {
         }}
       >
         <div style={{ minWidth: 0 }}>
+          {/* ✅ (2) memberId 대신 이름 표시 */}
           <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {m.name || m.nickname || `memberId:${m.memberId}`}
+            {displayName}
           </div>
+
+          {/* 보조정보는 email/phone만 (memberId 표시 제거) */}
           {(m.email || m.phoneNumber) && (
             <div style={{ fontSize: 12, color: '#6b7280' }}>
               {m.email || m.phoneNumber}
@@ -127,6 +160,40 @@ const addServiceUser = (member) => {
           <Plus size={16} />
         </button>
       </div>
+    );
+  };
+
+  const addNameInvitee = () => {
+  const n = String(nameInput || '').trim();
+  if (!n) return;
+
+  const key = `N:${n}`;
+  if (inviteeKeySet.has(key)) return;
+
+  setInvitees((prev) => [...(prev || []), { type: 'NAME', name: n }]);
+  setNameInput('');
+};
+
+  const removeInvitee = (inv) => {
+    setInvitees((prev) =>
+      (prev || []).filter((x) => {
+      if (inv.type === 'SERVICE_USER')
+  return !(x.type === 'SERVICE_USER' && String(x.memberId) === String(inv.memberId));
+
+      })
+    );
+  };
+
+  const setNameOverride = (memberId, value) => {
+    setNameOverrideMap((prev) => ({ ...prev, [memberId]: value }));
+    setInvitees((prev) =>
+      (prev || []).map((x) => {
+       if (x.type === 'SERVICE_USER' && String(x.memberId) === String(memberId)) {
+  return { ...x, nameOverride: value };
+}
+
+        return x;
+      })
     );
   };
 
@@ -165,7 +232,7 @@ const addServiceUser = (member) => {
                       <input
                         value={inv.nameOverride || ''}
                         onChange={(e) => setNameOverride(inv.memberId, e.target.value)}
-                        placeholder="예: 엄마"
+                        placeholder="예: 아빠"
                         style={{
                           marginLeft: 8,
                           padding: '4px 8px',
@@ -228,24 +295,25 @@ const addServiceUser = (member) => {
 
       {/* 탭 컨텐츠 */}
       {activeTab === 'CALENDAR' && (
-        <div>
-          {Array.isArray(calendarMembers) && calendarMembers.length > 0 ? (
-            calendarMembers.map(renderCandidateRow)
-          ) : (
-            <div style={{ fontSize: 12, color: '#6b7280' }}>캘린더 멤버 목록이 없습니다.</div>
-          )}
-        </div>
-      )}
+  <div>
+    {filteredCalendarMembers.length > 0 ? (
+      filteredCalendarMembers.map(renderCandidateRow)
+    ) : (
+      <div style={{ fontSize: 12, color: '#6b7280' }}>캘린더 멤버 목록이 없습니다.</div>
+    )}
+  </div>
+)}
 
-      {activeTab === 'FRIEND' && (
-        <div>
-          {Array.isArray(friends) && friends.length > 0 ? (
-            friends.map(renderCandidateRow)
-          ) : (
-            <div style={{ fontSize: 12, color: '#6b7280' }}>친구 목록이 없습니다.</div>
-          )}
-        </div>
-      )}
+
+  {activeTab === 'FRIEND' && (
+  <div>
+    {Array.isArray(filteredFriends) && filteredFriends.length > 0 ? (
+      filteredFriends.map(renderCandidateRow)
+    ) : (
+      <div style={{ fontSize: 12, color: '#6b7280' }}>친구 목록이 없습니다.</div>
+    )}
+  </div>
+)}
 
       {activeTab === 'SEARCH' && (
         <div>
@@ -294,7 +362,7 @@ const addServiceUser = (member) => {
           <input
             value={nameInput}
             onChange={(e) => setNameInput(e.target.value)}
-            placeholder="예: 엄마"
+            placeholder="예: 아빠"
             style={{
               flex: 1,
               padding: '8px',
