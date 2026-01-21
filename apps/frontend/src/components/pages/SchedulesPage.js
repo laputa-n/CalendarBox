@@ -427,14 +427,18 @@ export const SchedulesPage = () => {
                       {inv.scheduleTitle}
                     </div>
 
-                    <div style={{ fontSize: 13, color: '#6b7280' }}>
-                      초대자: {inv.inviterName} (id: {inv.inviterId})
-                    </div>
+                   <div style={{ fontSize: 13, color: '#6b7280' }}>
+  초대자: {inv.inviterName || '알 수 없음'}
+</div>
 
-                    <div style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>
-                      {formatDateTime(inv.startAt)} - {formatDateTime(inv.endAt)}
-                    </div>
+<div style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>
+  {formatDateTime(inv.startAt)} - {formatDateTime(inv.endAt)}
+</div>
 
+{/* ✅ 초대시간 표시 (필드 후보들 중 있는 것 사용) */}
+<div style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>
+  초대시간: {formatDateTime(inv.invitedAt || inv.createdAt || inv.respondedAt)}
+</div>
                     <button
                       type="button"
                       onClick={() => setSelectedSchedule(inv.scheduleId)}
