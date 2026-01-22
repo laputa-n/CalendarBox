@@ -456,7 +456,7 @@ export default function ScheduleParticipantsModal({
             <input
               value={nameInvite}
               onChange={(e) => setNameInvite(e.target.value)}
-              placeholder="예: 아빠"
+              placeholder="이름으로 초대: 아빠"
               style={inputStyle}
               disabled={busy}
             />

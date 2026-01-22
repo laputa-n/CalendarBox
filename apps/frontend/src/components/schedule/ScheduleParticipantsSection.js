@@ -245,7 +245,7 @@ const filteredCalendarMembers = useMemo(() => {
                     </div>
                   </>
                 ) : (
-                  <div style={{ fontWeight: 600 }}>이름 초대: {inv.name}</div>
+                  <div style={{ fontWeight: 600 }}>이름으로 초대: {inv.name}</div>
                 )}
               </div>
 
@@ -362,7 +362,7 @@ const filteredCalendarMembers = useMemo(() => {
           <input
             value={nameInput}
             onChange={(e) => setNameInput(e.target.value)}
-            placeholder="예: 아빠"
+            placeholder="이름으로 초대 : 아빠"
             style={{
               flex: 1,
               padding: '8px',
