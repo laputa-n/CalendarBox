@@ -235,19 +235,19 @@ const openMonthlyRuleModal = () => {
   setIsMonthlyRuleOpen(true);
 };
 
-
 const handleSubmit = async (e) => {
   e.preventDefault();
-  const startAtISO = localInputToISO(formData.startDateTime);
-  const endAtISO   = localInputToISO(formData.endDateTime);
-let recurrencePayload = null;
 
-try {
-  recurrencePayload = buildRecurrencePayload(formData.recurrence);
-} catch (e) {
-  alert(e.message);
-  return;
-}
+  let recurrencePayload = null;
+  let scheduleRes = null;
+  let newId = null;
+
+  try {
+    recurrencePayload = buildRecurrencePayload(formData.recurrence);
+  } catch (err) {
+    alert(err.message);
+    return;
+  }
 
   try {
     const payload = {
@@ -255,36 +255,52 @@ try {
       memo: formData.description ?? '',
       startAt: localInputToISO(formData.startDateTime),
       endAt: localInputToISO(formData.endDateTime),
+      color: formData.color || '#3b82f6',
+      places: [],
+      links: formData.links,
+      reminders: Array.isArray(formData.reminders)
+        ? formData.reminders
+            .map(r => (typeof r === 'object' && Number.isFinite(r.minutesBefore) ? { minutesBefore: r.minutesBefore } : null))
+            .filter(Boolean)
+        : [],
       todos: (formData.todos || []).map((t, i) => ({
         content: t.content ?? '',
         isDone: !!t.isDone,
         orderNo: i + 1,
       })),
-      reminders: Array.isArray(formData.reminders)
-        ? formData.reminders.map(r =>
-            (typeof r === 'object' && Number.isFinite(r.minutesBefore))
-              ? { minutesBefore: r.minutesBefore }
-              : null
-          ).filter(Boolean)
-        : [],
-      color: formData.color || '#3b82f6',
-      places: [], // 예시에서는 비워둠
-      links: formData.links,
-      ...(recurrencePayload ? { recurrence: recurrencePayload } : {})
     };
-    const errs = validateSchedulePayload ? validateSchedulePayload(payload) : [];
-    if (errs.length) {
-      console.warn('[Schedule] payload validation warnings:', errs);
-    }
-// 1️⃣ 일정 생성
-const res = await createSchedule(payload);
-const newId = extractScheduleId(res);
-console.log('✅ [CREATE] createSchedule res =', res);
-console.log('✅ [CREATE] newId =', newId);
-console.log('[CREATE payload]', payload);
-console.log('[CREATE recurrencePayload]', recurrencePayload);
 
-if (!newId) throw new Error('일정 생성 응답에 id가 없습니다.');
+    // ✅ 일정 생성(여기서만 newId를 “처음” 만든다)
+    scheduleRes = await createSchedule(payload);
+    newId = extractScheduleId(scheduleRes);
+
+    console.log('✅ [CREATE] res=', scheduleRes);
+    console.log('✅ [CREATE] newId=', newId);
+
+    if (!newId) throw new Error('일정 생성 응답에 id가 없습니다.');
+
+// ✅ 반복 생성 (스케줄 생성 API와 별개)
+let recurrenceId = null;
+
+if (recurrencePayload) {
+  // Swagger 스펙 키/타입 준수
+  const recurrenceData = {
+    ...recurrencePayload,
+    // Swagger에 exceptions가 있으니 같이 보내는 것이 가장 단순
+    exceptions: Array.isArray(exceptionDates) ? exceptionDates : [],
+  };
+
+  console.log('➡️ [RECURRENCE POST] scheduleId=', newId, recurrenceData);
+  const recRes = await ApiService.createRecurrence(newId, recurrenceData);
+  console.log('⬅️ [RECURRENCE POST] res=', recRes);
+
+  // 응답 구조가 { data: { recurrenceId } } 또는 axios 형태일 수 있으니 방어적으로 파싱
+  recurrenceId =
+    recRes?.data?.recurrenceId ??
+    recRes?.data?.data?.recurrenceId ??
+    null;
+}
+
 
 if (Array.isArray(invitees) && invitees.length > 0) {
   const toBody = (inv) => {
@@ -380,27 +396,8 @@ for (const line of expenseLines) {
     unitAmount,
     lineAmount: safeLineAmount,
   });
-}
+} }
 
-}
-// 2️⃣ recurrenceId 조회
-let recurrenceId = null;
-try {
-  const recRes = await ApiService.getRecurrences(newId); 
-  recurrenceId = recRes?.data?.[0]?.recurrenceId ?? null;
-} catch (e) {
-  console.warn("⚠ 반복 없음 또는 조회 실패:", e);
-}
-
-// 3️⃣ 예외 생성
-if (recurrenceId && exceptionDates.length > 0) {
-  for (const d of exceptionDates) {
-    try {
-      await ApiService.createRecurrenceException(newId, recurrenceId, d);
-    } catch (err) {
-    }
-  }
-}
       // 2️⃣ 첨부파일 업로드 (이미지/일반파일)
       await uploadFiles(newId);
 
@@ -705,10 +702,6 @@ const extractScheduleId = (res) => {
   if (res?.data?.data?.id) return res.data.data.id;
   return undefined;
 };
-
-
-  
-
   if (!isOpen) return null;
 
   // ====== 렌더 ======
