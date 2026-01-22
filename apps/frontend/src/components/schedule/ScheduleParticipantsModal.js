@@ -450,7 +450,7 @@ export default function ScheduleParticipantsModal({
         {/* 이름 초대 */}
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
-            이름으로 초대
+            이름으로 추가
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <input
