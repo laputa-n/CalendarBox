@@ -281,6 +281,8 @@ const res = await createSchedule(payload);
 const newId = extractScheduleId(res);
 console.log('✅ [CREATE] createSchedule res =', res);
 console.log('✅ [CREATE] newId =', newId);
+console.log('[CREATE payload]', payload);
+console.log('[CREATE recurrencePayload]', recurrencePayload);
 
 if (!newId) throw new Error('일정 생성 응답에 id가 없습니다.');
 

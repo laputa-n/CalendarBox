@@ -7,6 +7,7 @@ import { toLocalInputValue, localInputToISO } from '../../utils/datetime';
 import { useAttachments } from '../../hooks/useAttachments';
 import ExpenseModal from '../ExpenseModal';
 import ScheduleParticipantsModal from '../schedule/ScheduleParticipantsModal';
+import RecurrenceViewModal from '../schedule/RecurrenceViewModal';
 
 /* ====== 스타일 ====== */
 const overlayStyle = {
@@ -67,6 +68,8 @@ const scheduleId =
   eventData?._def?.extendedProps?.scheduleId ??
   eventData?._def?.extendedProps?.id;
 
+  const effectiveScheduleId = scheduleDetail?.id ?? scheduleId;
+
 useEffect(() => {
   console.log('🧩 [EditModal] eventData =', eventData);
   console.log('🆔 [EditModal] scheduleId =', scheduleId);
@@ -119,6 +122,7 @@ useEffect(() => {
   const [monthlyOrdinal, setMonthlyOrdinal] = useState('');   // 예: 1, 2, -1 (비면 byMonthday 사용)
   const [monthlyWeekday, setMonthlyWeekday] = useState('MO'); // MO~SU
   const [monthlyMonthDay, setMonthlyMonthDay] = useState(''); // 1~31
+  const [recurrenceViewOpen, setRecurrenceViewOpen] = useState(false);
 
 const unwrapData = useCallback((res) => {
   const body = res?.data ?? res;   // axios vs fetch
@@ -298,6 +302,40 @@ const handleEditPlace = async (p) => {
   }
 };
 
+const recurrenceBaseScheduleId =
+  scheduleDetail?.masterScheduleId ??
+  scheduleDetail?.parentScheduleId ??
+  scheduleDetail?.originScheduleId ??
+  scheduleDetail?.rootScheduleId ??
+  scheduleDetail?.recurrenceScheduleId ??
+
+  // ✅ eventData 쪽도 탐색
+  eventData?.extendedProps?.masterScheduleId ??
+  eventData?.extendedProps?.parentScheduleId ??
+  eventData?.extendedProps?.originScheduleId ??
+  eventData?.extendedProps?.rootScheduleId ??
+  eventData?.extendedProps?.recurrenceScheduleId ??
+  eventData?.extendedProps?.seriesId ??
+  eventData?.extendedProps?.recurrenceIdBase ?? // 혹시 이런 식으로 들어올 수도
+
+  scheduleDetail?.id ??
+  scheduleId;
+  
+useEffect(() => {
+  console.log('[eventData.extendedProps]', eventData?.extendedProps);
+}, [eventData]);
+
+// 디버깅 로그 (꼭 한번 찍어봐)
+useEffect(() => {
+  console.log('[recurrenceBaseScheduleId]', {
+    scheduleId,
+    scheduleDetailId: scheduleDetail?.id,
+    recurrenceBaseScheduleId,
+    scheduleDetail,
+  });
+}, [scheduleId, scheduleDetail, recurrenceBaseScheduleId]);
+
+
   const loadPlaces = useCallback(async () => {
     const res = await ApiService.listSchedulePlaces(scheduleId, 0, 20);
     console.log('📍 loadPlaces response:', res);
@@ -307,17 +345,34 @@ const handleEditPlace = async (p) => {
   }, [scheduleId]);
 
 const loadRecurrences = useCallback(async () => {
-  if (!scheduleId) return;
+  if (!recurrenceBaseScheduleId) {
+    console.log('[loadRecurrences] skip: no recurrenceBaseScheduleId');
+    return;
+  }
 
   try {
-    const listRes = await ApiService.getRecurrences(scheduleId);
-    const raw = unwrapData(listRes);
+    console.log('[loadRecurrences] start', { recurrenceBaseScheduleId });
 
-    const list = Array.isArray(raw) ? raw : Array.isArray(raw?.content) ? raw.content : [];
+    const listRes = await ApiService.getRecurrences(recurrenceBaseScheduleId);
+    console.log('[loadRecurrences] listRes=', listRes);
+
+    const raw = unwrapData(listRes);
+    console.log('[loadRecurrences] raw=', raw);
+
+    const list =
+      Array.isArray(raw) ? raw :
+      Array.isArray(raw?.content) ? raw.content :
+      Array.isArray(raw?.data) ? raw.data :
+      [];
+
+    console.log('[loadRecurrences] parsed list=', list);
+
     setRecurrenceList(list);
 
     const first = list.length ? list[0] : null;
     const recurrenceId = first?.recurrenceId;
+
+    console.log('[loadRecurrences] first/recurrenceId=', { first, recurrenceId });
 
     if (!recurrenceId) {
       setEditingRecurrence(null);
@@ -325,7 +380,7 @@ const loadRecurrences = useCallback(async () => {
       return;
     }
 
-    const detailRes = await ApiService.getRecurrenceDetail(scheduleId, recurrenceId);
+    const detailRes = await ApiService.getRecurrenceDetail(recurrenceBaseScheduleId, recurrenceId);
     const dto = unwrapData(detailRes);
 
     setEditingRecurrence({
@@ -338,24 +393,19 @@ const loadRecurrences = useCallback(async () => {
       until: dto.until ? toLocalInputValue(dto.until) : '',
     });
   } catch (err) {
-    console.error('반복 조회 실패', err);
+    console.error('[loadRecurrences] ERROR', err);
   }
-}, [scheduleId]);
+}, [recurrenceBaseScheduleId, unwrapData]);
+
 
 
 const buildRecurrencePutBody = () => {
   const freq = editingRecurrence?.freq || null;
   const intervalCount = Number(editingRecurrence?.intervalCount) || 1;
 
-  // datetime-local -> ISO
   const untilISO = editingRecurrence?.until
     ? localInputToISO(editingRecurrence.until)
     : null;
-
-  // 예외 날짜는 PUT 명세에 'exceptions' (날짜 문자열 배열)
-  const exceptions = (exceptionList || [])
-    .map(ex => ex?.exceptionDate ?? ex)
-    .filter(Boolean);
 
   const body = {
     freq,
@@ -364,7 +414,6 @@ const buildRecurrencePutBody = () => {
     byMonthday: [],
     byMonth: [],
     until: untilISO,
-    exceptions,
   };
 
   if (freq === 'WEEKLY') {
@@ -376,18 +425,16 @@ const buildRecurrencePutBody = () => {
     body.byMonthday = Array.isArray(editingRecurrence?.byMonthday) ? editingRecurrence.byMonthday : [];
   }
 
-  // DAILY면 byDay/byMonthday 비워둔 채로 OK
   return body;
 };
-
 
 const loadExceptions = useCallback(async () => {
   if (!editingRecurrence) return;
 
   try {
     const res = await ApiService.getRecurrenceExceptions(
-      scheduleId,
-      editingRecurrence.recurrenceId
+       recurrenceBaseScheduleId,
+  editingRecurrence.recurrenceId
     );
 
     const list = res?.data ?? [];
@@ -397,6 +444,19 @@ const loadExceptions = useCallback(async () => {
   } catch (err) {
   }
 }, [scheduleId, editingRecurrence]);
+
+useEffect(() => {
+  console.log('[IDs]', {
+    scheduleId,
+    scheduleDetailId: scheduleDetail?.id,
+    masterScheduleId: scheduleDetail?.masterScheduleId,
+    parentScheduleId: scheduleDetail?.parentScheduleId,
+    originScheduleId: scheduleDetail?.originScheduleId,
+    rootScheduleId: scheduleDetail?.rootScheduleId,
+    recurrenceScheduleId: scheduleDetail?.recurrenceScheduleId,
+    recurrenceBaseScheduleId,
+  });
+}, [scheduleId, scheduleDetail, recurrenceBaseScheduleId]);
 
 
 // ✅ reminders
@@ -409,18 +469,6 @@ const loadReminders = useCallback(async () => {
   const list = Array.isArray(data) ? data : [];
   setReminders(list);
 }, [scheduleId]);
-
-
-const updateRecurrence = async (scheduleId, recurrenceId, recurrenceData) => {
-  try {
-    await ApiService.updateRecurrence(scheduleId, recurrenceId, recurrenceData);
-    alert("반복이 수정되었습니다.");
-    await loadRecurrences(scheduleId);
-  } catch (err) {
-    console.error("반복 수정 실패:", err);
-    alert("반복 수정 실패");
-  }
-};
 
 const handleDeleteException = async (exceptionId) => {
   if (!window.confirm("이 예외 날짜를 삭제할까요?")) return;
@@ -454,15 +502,6 @@ useEffect(() => {
     });
   }, [scheduleId]);
   
-function toValidISO(dt) {
-  if (!dt) return null;
-  if (dt.endsWith("Z")) return dt;
-  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(dt)) {
-    return dt + ":00Z";
-  }
-  return dt;
-}
-
 useEffect(() => {
   if (!isOpen) {
     clearScheduleDetail();
@@ -927,6 +966,17 @@ return (
   hostMemberId={hostMemberId}
   calendarId={calendarId}
 />
+<RecurrenceViewModal
+  isOpen={recurrenceViewOpen}
+  onClose={() => setRecurrenceViewOpen(false)}
+  scheduleStartAtISO={scheduleDetail?.startAt}
+  recurrence={editingRecurrence}
+  exceptionList={exceptionList}
+  onOpenEdit={() => {
+    setRecurrenceViewOpen(false);
+    setIsRecurrenceEditing(true);
+  }}
+/>
 
 </div>
 
@@ -991,7 +1041,6 @@ return (
     </div>
   </div>
 ))}
-
             </div>
             {/* 반복 정보 */}
 <div style={sectionStyle}>
@@ -1024,6 +1073,14 @@ return (
 >
        반복 수정
       </button>
+      <button
+  type="button"
+  style={{ ...subButton, background: "#eef2ff" }}
+  onClick={() => setRecurrenceViewOpen(true)}
+>
+  반복 보기
+</button>
+
       {isRecurrenceEditing && (
   <div style={{ marginTop: '0.75rem', padding: '0.75rem', background: '#f3f4f6', borderRadius: 8 }}>
 
@@ -1148,6 +1205,40 @@ return (
   )}
 </div>
 
+{/* ➕ 예외 날짜 추가 */}
+<div style={{ marginTop: 12 }}>
+  <label style={labelStyle}>➕ 예외 날짜 추가</label>
+  <input
+    type="date"
+    onChange={async (e) => {
+      const d = e.target.value;
+      if (!d) return;
+
+      if (!editingRecurrence?.recurrenceId) {
+        alert('recurrenceId가 없습니다.');
+        return;
+      }
+
+      try {
+        await ApiService.createRecurrenceException(
+          effectiveScheduleId,
+          editingRecurrence.recurrenceId,
+          d
+        );
+        await loadExceptions();      // ✅ 추가 후 즉시 목록 갱신
+        e.target.value = '';         // ✅ 같은 날짜 다시 선택 가능하도록 초기화
+      } catch (err) {
+        console.error('예외 날짜 추가 실패', err);
+        alert('예외 날짜 추가 실패');
+      }
+    }}
+    style={inputStyle}
+  />
+  <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+    선택한 날짜는 반복 발생에서 제외됩니다.
+  </div>
+</div>
+
 <button
   type="button"
   style={{ ...subButton, background: '#3b82f6', color: '#fff', marginTop: 8 }}
@@ -1157,8 +1248,11 @@ return (
 
     try {
       const body = buildRecurrencePutBody();
-      await ApiService.updateRecurrence(scheduleId, editingRecurrence.recurrenceId, body);
-
+      await ApiService.updateRecurrence(
+  recurrenceBaseScheduleId,
+  editingRecurrence.recurrenceId,
+  body
+);
       alert('반복이 수정되었습니다.');
       await loadRecurrences();          // ✅ scheduleId 인자 넣지 말고 (함수 시그니처가 없음)
       setIsRecurrenceEditing(false);
@@ -1188,7 +1282,8 @@ const target = editingRecurrence || recurrenceList[0];
     alert("반복 정보를 찾을 수 없습니다.");
     return;
   }
-  await ApiService.deleteRecurrence(scheduleId, target.recurrenceId);
+ await ApiService.deleteRecurrence(recurrenceBaseScheduleId, target.recurrenceId);
+
   await loadRecurrences(scheduleId);
   alert("반복 삭제 완료");
           console.log("🗑 삭제 요청 scheduleId:", scheduleId);
