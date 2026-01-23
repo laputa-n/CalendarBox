@@ -43,7 +43,21 @@ public class RecurrenceExpanderImpl implements RecurrenceExpander {
                 .map(ScheduleRecurrenceException::getExceptionDate)
                 .collect(Collectors.toCollection(HashSet::new));
 
+        Duration dur = Duration.between(seedStart, seedEnd);
+
         List<Slice> out = new ArrayList<>(256);
+
+        Set<Instant> seenStarts = new HashSet<>();
+
+        if (seedStart.isBefore(winTo) && seedEnd.isAfter(winFrom)) {
+            if (seedStart.isAfter(upper)) {
+            } else if (!exceptionDays.contains(seedStart.toLocalDate())) {
+                Instant st = seedStart.toInstant();
+                if (seenStarts.add(st)) {
+                    out.add(new Slice(st, seedEnd.toInstant()));
+                }
+            }
+        }
 
         RecurrenceFreq freq = r.getFreq();
         int interval = Math.max(1, r.getIntervalCount());
@@ -62,14 +76,12 @@ public class RecurrenceExpanderImpl implements RecurrenceExpander {
                 case WEEKLY -> projectWeeklyCandidates(cursor, byDays);
                 case MONTHLY -> {
                     var ordDays = parseOrdinalDaysStrict(r.getByDay());
-                    var cands = projectMonthlyCandidates(cursor, seedStart, r.getByMonthday(), ordDays);
-                    yield cands;
+                    yield projectMonthlyCandidates(cursor, seedStart, r.getByMonthday(), ordDays);
                 }
                 case YEARLY -> {
                     var ordDays = parseOrdinalDaysStrict(r.getByDay()); // ordinal 필수 파서
                     var months  = toIntSet(r.getByMonth());             // 1..12 (validator에서 보장)
-                    var cands   = projectYearlyCandidates(cursor, seedStart, months, r.getByMonthday(), ordDays, zone);
-                    yield cands;
+                    yield projectYearlyCandidates(cursor, seedStart, months, r.getByMonthday(), ordDays, zone);
                 }
             };
 
@@ -81,7 +93,10 @@ public class RecurrenceExpanderImpl implements RecurrenceExpander {
                     // 예외(LocalDate)면 스킵
                     if (exceptionDays.contains(cStart.toLocalDate())) continue;
 
-                    out.add(new Slice(cStart.toInstant(), cEnd.toInstant()));
+                    Instant st = cStart.toInstant();
+                    if (!seenStarts.add(st)) continue;
+
+                    out.add(new Slice(st, cEnd.toInstant()));
                     if (out.size() >= MAX_OCCURRENCES) break;
                 }
             }
