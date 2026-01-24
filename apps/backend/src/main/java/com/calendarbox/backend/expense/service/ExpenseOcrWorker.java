@@ -45,7 +45,7 @@ public class ExpenseOcrWorker {
                 log.error("[OCR] Task {} failed", t.getOcrTaskId(), e);
                 t.markFailed(e); // ← Throwable로 남김
             }
-            expenseOcrTaskRepository.saveAndFlush(t); // ← 상태/메시지 즉시 반영
+            expenseOcrTaskRepository.saveAndFlush(t); // 상태/메시지 즉시 반영
         }
         return tasks.size();
     }
