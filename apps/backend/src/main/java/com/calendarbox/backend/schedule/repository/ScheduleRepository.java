@@ -136,16 +136,6 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
             @Param("fromUtc") Instant fromUtc
     );
 
-    @Query(value = """
-        SELECT s.schedule_id
-        FROM schedule s
-        LEFT JOIN schedule_embedding e ON e.schedule_id = s.schedule_id
-        WHERE e.schedule_id IS NULL
-        ORDER BY s.updated_at DESC
-        LIMIT :limit
-        """, nativeQuery = true)
-    List<Long> findScheduleIdsWithoutEmbedding(@Param("limit") int limit);
-
     @Modifying
     @Transactional
     @Query(value = """
@@ -181,20 +171,40 @@ UPDATE schedule
 """, nativeQuery = true)
     int markEmbeddingDirtyIfRunning(@Param("id") Long id);
 
-
-
     @Modifying
     @Transactional
     @Query(value = """
+WITH candidates AS (
+    SELECT s.schedule_id
+    FROM schedule s
+    LEFT JOIN schedule_embedding e ON e.schedule_id = s.schedule_id
+    WHERE s.embedding_status IN ('SYNCED','FAILED')
+      AND s.embedding_fail_count < :maxFailCount
+      AND (
+            e.schedule_id IS NULL                 -- 임베딩 없음
+         OR s.embedding_dirty = true             -- 더티 플래그
+         OR s.embedding_synced_at IS NULL        -- synced_at 비어있음
+         OR s.embedding_synced_at < s.updated_at -- 스케줄 수정이 더 최근(최신화 필요)
+         OR e.updated_at < s.updated_at          -- 임베딩 updated_at이 더 과거(최신화 필요)
+         OR s.embedding_synced_at < now() - (:staleDays || ' days')::interval  -- 주기적 갱신
+      )
+    ORDER BY s.updated_at DESC
+    LIMIT :limit
+    FOR UPDATE OF s SKIP LOCKED
+)
 UPDATE schedule s
    SET embedding_dirty = true,
        embedding_status = 'QUEUED',
        embedding_last_error = null
- WHERE s.schedule_id IN (:ids)
-   AND NOT EXISTS (SELECT 1 FROM schedule_embedding e WHERE e.schedule_id = s.schedule_id)
+FROM candidates c
+WHERE s.schedule_id = c.schedule_id
 RETURNING s.schedule_id
 """, nativeQuery = true)
-    List<Long> markEmbeddingQueuedForBackfillReturning(@Param("ids") List<Long> ids);
+    List<Long> markEmbeddingQueuedForBackfillOrRefreshReturning(
+            @Param("limit") int limit,
+            @Param("maxFailCount") int maxFailCount,
+            @Param("staleDays") int staleDays
+    );
 
     @Modifying
     @Transactional
