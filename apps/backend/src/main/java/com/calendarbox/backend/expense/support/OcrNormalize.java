@@ -24,7 +24,7 @@ public class OcrNormalize {
             Map<String, Object> img0 = firstMapFromList(raw.get("images"));
             if (img0 == null) return null;
 
-            // ✅ V2 실제 루트는 여기
+            // V2 실제 루트
             Map<String, Object> result = asMapOrNull(nested(img0, "receipt", "result"));
             if (result == null) return null;
 
@@ -35,7 +35,7 @@ public class OcrNormalize {
             String merchant = toStr(nested(result, "storeInfo", "name", "formatted", "value"), null);
             if (isBlank(merchant)) merchant = toStr(nested(result, "storeInfo", "name", "text"), null);
 
-            // 📌 fallback: subName도 시도
+            // fallback: subName도 시도
             if (isBlank(merchant)) {
                 merchant = toStr(nested(result, "storeInfo", "subName", "text"), "영수증");
             }
@@ -62,7 +62,7 @@ public class OcrNormalize {
                 }
             }
 
-            // ✅ 총액 보정 (총액 0이면 라인 합계 사용)
+            // 총액 보정 (총액 0이면 라인 합계 사용)
             if (total == 0 && !items.isEmpty()) {
                 total = items.stream().mapToLong(NormalizedReceipt.Item::lineAmount).sum();
             }

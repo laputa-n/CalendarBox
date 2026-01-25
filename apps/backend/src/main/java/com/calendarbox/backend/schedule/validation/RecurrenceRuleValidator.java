@@ -65,7 +65,7 @@ public class RecurrenceRuleValidator implements ConstraintValidator<ValidRecurre
                 if (empty(r.byDay()) && empty(r.byMonthday()))
                     return fail(c, "MONTHLY requires byDay or byMonthday");
 
-                // ✅ MONTHLY에서 byDay를 쓰는 경우, 반드시 ordinal(서수)이 있어야 함: 3SU, -1WE 등의 형태만 허용
+                //  MONTHLY에서 byDay를 쓰는 경우, 반드시 ordinal(서수)이 있어야 함: 3SU, -1WE 등의 형태만 허용
                 if (!empty(r.byDay())) {
                     for (String raw : r.byDay()) {
                         if (raw == null) return fail(c, "MONTHLY byDay contains null");
@@ -83,7 +83,7 @@ public class RecurrenceRuleValidator implements ConstraintValidator<ValidRecurre
                 if (empty(r.byDay()) && empty(r.byMonthday()))
                     return fail(c, "YEARLY requires byDay or byMonthday");
 
-                // ✅ 주석 해제: YEARLY에서도 byDay에 ordinal 필수
+                // 주석 해제: YEARLY에서도 byDay에 ordinal 필수
                 if (!empty(r.byDay())) {
                     for (String raw : r.byDay()) {
                         if (raw == null) return fail(c, "YEARLY byDay contains null");

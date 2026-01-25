@@ -384,7 +384,6 @@ public class AnalyticsService {
                 })
                 .toList();
 
-        // DTO에서 totalMeetCount / totalDurationMin 뺐다면 여기도 제거
         return new PeopleStatSummary(start, top3);
     }
 
