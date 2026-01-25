@@ -173,6 +173,17 @@ const loadTodos = useCallback(async () => {
   }
 };
 
+const makeEmptyRecurrence = () => ({
+  recurrenceId: null,
+  freq: '',
+  intervalCount: 1,
+  byDay: [],
+  byMonthday: [],
+  byMonth: [],
+  until: '',
+});
+
+
 const openMonthlyRuleModal = () => {
   const r = editingRecurrence;
   if (!r) return;
@@ -1094,9 +1105,9 @@ return (
       style={inputStyle}
     >
       <option value="">없음</option>
-      <option value="DAILY">매일</option>
-      <option value="WEEKLY">매주</option>
-      <option value="MONTHLY">매월</option>
+<option value="DAILY">DAILY</option>
+<option value="WEEKLY">WEEKLY</option>
+<option value="MONTHLY">MONTHLY</option>
     </select>
 
     <label style={labelStyle}>간격</label>
@@ -1243,22 +1254,34 @@ return (
   type="button"
   style={{ ...subButton, background: '#3b82f6', color: '#fff', marginTop: 8 }}
   onClick={async () => {
-    if (!editingRecurrence?.recurrenceId) return alert('recurrenceId가 없습니다.');
     if (!editingRecurrence?.freq) return alert('반복 유형을 선택하세요.');
+    if (!editingRecurrence?.until) return alert('반복 종료일을 선택하세요.');
 
     try {
       const body = buildRecurrencePutBody();
-      await ApiService.updateRecurrence(
-  recurrenceBaseScheduleId,
-  editingRecurrence.recurrenceId,
-  body
-);
-      alert('반복이 수정되었습니다.');
-      await loadRecurrences();          // ✅ scheduleId 인자 넣지 말고 (함수 시그니처가 없음)
+
+      // ✅ 반복이 없던 일정이면: POST로 생성
+      if (!editingRecurrence.recurrenceId) {
+        await ApiService.createRecurrence(recurrenceBaseScheduleId, {
+          ...body,
+          exDates: [], // 서버가 기대하면 유지, 아니면 제거 가능
+        });
+        alert('반복이 추가되었습니다.');
+      } else {
+        // ✅ 기존 반복이면: PUT로 수정
+        await ApiService.updateRecurrence(
+          recurrenceBaseScheduleId,
+          editingRecurrence.recurrenceId,
+          body
+        );
+        alert('반복이 수정되었습니다.');
+      }
+
+      await loadRecurrences();
       setIsRecurrenceEditing(false);
     } catch (err) {
-      console.error('반복 수정 실패:', err);
-      alert('반복 수정 실패');
+      console.error('반복 저장 실패:', err);
+      alert('반복 저장 실패');
     }
   }}
 >
@@ -1292,9 +1315,22 @@ const target = editingRecurrence || recurrenceList[0];
         반복 삭제
       </button>
     </>
-  ) : (
-    <p style={{ color: "#9ca3af" }}>반복 없음</p>
-  )}
+ ) : (
+  <div>
+    <p style={{ color: "#9ca3af", marginBottom: 8 }}>반복 없음</p>
+    <button
+      type="button"
+      style={{ ...subButton, background: "#dbeafe" }}
+      onClick={() => {
+        setEditingRecurrence(makeEmptyRecurrence());
+        setIsRecurrenceEditing(true);
+      }}
+    >
+      반복 추가
+    </button>
+  </div>
+)}
+
   
 </div>
       {/* 리마인더 UI */}
