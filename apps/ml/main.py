@@ -1,5 +1,12 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+try:
+    import torch
+    torch.set_num_threads(1)
+    torch.set_num_interop_threads(1)
+except Exception:
+    pass
+
 from sentence_transformers import SentenceTransformer
 
 app = FastAPI()
