@@ -74,7 +74,7 @@ auth:
     issuer: calendarbox
     access:
       secret: ${JWT_ACCESS_SECRET}
-      ttl-minutes: 30
+      ttl-minutes: 1440
     refresh:
       secret: ${JWT_REFRESH_SECRET}
       ttl-minutes: 43200  # 30 days
