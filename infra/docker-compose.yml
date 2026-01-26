@@ -41,6 +41,23 @@ services:
 #    volumes:
 #      - ./data/minio:/data
 #    restart: unless-stopped
+  ml:
+    build:
+      context: ../apps/ml
+    image: calendarbox-ml:local
+    restart: unless-stopped
+    environment:
+      PYTHONUNBUFFERED: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      NUMEXPR_NUM_THREADS: "1"
+      TOKENIZERS_PARALLELISM: "false"
+      HF_HOME: "/hf-cache"
+    volumes:
+      - hf_cache:/hf-cache
+
 
 volumes:
   pg_data:
+  hf_cache:
