@@ -123,6 +123,7 @@ useEffect(() => {
   const [monthlyWeekday, setMonthlyWeekday] = useState('MO'); // MO~SU
   const [monthlyMonthDay, setMonthlyMonthDay] = useState(''); // 1~31
   const [recurrenceViewOpen, setRecurrenceViewOpen] = useState(false);
+  const [pendingExceptionDates, setPendingExceptionDates] = useState([]);
 
 const unwrapData = useCallback((res) => {
   const body = res?.data ?? res;   // axios vs fetch
@@ -1215,75 +1216,104 @@ return (
     ))
   )}
 </div>
-
-{/* ➕ 예외 날짜 추가 */}
+{/* ➕ 예외 날짜 추가 (서버 호출 X, pending에만 저장) */}
 <div style={{ marginTop: 12 }}>
   <label style={labelStyle}>➕ 예외 날짜 추가</label>
+
   <input
     type="date"
-    onChange={async (e) => {
+    onChange={(e) => {
       const d = e.target.value;
       if (!d) return;
 
-      if (!editingRecurrence?.recurrenceId) {
-        alert('recurrenceId가 없습니다.');
-        return;
-      }
-
-      try {
-        await ApiService.createRecurrenceException(
-          effectiveScheduleId,
-          editingRecurrence.recurrenceId,
-          d
-        );
-        await loadExceptions();      // ✅ 추가 후 즉시 목록 갱신
-        e.target.value = '';         // ✅ 같은 날짜 다시 선택 가능하도록 초기화
-      } catch (err) {
-        console.error('예외 날짜 추가 실패', err);
-        alert('예외 날짜 추가 실패');
-      }
+      setPendingExceptionDates((prev) => (prev.includes(d) ? prev : [...prev, d]));
+      e.target.value = ''; // 같은 날짜 다시 선택 가능
     }}
     style={inputStyle}
   />
-  <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
-    선택한 날짜는 반복 발생에서 제외됩니다.
-  </div>
+
+
+
+  {/* pending 목록 표시 */}
+  {pendingExceptionDates.length > 0 && (
+    <div style={{ marginTop: 8 }}>
+      <div style={{ fontSize: 12, color: '#374151', marginBottom: 6 }}>
+        저장 대기 예외 날짜:
+      </div>
+
+      {pendingExceptionDates.map((d) => (
+        <div key={d} style={itemRow}>
+          <span>{d}</span>
+          <button
+            type="button"
+            onClick={() => setPendingExceptionDates((prev) => prev.filter((x) => x !== d))}
+            style={{ ...iconButton, color: '#ef4444' }}
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      ))}
+    </div>
+  )}
 </div>
 
 <button
   type="button"
   style={{ ...subButton, background: '#3b82f6', color: '#fff', marginTop: 8 }}
-  onClick={async () => {
-    if (!editingRecurrence?.freq) return alert('반복 유형을 선택하세요.');
-    if (!editingRecurrence?.until) return alert('반복 종료일을 선택하세요.');
+ onClick={async () => {
+  if (!editingRecurrence?.freq) return alert('반복 유형을 선택하세요.');
+  if (!editingRecurrence?.until) return alert('반복 종료일을 선택하세요.');
 
-    try {
-      const body = buildRecurrencePutBody();
+  try {
+    const body = buildRecurrencePutBody();
 
-      // ✅ 반복이 없던 일정이면: POST로 생성
-      if (!editingRecurrence.recurrenceId) {
-        await ApiService.createRecurrence(recurrenceBaseScheduleId, {
-          ...body,
-          exDates: [], // 서버가 기대하면 유지, 아니면 제거 가능
-        });
-        alert('반복이 추가되었습니다.');
-      } else {
-        // ✅ 기존 반복이면: PUT로 수정
-        await ApiService.updateRecurrence(
-          recurrenceBaseScheduleId,
-          editingRecurrence.recurrenceId,
-          body
-        );
-        alert('반복이 수정되었습니다.');
-      }
+    let recurrenceId = editingRecurrence?.recurrenceId ?? null;
 
-      await loadRecurrences();
-      setIsRecurrenceEditing(false);
-    } catch (err) {
-      console.error('반복 저장 실패:', err);
-      alert('반복 저장 실패');
+    // 1) 반복이 없던 일정이면 POST로 생성 (recurrenceId 확보)
+    if (!recurrenceId) {
+      const createRes = await ApiService.createRecurrence(recurrenceBaseScheduleId, {
+        ...body,
+
+      });
+
+      // ✅ 응답에서 recurrenceId 파싱 (백엔드 응답 구조에 맞춰 보완)
+      recurrenceId =
+        createRes?.data?.recurrenceId ??
+        createRes?.data?.data?.recurrenceId ??
+        null;
+
+      alert('반복이 추가되었습니다.');
+    } else {
+      // 2) 기존 반복이면 PUT로 수정
+      await ApiService.updateRecurrence(
+        recurrenceBaseScheduleId,
+        recurrenceId,
+        body
+      );
+      alert('반복이 수정되었습니다.');
     }
-  }}
+
+    if (recurrenceId && pendingExceptionDates.length > 0) {
+      const results = await Promise.allSettled(
+        pendingExceptionDates.map((d) =>
+          ApiService.createRecurrenceException(recurrenceBaseScheduleId, recurrenceId, d)
+        )
+      );
+
+      const fail = results.filter(r => r.status === 'rejected').length;
+      if (fail > 0) alert(`예외 ${fail}건 저장 실패`);
+    }
+
+    // 4) 갱신
+    setPendingExceptionDates([]);
+    await loadRecurrences();
+    setIsRecurrenceEditing(false);
+  } catch (err) {
+    console.error('반복 저장 실패:', err);
+    alert('반복 저장 실패');
+  }
+}}
+
 >
   저장
 </button>
