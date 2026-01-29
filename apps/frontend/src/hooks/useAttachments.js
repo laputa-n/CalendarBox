@@ -21,27 +21,27 @@ export function useAttachments(scheduleId) {
 
 
     const doUpload = async (file) => {
+  try {
+    const normalizedType =
+      file.type?.split(';')[0] || 'application/octet-stream';
 
-        console.log('[UPLOAD DEBUG]', {
-      name: file.name,
-      type: file.type,
-      size: file.size,
+    // presign에는 원본 file 대신 type을 보정해서 보내는 게 안전
+    const fileForPresign = new File([file], file.name, { type: normalizedType });
+
+    const presign = await ApiService.getPresignedUrl(id, fileForPresign, false);
+    const { uploadId, objectKey, presignedUrl } = presign.data;
+
+    await fetch(presignedUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': normalizedType },
+      body: file,
     });
-      try {
-        const normalizedType = file.type?.split(';')[0] || 'application/octet-stream';
-        const presign = await ApiService.getPresignedUrl(id, file, false);
-        const { uploadId, objectKey, presignedUrl } = presign.data;
-        await fetch(presignedUrl, {
-          method: 'PUT',
-          headers: { 'Content-Type': file.type },
-          body: file,
-        });
-        await ApiService.completeUpload(uploadId, objectKey);
-      } catch (err) {
-        console.error('파일 업로드 실패:', file.name, err);
-      }
-    };
 
+    await ApiService.completeUpload(uploadId, objectKey, false);
+  } catch (err) {
+    console.error('파일 업로드 실패:', file.name, err);
+  }
+};
     // 순차 업로드
     for (const f of [...imageQueue, ...fileQueue]) {
       await doUpload(f);

@@ -244,6 +244,8 @@ const handleSubmit = async (e) => {
 
   try {
     recurrencePayload = buildRecurrencePayload(formData.recurrence);
+      console.log('🧪 formData.recurrence =', formData.recurrence);
+      console.log('🧪 recurrencePayload =', recurrencePayload);
   } catch (err) {
     alert(err.message);
     return;
@@ -420,7 +422,7 @@ for (const line of expenseLines) {
   });
 
   // OCR 트리거 (백엔드에서 attachment + OCR 처리)
-  const completeRes = await ApiService.completeUpload(uploadId, objectKey);
+ const completeRes = await ApiService.completeUpload(uploadId, objectKey, true);
 }
       // 4️⃣ 장소 개별 등록
       if (Array.isArray(formData.places) && formData.places.length) {
