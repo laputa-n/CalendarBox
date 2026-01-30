@@ -7,11 +7,13 @@ import com.calendarbox.backend.attachment.dto.response.ImageAttachmentDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URI;
 import java.util.List;
 
 @Tag(name = "Schedule - Attachment", description = "스케줄 첨부 파일")
@@ -65,9 +67,9 @@ public class AttachmentController {
     ) {
         String url = attachmentService.getDownloadUrl(userId, attachmentId, inline);
 
-        return ResponseEntity.ok()
-                .contentType(MediaType.TEXT_PLAIN)
-                .body(url);
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .location(URI.create(url))
+                .build();
     }
 
     @Operation(
