@@ -47,9 +47,8 @@ public class AttachmentService {
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
 
         return attachmentRepository.findImagesByScheduleId(scheduleId).stream().map(a -> {
-            String thumbKey = storage.toThumbKey(a.getObjectKey());
-            String thumbUrl = storage.presignGet(thumbKey, a.getOriginalName(), true);
             String imageUrl = storage.presignGet(a.getObjectKey(), a.getOriginalName(), true);
+            String thumbUrl = imageUrl;
             return new ImageAttachmentDto(
                     a.getId(),
                     a.getOriginalName(),
