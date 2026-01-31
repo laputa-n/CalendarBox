@@ -968,22 +968,20 @@ return (
 
 onClick={async () => {
   try {
-    // ✅ 1) 추천 결과에 DB placeId가 있으면 EXISTING로 등록
-    const placeId = p.placeId ?? p.id ?? null;
+    // ✅ EXISTING은 "placeId"가 명시적으로 있을 때만!
+    const placeId = p.placeId ?? p.place?.id ?? null;
 
-    if (placeId) {
+    if (placeId != null) {
       await ApiService.addSchedulePlace(scheduleId, {
         mode: 'EXISTING',
         placeId: Number(placeId),
       });
     } else {
-      // ✅ 2) placeId가 없으면 PROVIDER로 등록 (providerPlaceKey 필수)
-      const providerPlaceKey =
-        p.providerPlaceKey ?? p.provider_place_key ?? p.placeKey ?? p.key ?? null;
-
+      // ✅ 그 외는 PROVIDER로 등록
+      const providerPlaceKey = p.providerPlaceKey ?? null;
       if (!providerPlaceKey) {
         console.error('❌ providerPlaceKey missing:', p);
-        alert('이 항목에는 providerPlaceKey가 없어 추가할 수 없습니다.');
+        alert('이 항목은 providerPlaceKey가 없어 추가할 수 없습니다.');
         return;
       }
 
@@ -1002,7 +1000,6 @@ onClick={async () => {
       });
     }
 
-    // ✅ 서버 반영 후 재조회
     await loadPlaces();
   } catch (err) {
     console.error('장소 추가 실패:', err);
