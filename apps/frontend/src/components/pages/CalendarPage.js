@@ -38,21 +38,33 @@ export const CalendarPage = () => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const navigate = useNavigate();
-  const handleSelectCalendar = (calendar) => {
-  navigate(`/calendar/${calendar.id}`);
+ const handleSelectCalendar = (calendar) => {
+  setCurrentCalendar(calendar);          // ✅ 즉시 반영
+  navigate(`/calendar/${calendar.id}`);  // URL도 동기화
 };
-
 // 1️⃣ URL → currentCalendar
 useEffect(() => {
-  if (!calendarId || calendars.length === 0) return;
+  if (!currentCalendar) return;
+  const api = calendarRef.current?.getApi?.();
+  if (!api) return;
 
-  const id = Number(calendarId);
-  const target = calendars.find((cal) => cal.id === id);
+  // 현재 캘린더가 보고 있는 범위
+  const view = api.view;
+  const from = toKstIso(view.activeStart);
+  const to = toKstIso(view.activeEnd);
 
-  if (target && currentCalendar?.id !== target.id) {
-    setCurrentCalendar(target);
-  }
-}, [calendarId, calendars]);
+  // 중복 방지 key도 업데이트
+  lastFetchKeyRef.current = `${currentCalendar.id}_${from}_${to}`;
+
+  fetchOccurrences({
+    fromKst: from,
+    toKst: to,
+    calendarId: currentCalendar.id,
+  });
+
+  // 필요하면 화면 강제 리렌더/갱신
+  api.render();
+}, [currentCalendar]);
 
   /** =========================
    *  캘린더 CRUD
@@ -427,6 +439,7 @@ const handleDatesSet = (arg) => {
       {currentCalendar ? (
         <div style={cardStyle}>
           <FullCalendar
+           key={currentCalendar?.id}
             ref={calendarRef}
             plugins={[dayGridPlugin, interactionPlugin]}
             initialView="dayGridMonth"
