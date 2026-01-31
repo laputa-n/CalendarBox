@@ -196,8 +196,7 @@ public class SchedulePlaceService {
         }
 
         Schedule s = scheduleRepository.findById(scheduleId).orElseThrow(()->new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
-        String n = hasText(req.name()) ? req.name().trim() : req.title();
-        n = normalize(n);
+        String n = normalize(p.getTitle());
         SchedulePlace sp = SchedulePlace.builder()
                 .schedule(s)
                 .place(p)
