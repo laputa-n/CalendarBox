@@ -97,7 +97,7 @@ gemini:
 
 embedding:
   python:
-    url: http://localhost:8000/embed
+    url: http://localhost:8001/embed
   model-version: "st:all-MiniLM-L6-v2"
 
 springdoc:
