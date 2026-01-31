@@ -144,11 +144,14 @@ const fetchOccurrences = useCallback(async ({ start, end }) => {
 
     const res = await ApiService.getAllOccurrences({ fromKst, toKst });
 
-    const payload = res?.data?.days ? res : (res?.days ? { data: res } : null);
-    const days = payload?.data?.days;
+    const root = res?.data ?? res;
 
-    const events = flattenDaysToEvents(days)
-      .filter((ev) => ev.extendedProps?.calendarId === defaultCalendarId);
+    const days =
+      root?.data?.days ??  
+      root?.days ??       
+      {};
+
+    const events = flattenDaysToEvents(days);
 
     setCalendarEvents(events);
   } catch (e) {
