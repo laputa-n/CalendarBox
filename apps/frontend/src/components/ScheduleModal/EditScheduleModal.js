@@ -124,7 +124,7 @@ useEffect(() => {
   const [monthlyMonthDay, setMonthlyMonthDay] = useState(''); // 1~31
   const [recurrenceViewOpen, setRecurrenceViewOpen] = useState(false);
   const [pendingExceptionDates, setPendingExceptionDates] = useState([]);
-
+  
 const unwrapData = useCallback((res) => {
   const body = res?.data ?? res;   // axios vs fetch
   return body?.data ?? body;       // wrapper(data) vs plain
@@ -312,6 +312,44 @@ const handleEditPlace = async (p) => {
     console.error('장소 이름 수정 실패:', err);
     alert('장소 이름 수정 실패');
   }
+};
+
+const participantCount =
+  scheduleDetail?.participantCount ??
+  scheduleDetail?.participants?.length ??
+  scheduleDetail?.scheduleParticipants?.length ??
+  0;
+
+  console.log('ApiService has recommendPlaces?', typeof ApiService.recommendPlaces);
+const handleRecommend = async () => {
+  const region = prompt('추천 받을 지역을 입력하세요. (예: 경기도 의정부시)');
+  if (!region?.trim()) return;
+
+  try {
+    setIsSearchingPlace(true);
+    setPlaceSearchResults([]);
+
+    const res = await ApiService.recommendPlaces({
+      regionQuery: region.trim(),
+      title: formData.title || '',
+      memo: formData.description || '',
+      startAt: formData.startDateTime ? localInputToISO(formData.startDateTime) : null,
+      endAt: formData.endDateTime ? localInputToISO(formData.endDateTime) : null,
+      participantCount,
+    });
+    const body = res?.data ?? res;
+    const data = body?.data ?? body;
+
+    setPlaceSearchResults(Array.isArray(data) ? data : []);
+    
+    console.log('✅ recommendPlaces raw res =', res);
+  } catch (e) {
+    alert(e?.data?.message || e?.message || '장소 추천 실패');
+    setPlaceSearchResults([]);
+  } finally {
+    setIsSearchingPlace(false);
+  }
+  
 };
 
 const recurrenceBaseScheduleId =
@@ -648,10 +686,10 @@ const {
   clearQueues,         
 } = useAttachments(scheduleId);
 
-  const handleDownload = async (attachmentId) => {
-    const res = await ApiService.getDownloadUrl(attachmentId);
-    if (res && typeof res === 'string') window.open(res, '_blank');
-  };
+ const handleDownload = (attachmentId, inline = false) => {
+  window.location.href = `/api/attachments/${attachmentId}/download?inline=${inline}`;
+};
+
 
   const handleDelete = async (attachmentId) => {
     if (!window.confirm('삭제하시겠습니까?')) return;
@@ -865,10 +903,20 @@ return (
           
 
             {/* 장소 */}
-              <label style={labelStyle}>📍 장소</label>
-              <button type="button" onClick={handleAddPlace} style={subButton}>
-                + 장소
-              </button>
+          <label style={labelStyle}>📍 장소</label>
+<div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+  <button type="button" onClick={handleAddPlace} style={subButton}>
+    + 장소
+  </button>
+
+<button
+  type="button"
+  onClick={handleRecommend}
+  style={{ ...subButton, background: '#dbeafe' }}
+>
+  ✨ 장소 추천
+</button>
+</div>
               {placePage.content.map((p, index) => (
   <div key={p.id ?? p.schedulePlaceId} style={itemRow}>
     <span>{p.name || p.title}</span>
@@ -905,6 +953,7 @@ return (
     </div>
   </div>
 ))}
+
 
 {/* 🔍 장소 검색 결과 */}
 {placeSearchResults.length > 0 && (
@@ -1659,7 +1708,6 @@ const target = editingRecurrence || recurrenceList[0];
     </div>
   </div>
 )}
-
         </>
       )}
     </div>
@@ -1667,3 +1715,5 @@ const target = editingRecurrence || recurrenceList[0];
   
 );
 }
+
+

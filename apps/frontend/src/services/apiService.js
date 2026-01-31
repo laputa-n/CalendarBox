@@ -819,3 +819,19 @@ ApiService.listImageAttachments = (scheduleId, page = 0, size = 20) =>
 
 ApiService.listFileAttachments = (scheduleId, page = 0, size = 20) =>
   ApiService.request(`/schedules/${scheduleId}/attachments/files?page=${page}&size=${size}`, { method: 'GET' });
+
+ApiService.recommendPlaces = (payload) => {
+  const requestData = {
+    regionQuery: payload.regionQuery,
+    title: payload.title,
+    memo: payload.memo,
+    startAt: payload.startAt,
+    endAt: payload.endAt,
+    participantCount: Number(payload.participantCount ?? 0),
+  };
+
+  return ApiService.request('/places/recommend', {
+    method: 'POST',
+    body: JSON.stringify(requestData),
+  });
+};

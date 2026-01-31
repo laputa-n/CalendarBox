@@ -326,7 +326,7 @@ export const SchedulesPage = () => {
           {/* 🔍 검색 입력 */}
           <input
             type="text"
-            placeholder="일정 제목 검색"
+            placeholder="일정 검색(제목, 메모, 참가자, 장소 ...)"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => {
