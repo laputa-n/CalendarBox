@@ -91,6 +91,7 @@ export const CalendarProvider = ({ children }) => {
     type: backendCalendar.type || 'PERSONAL',
     visibility: backendCalendar.visibility || 'PRIVATE',
     isShared: backendCalendar.visibility === 'PUBLIC',
+    isDefault: !!backendCalendar.isDefault,
     createdAt: backendCalendar.createdAt,
     updatedAt: backendCalendar.updatedAt,
   });

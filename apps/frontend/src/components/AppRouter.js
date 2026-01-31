@@ -12,7 +12,6 @@ import { SchedulesPage } from "./pages/SchedulesPage";
 import { FriendsPage } from "./pages/FriendsPage";
 import { NotificationsPage } from "./pages/NotificationsPage";
 import { StatisticsPage } from "./pages/StatisticsPage";
-import { SearchPage } from "./pages/SearchPage";
 import { CalendarPage } from "./pages/CalendarPage";
 import { CalendarBoardPage } from "./pages/CalendarBoardPage";
 import { CalendarDetailPage } from "./pages/CalendarDetailPage";
@@ -85,7 +84,6 @@ export const AppRouter = () => {
           <Route path="/friends" element={<FriendsPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/statistics" element={<StatisticsPage />} />
-          <Route path="/search" element={<SearchPage />} />
 
           {/* 캘린더 */}
           <Route path="/calendar" element={<Navigate to="/calendar/board" replace />} />
