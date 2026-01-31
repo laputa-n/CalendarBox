@@ -569,21 +569,7 @@ export const SchedulesPage = () => {
                   }}
                 />
               </div>
-              <div>
-                <label className="label">장소</label>
-                <input
-                  type="text"
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  className="input"
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '0.5rem',
-                  }}
-                />
-              </div>
+             
             </div>
 
             {/* 시간 / 색상 */}

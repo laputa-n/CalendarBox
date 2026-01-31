@@ -797,7 +797,7 @@ const extractScheduleId = (res) => {
       <Search size={16} />
     </button>
 
-    {/* ✅ 추천 */}
+    {/* 추천 */}
     <button
       type="button"
       onClick={handleRecommend}
@@ -810,10 +810,10 @@ const extractScheduleId = (res) => {
 
     {/* ✅ 이미 추가된 장소 리스트 */}
     <div style={{ flex: 1 }}>
-      {formData.places.length > 0 ? (
+      {formData.places.length > 0 &&
         formData.places.map((p, i) => (
           <div
-            key={`${p.providerPlaceKey ?? p.title}-${i}`}
+            key={`${p.providerPlaceKey ?? p.title ?? 'place'}-${i}`}
             style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -842,12 +842,16 @@ const extractScheduleId = (res) => {
               </button>
             </div>
           </div>
-        ))
-      ) : (
-        <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>장소 없음</p>
-      )}
+        ))}
     </div>
   </div>
+
+  {/* ✅ 장소 없음 문구는 버튼들 "밑"에 */}
+  {formData.places.length === 0 && (
+    <p style={{ color: '#9ca3af', fontSize: '0.875rem', marginTop: '0.5rem' }}>
+      장소 없음
+    </p>
+  )}
 
   {/* 🔍 검색/추천 결과 리스트 */}
   {placeSearchResults.length > 0 && (
@@ -923,6 +927,7 @@ const extractScheduleId = (res) => {
     </div>
   )}
 </div>
+
 <div style={{ height: 12 }} />
 <ScheduleParticipantsSection
   invitees={invitees}

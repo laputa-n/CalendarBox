@@ -13,15 +13,12 @@ export const Sidebar = () => {
   const { unreadCount } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
-
   const navItems = [
     { id: 'dashboard', path: '/dashboard', icon: Home, label: '대시보드' },
     { id: 'calendar', path: '/calendar', icon: Calendar, label: '캘린더' },
     { id: 'schedules', path: '/schedules', icon: FileText, label: '일정 관리' },
     { id: 'friends', path: '/friends', icon: Users, label: '친구 관리' },
-    { id: 'notifications', path: '/notifications', icon: Bell, label: '알림', badge: unreadCount },
     { id: 'statistics', path: '/statistics', icon: BarChart3, label: '통계' },
-    { id: 'search', path: '/search', icon: Search, label: '검색' }
   ];
 
   const handleLogout = () => {
