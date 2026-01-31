@@ -978,7 +978,14 @@ onClick={async () => {
       });
     } else {
       // ✅ 그 외는 PROVIDER로 등록
-      const providerPlaceKey = p.providerPlaceKey ?? null;
+      const providerPlaceKey =
+  p.providerPlaceKey ??
+  p.provider_place_key ??
+  p.placeKey ??
+  p.key ??
+  p.providerKey ??       // ✅ 이거 추가
+  null;
+
       if (!providerPlaceKey) {
         console.error('❌ providerPlaceKey missing:', p);
         alert('이 항목은 providerPlaceKey가 없어 추가할 수 없습니다.');

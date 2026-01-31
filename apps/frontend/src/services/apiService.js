@@ -406,12 +406,15 @@ static async searchSchedules({ query, calendarId }) {
     return this.request(`/places/search?query=${encodeURIComponent(query)}`);
   }
 
-  static async addSchedulePlace(scheduleId, placeData) {
-    return this.request(`/schedules/${scheduleId}/places`, {
-      method: 'POST',
-      body: JSON.stringify(placeData),
-    });
-  }
+ static async addSchedulePlace(scheduleId, placeData) {
+  return this.request(`/schedules/${scheduleId}/places`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(placeData),
+  });
+}
 
   static async getSchedulePlaces(scheduleId) {
     return this.request(`/schedules/${scheduleId}/places`);
