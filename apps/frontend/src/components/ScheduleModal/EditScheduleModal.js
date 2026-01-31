@@ -964,30 +964,54 @@ return (
 
     {placeSearchResults.map((p) => (
       <div
-        key={p.providerPlaceKey}
-        onClick={async () => {
-          try {
-            await ApiService.addSchedulePlace(scheduleId, {
-              mode: 'PROVIDER',
-              provider: p.provider || 'NAVER',
-              providerPlaceKey: p.providerPlaceKey,
-              title: p.title,
-              category: p.category || '',
-              address: p.address || '',
-              roadAddress: p.roadAddress || '',
-              lat: Number(p.lat),
-              lng: Number(p.lng),
-            });
+       key={p.placeId ?? p.id ?? p.providerPlaceKey ?? `${p.title}-${p.lat}-${p.lng}`}
 
-            // ✅ 서버 반영 후 재조회
-            await loadPlaces();
-          } catch (err) {
-            alert('장소 추가 실패');
-          } finally {
-            // ✅ 검색 결과 닫기
-            setPlaceSearchResults([]);
-          }
-        }}
+onClick={async () => {
+  try {
+    // ✅ 1) 추천 결과에 DB placeId가 있으면 EXISTING로 등록
+    const placeId = p.placeId ?? p.id ?? null;
+
+    if (placeId) {
+      await ApiService.addSchedulePlace(scheduleId, {
+        mode: 'EXISTING',
+        placeId: Number(placeId),
+      });
+    } else {
+      // ✅ 2) placeId가 없으면 PROVIDER로 등록 (providerPlaceKey 필수)
+      const providerPlaceKey =
+        p.providerPlaceKey ?? p.provider_place_key ?? p.placeKey ?? p.key ?? null;
+
+      if (!providerPlaceKey) {
+        console.error('❌ providerPlaceKey missing:', p);
+        alert('이 항목에는 providerPlaceKey가 없어 추가할 수 없습니다.');
+        return;
+      }
+
+      await ApiService.addSchedulePlace(scheduleId, {
+        mode: 'PROVIDER',
+        provider: p.provider || 'NAVER',
+        providerPlaceKey,
+        title: p.title,
+        category: p.category || '',
+        description: p.description || '',
+        address: p.address || '',
+        roadAddress: p.roadAddress || '',
+        link: p.link || '',
+        lat: Number(p.lat),
+        lng: Number(p.lng),
+      });
+    }
+
+    // ✅ 서버 반영 후 재조회
+    await loadPlaces();
+  } catch (err) {
+    console.error('장소 추가 실패:', err);
+    alert('장소 추가 실패');
+  } finally {
+    setPlaceSearchResults([]);
+  }
+}}
+
         style={{
           padding: '8px',
           borderRadius: 8,
