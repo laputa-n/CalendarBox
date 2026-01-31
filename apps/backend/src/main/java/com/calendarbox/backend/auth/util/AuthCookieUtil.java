@@ -29,7 +29,7 @@ public class AuthCookieUtil {
                 .secure(!local)
                 .sameSite(local ? "Lax" : "None")
                 .path("/")
-                .maxAge(30 * 60) // 30분
+                .maxAge(1440 * 60) // 30분
                 .build();
     }
 
