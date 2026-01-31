@@ -136,6 +136,39 @@ else if (name === 'intervalCount') {
   });
 };
 
+const handleRecommend = async () => {
+  const region = prompt('추천 받을 지역을 입력하세요. (예: 경기도 의정부시)');
+  if (!region?.trim()) return;
+
+  try {
+    setIsSearchingPlace(true);
+    setPlaceSearchResults([]); // 기존 검색 결과랑 같이 쓰려면 비우는 게 UX 좋음
+
+    const res = await ApiService.recommendPlaces({
+      regionQuery: region.trim(),
+      title: formData.title || '',
+      memo: formData.description || '',
+      startAt: formData.startDateTime ? localInputToISO(formData.startDateTime) : null,
+      endAt: formData.endDateTime ? localInputToISO(formData.endDateTime) : null,
+      // ✅ 생성 모달은 participantCount를 서버에서 못 받으니 로컬로 추정
+      participantCount: (Array.isArray(invitees) ? invitees.length : 0) + 1,
+    });
+
+    const body = res?.data ?? res;
+    const data = body?.data ?? body;
+
+    setPlaceSearchResults(Array.isArray(data) ? data : []);
+    console.log('✅ [recommendPlaces] raw res =', res);
+  } catch (e) {
+    console.error('❌ 장소 추천 실패:', e);
+    alert(e?.data?.message || e?.message || '장소 추천 실패');
+    setPlaceSearchResults([]);
+  } finally {
+    setIsSearchingPlace(false);
+  }
+};
+
+
 const addMonthlyByDayRule = () => {
   const ord = monthlyOrdinal.trim();
   if (ord === '') return alert('(+/-숫자)를 입력하세요. 예: +2, -1');
@@ -425,25 +458,36 @@ for (const line of expenseLines) {
  const completeRes = await ApiService.completeUpload(uploadId, objectKey, true);
 }
       // 4️⃣ 장소 개별 등록
-      if (Array.isArray(formData.places) && formData.places.length) {
-        for (const place of formData.places) {
-          try {
-            await ApiService.addSchedulePlace(newId, {
-              mode: place.mode || 'PROVIDER',
-              provider: place.provider || 'NAVER',
-              providerPlaceKey: place.providerPlaceKey || '',
-              title: place.title || place.name || '',
-              category: place.category || '',
-              address: place.address || '',
-              roadAddress: place.roadAddress || '',
-              link: place.link || '',
-              lat: Number(place.lat),
-              lng: Number(place.lng),
-            });
-          } catch (e2) {
-          }
-        }
+      // 4️⃣ 장소 개별 등록
+if (Array.isArray(formData.places) && formData.places.length) {
+  for (const place of formData.places) {
+    try {
+      if (place.mode === 'EXISTING') {
+        await ApiService.addSchedulePlace(newId, {
+          mode: 'EXISTING',
+          placeId: Number(place.placeId),
+        });
+      } else {
+        await ApiService.addSchedulePlace(newId, {
+          mode: 'PROVIDER',
+          provider: place.provider || 'NAVER',
+          providerPlaceKey: place.providerPlaceKey || '',
+          title: place.title || place.name || '',
+          category: place.category || '',
+          description: place.description || '',
+          address: place.address || '',
+          roadAddress: place.roadAddress || '',
+          link: place.link || '',
+          lat: Number(place.lat),
+          lng: Number(place.lng),
+        });
       }
+    } catch (e2) {
+      console.error('장소 등록 실패:', e2, place);
+      // 필요하면 누적 실패 처리도 가능
+    }
+  }
+}
       alert('✅ 일정 + 첨부 + 지출 등록 완료!');
       onClose && onClose();
     } catch (error) {
@@ -736,20 +780,32 @@ const extractScheduleId = (res) => {
             onChange={(e) => setFormData({ ...formData, endDateTime: e.target.value })}
             style={inputStyle}
           />
-
-            {/* 📍 장소 (생성 중 로컬로만 관리) */}
+{/* 📍 장소 */}
 <div style={sectionStyle}>
   <label style={labelStyle}>📍 장소</label>
 
-  {/* 검색 버튼 */}
-  <div style={{ display: 'flex', gap: '0.5rem' }}>
+  {/* 버튼들 + 추가된 장소 리스트 */}
+  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+    {/* 검색 */}
     <button
       type="button"
       onClick={handleAddPlace}
       style={subButton}
       title="장소 검색"
+      disabled={isSearchingPlace}
     >
       <Search size={16} />
+    </button>
+
+    {/* ✅ 추천 */}
+    <button
+      type="button"
+      onClick={handleRecommend}
+      style={{ ...subButton, background: '#dbeafe' }}
+      title="장소 추천"
+      disabled={isSearchingPlace}
+    >
+      ✨ 장소 추천
     </button>
 
     {/* ✅ 이미 추가된 장소 리스트 */}
@@ -779,39 +835,21 @@ const extractScheduleId = (res) => {
             </span>
 
             <div style={{ display: 'flex', gap: '0.25rem' }}>
-              <button
-                type="button"
-                onClick={() => handleReorderPlaces('up', i)}
-                style={iconButton}
-              >
-                ↑
-              </button>
-              <button
-                type="button"
-                onClick={() => handleReorderPlaces('down', i)}
-                style={iconButton}
-              >
-                ↓
-              </button>
-              <button
-                type="button"
-                onClick={() => handleRemovePlace(i)}
-                style={iconButton}
-              >
+              <button type="button" onClick={() => handleReorderPlaces('up', i)} style={iconButton}>↑</button>
+              <button type="button" onClick={() => handleReorderPlaces('down', i)} style={iconButton}>↓</button>
+              <button type="button" onClick={() => handleRemovePlace(i)} style={iconButton}>
                 <Trash2 size={14} />
               </button>
             </div>
           </div>
         ))
       ) : (
-        <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
-          장소 없음
-        </p>
+        <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>장소 없음</p>
       )}
     </div>
   </div>
 
-  {/* 🔍 검색 결과 리스트 (👇 여기만 새로 추가) */}
+  {/* 🔍 검색/추천 결과 리스트 */}
   {placeSearchResults.length > 0 && (
     <div style={{ marginTop: 8 }}>
       <p style={{ fontSize: '0.8rem', color: '#6b7280' }}>
@@ -820,27 +858,51 @@ const extractScheduleId = (res) => {
 
       {placeSearchResults.map((p) => (
         <div
-          key={p.providerPlaceKey}
+          key={p.placeId ?? p.id ?? p.providerPlaceKey ?? `${p.title}-${p.lat}-${p.lng}`}
           onClick={() => {
-            const newPlace = {
-              mode: 'PROVIDER',
-              provider: p.provider || 'NAVER',
-              providerPlaceKey: p.providerPlaceKey,
-              title: p.title,
-              category: p.category || '',
-              address: p.address || '',
-              roadAddress: p.roadAddress || '',
-              lat: Number(p.lat),
-              lng: Number(p.lng),
-              name: p.title,
-            };
+            const placeId = p.placeId ?? p.place?.id ?? null;
+            let newPlace = null;
 
-            setFormData(prev => ({
-              ...prev,
-              places: [...prev.places, newPlace],
-            }));
+            if (placeId != null) {
+              newPlace = {
+                mode: 'EXISTING',
+                placeId: Number(placeId),
+                name: p.title || p.name || '장소',
+              };
+            } else {
+              const providerPlaceKey =
+                p.providerPlaceKey ?? p.provider_place_key ?? p.placeKey ?? p.key ?? p.providerKey ?? null;
 
-            // ✅ 선택 후 검색 결과 닫기
+              if (!providerPlaceKey) {
+                alert('이 항목은 providerPlaceKey가 없어 추가할 수 없습니다.');
+                return;
+              }
+
+              newPlace = {
+                mode: 'PROVIDER',
+                provider: p.provider || 'NAVER',
+                providerPlaceKey,
+                title: p.title || p.name || '',
+                category: p.category || '',
+                description: p.description || '',
+                address: p.address || '',
+                roadAddress: p.roadAddress || '',
+                link: p.link || '',
+                lat: Number(p.lat),
+                lng: Number(p.lng),
+                name: p.title || p.name || '',
+              };
+            }
+
+            setFormData((prev) => {
+              const exists = prev.places.some((x) =>
+                newPlace.mode === 'EXISTING'
+                  ? String(x.placeId) === String(newPlace.placeId)
+                  : String(x.providerPlaceKey) === String(newPlace.providerPlaceKey)
+              );
+              return exists ? prev : { ...prev, places: [...prev.places, newPlace] };
+            });
+
             setPlaceSearchResults([]);
           }}
           style={{
@@ -852,7 +914,7 @@ const extractScheduleId = (res) => {
             border: '1px solid #e5e7eb',
           }}
         >
-          <strong>{p.title}</strong>
+          <strong>{p.title || p.name}</strong>
           <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
             {p.roadAddress || p.address}
           </div>
@@ -861,6 +923,7 @@ const extractScheduleId = (res) => {
     </div>
   )}
 </div>
+<div style={{ height: 12 }} />
 <ScheduleParticipantsSection
   invitees={invitees}
   setInvitees={setInvitees}
