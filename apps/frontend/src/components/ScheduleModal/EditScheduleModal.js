@@ -9,6 +9,33 @@ import ExpenseModal from '../ExpenseModal';
 import ScheduleParticipantsModal from '../schedule/ScheduleParticipantsModal';
 import RecurrenceViewModal from '../schedule/RecurrenceViewModal';
 
+/* ====== THEME (생성 모달과 동일) ====== */
+const THEME_HEX = {
+  RED: '#ef4444',
+  BLUE: '#3b82f6',
+  GREEN: '#22c55e',
+  YELLOW: '#eab308',
+  PURPLE: '#a855f7',
+  PINK: '#ec4899',
+  BLACK: '#111827',
+  ORANGE: '#f97316',
+};
+const THEME_LABEL = {
+  RED: '빨강',
+  BLUE: '파랑',
+  GREEN: '초록',
+  YELLOW: '노랑',
+  PURPLE: '보라',
+  PINK: '핑크',
+  BLACK: '검정',
+  ORANGE: '주황',
+};
+
+const HEX_TO_THEME = Object.entries(THEME_HEX).reduce((acc, [k, v]) => {
+  acc[String(v).toLowerCase()] = k;
+  return acc;
+}, {});
+
 /* ====== 스타일 ====== */
 const overlayStyle = {
   position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
@@ -94,8 +121,7 @@ useEffect(() => {
     description: '',
     startDateTime: '',
     endDateTime: '',
-    color: '#3b82f6',
-    recurrence: null,
+    color: 'BLUE',
   });
   const [participantsModalOpen, setParticipantsModalOpen] = useState(false);
   const [todoPage, setTodoPage] = useState({ content: [] });
@@ -561,12 +587,29 @@ useEffect(() => {
 useEffect(() => {
   if (!scheduleDetail) return;
 
+  const serverTheme =
+    scheduleDetail.theme ??                 // ✅ 서버가 theme(enum)으로 주는 경우
+    scheduleDetail.color ??                 // 혹시 enum이 color로 오는 경우
+    null;
+
+  const normalizedTheme = (() => {
+    if (!serverTheme) return 'BLUE';
+
+    const s = String(serverTheme).trim();
+    if (THEME_HEX[s]) return s; // 이미 enum
+
+    const byHex = HEX_TO_THEME[s.toLowerCase()];
+    if (byHex) return byHex;
+
+    return 'BLUE';
+  })();
+
   setFormData(prev => ({
     ...prev,
     title: scheduleDetail.title || '',
     startDateTime: toLocalInputValue(scheduleDetail.startAt),
     endDateTime: toLocalInputValue(scheduleDetail.endAt),
-    color: scheduleDetail.color || '#3b82f6',
+    color: normalizedTheme,
   }));
 }, [scheduleDetail]);
   // ========== 초기값 ==========
@@ -842,13 +885,14 @@ const handleDeleteSchedule = async () => {
   // ========== 저장 ==========
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await updateSchedule(scheduleId, {
-      title: formData.title,
-      memo: formData.description,
-      startAt: localInputToISO(formData.startDateTime),
-      endAt: localInputToISO(formData.endDateTime),
-      color: formData.color,
-    });
+   await updateSchedule(scheduleId, {
+  title: formData.title,
+  memo: formData.description,
+  startAt: localInputToISO(formData.startDateTime),
+  endAt: localInputToISO(formData.endDateTime),
+  theme: formData.color,   // ✅ enum (BLUE/RED/...)
+});
+
     
     // ✅ 새 첨부파일 업로드(선택된 경우만)
   if (imageQueue.length > 0 || fileQueue.length > 0) {
@@ -1513,7 +1557,36 @@ const target = editingRecurrence || recurrenceList[0];
   <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>링크 없음</p>
 )}
 </div>
-           
+
+{/* 🎨 색상(테마) */}
+<div style={sectionStyle}>
+  <label style={labelStyle}>🎨 색상</label>
+
+  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+    <select
+      value={formData.color || 'BLUE'}
+      onChange={(e) => setFormData(prev => ({ ...prev, color: e.target.value }))}
+      style={{ ...inputStyle, marginBottom: 0, flex: 1 }}
+    >
+      {Object.keys(THEME_HEX).map((key) => (
+        <option key={key} value={key}>
+          {THEME_LABEL[key]} ({key})
+        </option>
+      ))}
+    </select>
+
+    <div
+      style={{
+        width: 34,
+        height: 34,
+        borderRadius: 10,
+        background: THEME_HEX[formData.color || 'BLUE'],
+        border: '1px solid #e5e7eb',
+      }}
+      title={formData.color || 'BLUE'}
+    />
+  </div>
+</div>
                {/* 지출 섹션 상단이나 하단 아무데나 배치 */}
         <div style={{ display: 'flex', justifyContent: 'flex-start', margin: '8px 0 12px' }}>
           <button

@@ -131,28 +131,54 @@ const fetchScheduleDetail = useCallback(async (scheduleId) => {
   /** =========================
    * 일정 생성
    * ========================= */
-  const createSchedule = async (scheduleData) => {
-    try {
-      setLoading(true);
+// ✅ theme 결정 헬퍼(권장)
+const pickTheme = (scheduleData) => {
+  const ALLOWED = ['RED','BLUE','GREEN','YELLOW','PURPLE','PINK','BLACK','ORANGE'];
 
-      const apiData = {
-        title: scheduleData.title,
-        memo: scheduleData.memo || scheduleData.description || '',
-        theme: COLOR_TO_THEME[scheduleData.color] || 'BLUE',
-        startAt: new Date(scheduleData.startAt || scheduleData.startDateTime).toISOString(),
-        endAt: new Date(scheduleData.endAt || scheduleData.endDateTime).toISOString(),
-      };
+  // 1) scheduleData.theme가 이미 enum이면 그대로 사용
+  if (scheduleData?.theme && ALLOWED.includes(String(scheduleData.theme))) {
+    return String(scheduleData.theme);
+  }
 
-      const res = await ApiService.createSchedule(currentCalendar.id, apiData);
-      await fetchSchedules();
-      return res;
-    } catch (e) {
-      showError('일정 생성 실패');
-      throw e;
-    } finally {
-      setLoading(false);
-    }
-  };
+  // 2) scheduleData.color가 enum이면 그대로 사용 (혹시 color에 enum 넣는 화면도 대비)
+  if (scheduleData?.color && ALLOWED.includes(String(scheduleData.color))) {
+    return String(scheduleData.color);
+  }
+
+  // 3) scheduleData.color가 HEX면 COLOR_TO_THEME로 매핑
+  if (scheduleData?.color && typeof scheduleData.color === 'string') {
+    const t = COLOR_TO_THEME[scheduleData.color];
+    if (t) return t;
+  }
+
+  return 'BLUE';
+};
+
+const createSchedule = async (scheduleData) => {
+  try {
+    setLoading(true);
+
+    const apiData = {
+      title: scheduleData.title,
+      memo: scheduleData.memo || scheduleData.description || '',
+      theme: pickTheme(scheduleData), // ✅ 여기!
+      startAt: new Date(scheduleData.startAt || scheduleData.startDateTime).toISOString(),
+      endAt: new Date(scheduleData.endAt || scheduleData.endDateTime).toISOString(),
+    };
+
+    console.log('✅ [Context createSchedule] scheduleData=', scheduleData);
+    console.log('✅ [Context createSchedule] apiData=', apiData);
+
+    const res = await ApiService.createSchedule(currentCalendar.id, apiData);
+    await fetchSchedules();
+    return res;
+  } catch (e) {
+    showError('일정 생성 실패');
+    throw e;
+  } finally {
+    setLoading(false);
+  }
+};
 
   const addScheduleParticipant = async (scheduleId, payload) => {
   return ApiService.addScheduleParticipant(scheduleId, payload);
@@ -166,39 +192,36 @@ const respondToScheduleInvite = async (scheduleId, participantId, action) => {
   /** =========================
    * 일정 수정
    * ========================= */
-  const updateSchedule = async (scheduleId, scheduleData) => {
-    try {
-      setLoading(true);
+ const updateSchedule = async (scheduleId, scheduleData) => {
+  try {
+    setLoading(true);
 
-      const apiData = {};
-      if ('title' in scheduleData) apiData.title = scheduleData.title;
-      if ('memo' in scheduleData || 'description' in scheduleData)
-        apiData.memo = scheduleData.memo ?? scheduleData.description ?? '';
+    const apiData = {};
+    if ('title' in scheduleData) apiData.title = scheduleData.title;
+    if ('memo' in scheduleData || 'description' in scheduleData)
+      apiData.memo = scheduleData.memo ?? scheduleData.description ?? '';
 
-      if (scheduleData.color) {
-        apiData.theme = COLOR_TO_THEME[scheduleData.color] || 'BLUE';
-      }
-
-      if (scheduleData.startAt || scheduleData.startDateTime) {
-        apiData.startAt = new Date(
-          scheduleData.startAt || scheduleData.startDateTime
-        ).toISOString();
-      }
-
-      if (scheduleData.endAt || scheduleData.endDateTime) {
-        apiData.endAt = new Date(
-          scheduleData.endAt || scheduleData.endDateTime
-        ).toISOString();
-      }
-
-      await ApiService.patchSchedule(scheduleId, apiData);
-      await fetchSchedules();
-    } catch (e) {
-      showError('일정 수정 실패');
-    } finally {
-      setLoading(false);
+    // ✅ theme/color 둘 다 대응
+    if ('theme' in scheduleData || 'color' in scheduleData) {
+      apiData.theme = pickTheme(scheduleData);
     }
-  };
+
+    if (scheduleData.startAt || scheduleData.startDateTime) {
+      apiData.startAt = new Date(scheduleData.startAt || scheduleData.startDateTime).toISOString();
+    }
+    if (scheduleData.endAt || scheduleData.endDateTime) {
+      apiData.endAt = new Date(scheduleData.endAt || scheduleData.endDateTime).toISOString();
+    }
+
+    await ApiService.patchSchedule(scheduleId, apiData);
+    await fetchSchedules();
+  } catch (e) {
+    showError('일정 수정 실패');
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   /** =========================
  * 일정 삭제

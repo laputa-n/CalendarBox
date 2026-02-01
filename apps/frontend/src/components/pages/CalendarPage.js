@@ -9,6 +9,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { useParams , useNavigate } from 'react-router-dom';
 import  ScheduleModal  from '../ScheduleModal/ScheduleModal';
+import { THEME_TO_COLOR } from '../../utils/colorUtils';
 
 export const CalendarPage = () => {
   const {
@@ -22,7 +23,7 @@ export const CalendarPage = () => {
   fetchOccurrences,
   occurrencesByDay
 } = useCalendars();
-
+  
   const { schedules, fetchSchedules, fetchAllSchedules } = useSchedules();
   const { calendarId } = useParams();
   const [showForm, setShowForm] = useState(false);
@@ -33,7 +34,7 @@ export const CalendarPage = () => {
     visibility: 'PRIVATE',
     isDefault: false,
   });
-
+  
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -208,14 +209,18 @@ const renderVisibility = (visibility) => {
 
 const getThemeColor = (theme) => {
   const map = {
-    BLUE: '#3b82f6',
-    GREEN: '#10b981',
-    ORANGE: '#f97316',
     RED: '#ef4444',
-    PURPLE: '#8b5cf6',
+    BLUE: '#3b82f6',
+    GREEN: '#22c55e',
+    YELLOW: '#eab308',
+    PURPLE: '#a855f7',
+    PINK: '#ec4899',
+    BLACK: '#111827',
+    ORANGE: '#f97316',
   };
   return map[theme] || '#3b82f6';
 };
+
 
 const calendarRef = useRef(null);
 

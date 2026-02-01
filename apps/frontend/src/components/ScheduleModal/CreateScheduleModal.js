@@ -4,7 +4,6 @@ import { Search, Plus, Trash2 } from 'lucide-react';
 import { useSchedules } from '../../contexts/ScheduleContext';
 import { ApiService } from '../../services/apiService';
 import { localInputToISO } from '../../utils/datetime';
-import { validateSchedulePayload } from '../../utils/scheduleValidator';
 import { useAttachments } from '../../hooks/useAttachments';
 import { buildRecurrencePayload } from '../../utils/recurrenceBuilder';
 import ScheduleParticipantsSection from '../schedule/ScheduleParticipantsSection';
@@ -34,7 +33,7 @@ const [myMemberId, setMyMemberId] = useState(null);
     description: '',
     startDateTime: '',
     endDateTime: '',
-    color: '#3b82f6',
+    color: 'BLUE',
     places: [],             
    recurrence: {
     freq: '',       // 기본값 설정
@@ -168,6 +167,28 @@ const handleRecommend = async () => {
   }
 };
 
+const THEME_HEX = {
+  RED: '#ef4444',
+  BLUE: '#3b82f6',
+  GREEN: '#22c55e',
+  YELLOW: '#eab308',
+  PURPLE: '#a855f7',
+  PINK: '#ec4899',
+  BLACK: '#111827',
+  ORANGE: '#f97316',
+};
+
+const THEME_LABEL = {
+  RED: '빨강',
+  BLUE: '파랑',
+  GREEN: '초록',
+  YELLOW: '노랑',
+  PURPLE: '보라',
+  PINK: '핑크',
+  BLACK: '검정',
+  ORANGE: '주황',
+};
+
 
 const addMonthlyByDayRule = () => {
   const ord = monthlyOrdinal.trim();
@@ -267,7 +288,7 @@ const openMonthlyRuleModal = () => {
   }
   setIsMonthlyRuleOpen(true);
 };
-
+console.log('🟦 submit 직전 formData.color=', formData.color);
 const handleSubmit = async (e) => {
   e.preventDefault();
 
@@ -290,7 +311,7 @@ const handleSubmit = async (e) => {
       memo: formData.description ?? '',
       startAt: localInputToISO(formData.startDateTime),
       endAt: localInputToISO(formData.endDateTime),
-      color: formData.color || '#3b82f6',
+      theme: formData.color || 'BLUE',
       places: [],
       links: formData.links,
       reminders: Array.isArray(formData.reminders)
@@ -305,7 +326,6 @@ const handleSubmit = async (e) => {
       })),
     };
 
-    // ✅ 일정 생성(여기서만 newId를 “처음” 만든다)
     scheduleRes = await createSchedule(payload);
     newId = extractScheduleId(scheduleRes);
 
@@ -495,25 +515,33 @@ if (Array.isArray(formData.places) && formData.places.length) {
     }
   };
 
-  // ====== 최초 기본값 (selectedDate 기반) ======
-  useEffect(() => {
-    if (!isOpen) return;
-    if (selectedDate) {
-      setFormData(prev => ({
-        ...prev,
-        title: '',
-        description: '',
-        startDateTime: `${selectedDate}T09:00`,
-        endDateTime:   `${selectedDate}T10:00`,
-        color: '#3b82f6',
-        places: [],
-        recurrence: { freq: '', intervalCount: 1, byDay: [], byMonthDay: '', until: '' },
-        todos: [],
-        reminders: [],
-      }));
-      setNewTodo('');
-    }
-  }, [isOpen, selectedDate]);
+const didInitRef = React.useRef(false);
+
+useEffect(() => {
+  if (!isOpen) {
+    didInitRef.current = false;
+    return;
+  }
+  if (didInitRef.current) return; // ✅ 이미 초기화 했으면 재실행 금지
+  didInitRef.current = true;
+
+  if (selectedDate) {
+    setFormData(prev => ({
+      ...prev,
+      title: '',
+      description: '',
+      startDateTime: `${selectedDate}T09:00`,
+      endDateTime: `${selectedDate}T10:00`,
+      color: 'BLUE',
+      places: [],
+      recurrence: { freq: '', intervalCount: 1, byDay: [], byMonthDay: '', until: '' },
+      todos: [],
+      reminders: [],
+      links: [],
+    }));
+    setNewTodo('');
+  }
+}, [isOpen, selectedDate]);
 
 useEffect(() => {
   if (!isOpen) return;
@@ -1200,15 +1228,39 @@ const extractScheduleId = (res) => {
         </div>
 
           {/* 색상 */}
-          <div style={sectionStyle}>
-            <label style={labelStyle}>🎨 색상</label>
-            <input
-              type="color"
-              value={formData.color}
-              onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-              style={{ width: '100%', height: '2rem', border: 'none' }}
-            />
-          </div>
+       <div style={sectionStyle}>
+  <label style={labelStyle}>🎨 색상</label>
+
+  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+    <select
+      value={formData.color || 'BLUE'}
+     onChange={(e) => {
+  console.log('🎨 선택한 값 =', e.target.value);
+  setFormData(prev => ({ ...prev, color: e.target.value }));
+}}
+      style={{ ...inputStyle, marginBottom: 0, flex: 1 }}
+    >
+      {Object.keys(THEME_HEX).map((key) => (
+        <option key={key} value={key}>
+          {THEME_LABEL[key]} ({key})
+        </option>
+      ))}
+    </select>
+
+    {/* 미리보기 칩 */}
+    <div
+      style={{
+        width: 34,
+        height: 34,
+        borderRadius: 10,
+        background: THEME_HEX[formData.color || 'BLUE'],
+        border: '1px solid #e5e7eb',
+      }}
+      title={formData.color || 'BLUE'}
+    />
+  </div>
+</div>
+
 
 {/* 💰 지출 등록 */}
 <div style={sectionStyle}>
