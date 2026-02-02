@@ -88,6 +88,7 @@ export const CalendarBoardPage = () => {
               calendar={calendar}
               onOpen={() => navigate(`/calendar/${calendar.id}`)}
               onDetail={() => navigate(`/calendar/${calendar.id}/detail`)}
+              onHistory={() => navigate(`/calendar/${calendar.id}/histories`)}  
               onSetDefault={handleSetDefault}
             />
           ))}
@@ -155,7 +156,7 @@ export const CalendarBoardPage = () => {
  *  Components
  * ========================= */
 
-const CalendarCard = ({ calendar, onOpen, onDetail, onSetDefault }) => {
+const CalendarCard = ({ calendar, onOpen, onDetail, onHistory, onSetDefault }) => {
   const typeInfo = renderCalendarType(calendar.type);
 
   return (
@@ -196,6 +197,11 @@ const CalendarCard = ({ calendar, onOpen, onDetail, onSetDefault }) => {
         <button onClick={onDetail} style={outlineButtonStyle}>
           상세
         </button>
+
+        <button onClick={onHistory} style={outlineButtonStyle}>
+          기록 보기
+        </button>
+
 
         {!calendar.isDefault && (
           <button

@@ -16,6 +16,7 @@ import { CalendarPage } from "./pages/CalendarPage";
 import { CalendarBoardPage } from "./pages/CalendarBoardPage";
 import { CalendarDetailPage } from "./pages/CalendarDetailPage";
 import {CalendarMemberList} from "./pages/CalendarMemberList";
+import { CalendarHistoryPage } from "./pages/CalendarHistoryPage";
 
 export const AppRouter = () => {
   const { isAuthenticated, loading } = useAuth();
@@ -91,7 +92,7 @@ export const AppRouter = () => {
           <Route path="/calendar/:calendarId" element={<CalendarPage />} />
           <Route path="/calendar/:calendarId/detail" element={<CalendarDetailPage />} />
           <Route path="/calendar/:calendarId/members" element={<CalendarMemberList />}
-/>
+/>        <Route path="/calendar/:calendarId/histories" element={<CalendarHistoryPage />} />
           {/* fallback */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

@@ -803,6 +803,22 @@ static async markNotificationAsRead(notificationId) {
     return this.request('/analytics/schedule/trend', { method: 'GET' });
   }
 
+  // === 캘린더 히스토리 조회 ===
+static async getCalendarHistories(calendarId, { from, to } = {}) {
+  if (!calendarId) throw new Error('calendarId가 없습니다.');
+  if (!from) throw new Error('from(date-time)이 없습니다.');
+  if (!to) throw new Error('to(date-time)이 없습니다.');
+
+  const params = new URLSearchParams();
+  params.append('from', from);
+  params.append('to', to);
+
+  return this.request(
+    `/calendars/${calendarId}/histories?${params.toString()}`,
+    { method: 'GET' }
+  );
+}
+
 }
 // ✅ 클래스 바깥(닫는 } 다음 줄)에 붙여야 함
 ApiService.getScheduleSummary = (scheduleId) =>
