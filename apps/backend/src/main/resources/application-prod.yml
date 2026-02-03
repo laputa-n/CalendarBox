@@ -41,11 +41,18 @@ server:
   forward-headers-strategy: framework
 
 management:
+  server:
+    address: 127.0.0.1
+    port: 9091
+
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,prometheus
+
   endpoint:
+    prometheus:
+      enabled: true
     health:
       show-details: when_authorized
 
