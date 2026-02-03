@@ -804,19 +804,19 @@ static async markNotificationAsRead(notificationId) {
   }
 
   // === 캘린더 히스토리 조회 ===
-static async getCalendarHistories(calendarId, { from, to } = {}) {
+static async getCalendarHistories(calendarId, { page = 0, size = 20 } = {}) {
   if (!calendarId) throw new Error('calendarId가 없습니다.');
-  if (!from) throw new Error('from(date-time)이 없습니다.');
-  if (!to) throw new Error('to(date-time)이 없습니다.');
 
   const params = new URLSearchParams();
-  params.append('from', from);
-  params.append('to', to);
+  params.append('page', String(page));
+  params.append('size', String(size));
 
-  return this.request(
-    `/calendars/${calendarId}/histories?${params.toString()}`,
-    { method: 'GET' }
-  );
+  const qs = params.toString();
+  const url = qs
+    ? `/calendars/${calendarId}/histories?${qs}`
+    : `/calendars/${calendarId}/histories`;
+
+  return this.request(url, { method: 'GET' });
 }
 
 }
