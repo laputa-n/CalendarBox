@@ -172,9 +172,6 @@ export const CalendarHistoryPage = () => {
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>🕘 캘린더 기록</h1>
-          <div style={{ marginTop: 6, color: '#6b7280', fontSize: 13 }}>
-            calendarId: <b style={{ color: '#111827' }}>{calendarId}</b>
-          </div>
         </div>
 
         <button
@@ -238,7 +235,7 @@ export const CalendarHistoryPage = () => {
         </div>
 
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, alignItems: 'center' }}>
-          <div style={{ fontSize: 12, color: '#6b7280' }}>size</div>
+          <div style={{ fontSize: 12, color: '#6b7280' }}>개수</div>
           <select
             value={size}
             onChange={onChangeSize}

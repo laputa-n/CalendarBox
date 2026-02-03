@@ -18,6 +18,7 @@ import { formatDateTime } from '../../utils/dateUtils';
 import { validateSchedule } from '../../utils/validationUtils';
 import { ScheduleDetailModal } from './ScheduleDetailModal';
 import { ApiService } from '../../services/apiService';
+import { toLocalInputValue, localInputToISO } from '../../utils/datetime';
 
 export const SchedulesPage = () => {
   const {
@@ -28,6 +29,10 @@ export const SchedulesPage = () => {
     loading,
     fetchSchedules,
     searchSchedules,
+     fetchScheduleDetail,
+  scheduleDetail,
+  scheduleDetailLoading,
+  clearScheduleDetail,
   } = useSchedules();
 
   const { calendars, currentCalendar, setCurrentCalendar } = useCalendars();
@@ -36,6 +41,7 @@ export const SchedulesPage = () => {
   const [editingSchedule, setEditingSchedule] = useState(null);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [editingScheduleId, setEditingScheduleId] = useState(null);
 
   // ✅ 받은 초대 목록 상태
   const [invited, setInvited] = useState([]);
@@ -70,6 +76,11 @@ export const SchedulesPage = () => {
     BLACK: '#111827',
     ORANGE: '#f97316',
   };
+
+  const HEX_TO_THEME = Object.entries(THEME_HEX).reduce((acc, [k, v]) => {
+  acc[String(v).toLowerCase()] = k;
+  return acc;
+}, {});
 
   const THEME_LABEL = {
     RED: '빨강',
@@ -115,6 +126,13 @@ export const SchedulesPage = () => {
     },
     [invitedPage.size]
   );
+
+
+  const handleCloseForm = () => {
+  setShowForm(false);
+  setEditingScheduleId(null);
+  clearScheduleDetail();
+};
 
   /** =============================
    *  ✅ 수락/거절
@@ -163,6 +181,33 @@ export const SchedulesPage = () => {
     fetchInvited(0);
     fetchSchedules(currentCalendar.id);
   }, [currentCalendar?.id, fetchInvited, fetchSchedules]);
+
+  useEffect(() => {
+  if (!editingScheduleId) return;
+  if (!scheduleDetail) return;
+  if (String(scheduleDetail.id) !== String(editingScheduleId)) return;
+
+  // serverTheme가 enum일 수도, hex일 수도, 필드명이 theme/color일 수도 있어서 정규화
+  const serverTheme = scheduleDetail.theme ?? scheduleDetail.color ?? null;
+
+  const normalizedTheme = (() => {
+    if (!serverTheme) return 'BLUE';
+    const s = String(serverTheme).trim();
+    if (THEME_HEX[s]) return s;                 // enum
+    const byHex = HEX_TO_THEME[s.toLowerCase()]; // hex
+    return byHex || 'BLUE';
+  })();
+
+  setFormData(prev => ({
+    ...prev,
+    title: scheduleDetail.title ?? prev.title,
+    description: scheduleDetail.memo ?? prev.description,
+    startDateTime: scheduleDetail.startAt ? toLocalInputValue(scheduleDetail.startAt) : prev.startDateTime,
+    endDateTime: scheduleDetail.endAt ? toLocalInputValue(scheduleDetail.endAt) : prev.endDateTime,
+    color: normalizedTheme, // ✅ 핵심: 여기서 진짜 값으로 덮어씀
+  }));
+}, [editingScheduleId, scheduleDetail]);
+
 
   /** =============================
    *  폼 제출
@@ -230,27 +275,42 @@ export const SchedulesPage = () => {
   /** =============================
    *  일정 수정
    * ============================= */
-  const handleEdit = (schedule) => {
-    setFormData({
-      title: schedule.title,
-      description: schedule.memo || schedule.description || '',
-      startDateTime: schedule.startDateTime
-        ? schedule.startDateTime.slice(0, 16)
-        : schedule.startAt
-        ? schedule.startAt.slice(0, 16)
-        : '',
-      endDateTime: schedule.endDateTime
-        ? schedule.endDateTime.slice(0, 16)
-        : schedule.endAt
-        ? schedule.endAt.slice(0, 16)
-        : '',
-      isAllDay: schedule.isAllDay || false,
-      location: schedule.location || '',
-      color: schedule.theme || schedule.color || 'BLUE',
-    });
-    setEditingSchedule(schedule);
-    setShowForm(true);
-  };
+const handleEdit = async (schedule) => {
+  // 1) ✅ UI 안 비게: 일단 목록 데이터로 즉시 프리필
+  setFormData({
+    title: schedule.title ?? '',
+    description: schedule.memo || schedule.description || '',
+    startDateTime: schedule.startDateTime
+      ? schedule.startDateTime.slice(0, 16)
+      : schedule.startAt
+      ? schedule.startAt.slice(0, 16)
+      : '',
+    endDateTime: schedule.endDateTime
+      ? schedule.endDateTime.slice(0, 16)
+      : schedule.endAt
+      ? schedule.endAt.slice(0, 16)
+      : '',
+    isAllDay: schedule.isAllDay || false,
+    location: schedule.location || '',
+    color: schedule.theme || schedule.color || 'BLUE', // 일단 임시값
+  });
+
+  setEditingSchedule(schedule);
+  setShowForm(true);
+
+  // 2) ✅ 그 다음: 상세 조회로 “정확한 색상(theme)” 보정
+  const id = schedule?.id ?? schedule?.scheduleId;
+  if (!id) return;
+
+  setEditingScheduleId(id);
+
+  try {
+    await fetchScheduleDetail(id); // 상세가 오면 useEffect에서 formData를 다시 세팅
+  } catch (e) {
+    console.error('fetchScheduleDetail 실패:', e);
+    // 실패하면 프리필값(목록 데이터) 그대로라도 보여주면 됨
+  }
+};
 
   /** =============================
    *  일정 삭제
