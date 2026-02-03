@@ -53,18 +53,6 @@ public class ScheduleLinkService {
 
         scheduleRepository.flush();
 
-        calendarHistoryRepository.save(CalendarHistory.builder()
-                .calendar(schedule.getCalendar())
-                .actor(user)
-                .entityId(scheduleId)
-                .type(CalendarHistoryType.SCHEDULE_LINK_ADDED)
-                .changedFields(Map.of(
-                        "url", link.getUrl(),
-                        "label", link.getLabel()
-                ))
-                .build()
-        );
-
         return new ScheduleLinkDto(
                 link.getId(),
                 schedule.getId(),
@@ -84,16 +72,5 @@ public class ScheduleLinkService {
 
         schedule.removeLink(link);
 
-        calendarHistoryRepository.save(CalendarHistory.builder()
-                .calendar(schedule.getCalendar())
-                .actor(user)
-                .entityId(scheduleId)
-                .type(CalendarHistoryType.SCHEDULE_LINK_REMOVED)
-                .changedFields(Map.of(
-                        "url", link.getUrl(),
-                        "label", link.getLabel()
-                ))
-                .build()
-        );
     }
 }

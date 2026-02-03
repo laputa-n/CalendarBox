@@ -2,41 +2,142 @@ package com.calendarbox.backend.calendar.service;
 
 import com.calendarbox.backend.calendar.domain.CalendarHistory;
 import com.calendarbox.backend.calendar.dto.response.CalendarHistoryDto;
+import com.calendarbox.backend.calendar.enums.CalendarHistoryType;
 import com.calendarbox.backend.calendar.enums.CalendarMemberStatus;
 import com.calendarbox.backend.calendar.repository.CalendarHistoryRepository;
 import com.calendarbox.backend.calendar.repository.CalendarMemberRepository;
 import com.calendarbox.backend.global.error.BusinessException;
 import com.calendarbox.backend.global.error.ErrorCode;
+import com.calendarbox.backend.schedule.domain.Schedule;
+import com.calendarbox.backend.schedule.repository.ScheduleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class CalendarHistoryQueryService {
+
     private final CalendarMemberRepository calendarMemberRepository;
     private final CalendarHistoryRepository calendarHistoryRepository;
-    public Page<CalendarHistoryDto> getHistories(Long userId, Long calendarId, Instant from, Instant to) {
-        if(!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(calendarId,userId, CalendarMemberStatus.ACCEPTED))
+    private final ScheduleRepository scheduleRepository;
+
+    public Page<CalendarHistoryDto> getHistories(
+            Long userId,
+            Long calendarId,
+            Instant from,
+            Instant to,
+            Pageable pageable
+    ) {
+        if (!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(
+                calendarId, userId, CalendarMemberStatus.ACCEPTED
+        )) {
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
-        Pageable pageable = PageRequest.of(0,20);
-        return calendarHistoryRepository.findAllByCalendar_Id(calendarId,from,to,pageable).map(
-                h -> new CalendarHistoryDto(
+        }
+
+        Page<CalendarHistory> page = calendarHistoryRepository.findPage(calendarId, from, to, pageable);
+
+        List<Long> scheduleIds = page.getContent().stream()
+                .filter(h -> h.getType() == CalendarHistoryType.SCHEDULE_CREATED
+                        || h.getType() == CalendarHistoryType.SCHEDULE_UPDATED
+                        || h.getType() == CalendarHistoryType.SCHEDULE_DELETED)
+                .map(CalendarHistory::getEntityId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        final var scheduleMap = scheduleIds.isEmpty()
+                ? java.util.Map.<Long, Schedule>of()
+                : scheduleRepository.findAllById(scheduleIds).stream()
+                .collect(java.util.stream.Collectors.toMap(Schedule::getId, s -> s));
+
+        return page.map(h -> {
+            CalendarHistoryType t = h.getType();
+            String actorName = (h.getActor() == null ? null : h.getActor().getName());
+
+            // 1) Schedule 계열
+            if (t == CalendarHistoryType.SCHEDULE_CREATED
+                    || t == CalendarHistoryType.SCHEDULE_UPDATED
+                    || t == CalendarHistoryType.SCHEDULE_DELETED) {
+
+                Schedule s = (h.getEntityId() == null) ? null : scheduleMap.get(h.getEntityId());
+
+                String title = (s != null) ? s.getTitle() : asString(h.getChangedFields().get("title"));
+                Instant startAt = (s != null) ? s.getStartAt() : asInstant(h.getChangedFields().get("startAt"));
+                Instant endAt = (s != null) ? s.getEndAt() : asInstant(h.getChangedFields().get("endAt"));
+
+                return new CalendarHistoryDto(
                         h.getId(),
                         calendarId,
-                        (h.getActor() != null ? h.getActor().getId() : null),
-                        h.getEntityId(),
-                        h.getType(),
-                        h.getChangedFields(),
+                        actorName,
+                        null,
+                        title,
+                        startAt,
+                        endAt,
+                        t,
                         h.getCreatedAt()
-                ));
+                );
+            }
 
+            // 2) Member 계열
+            if (t == CalendarHistoryType.CALENDAR_MEMBER_ADDED
+                    || t == CalendarHistoryType.CALENDAR_MEMBER_REMOVED) {
+
+                // 저장 키가 통일되어 있지 않아서 values 중 첫 값(대개 이름)을 targetName으로 사용
+                String targetName = null;
+                if (h.getChangedFields() != null && !h.getChangedFields().isEmpty()) {
+                    Object first = h.getChangedFields().values().iterator().next();
+                    targetName = asString(first);
+                }
+
+                return new CalendarHistoryDto(
+                        h.getId(),
+                        calendarId,
+                        actorName,         // 여기 null로 두고 싶으면 null로 바꿔도 됨
+                        targetName,
+                        null,
+                        null,
+                        null,
+                        t,
+                        h.getCreatedAt()
+                );
+            }
+
+            // 3) Calendar 업데이트 등
+            return new CalendarHistoryDto(
+                    h.getId(),
+                    calendarId,
+                    actorName,
+                    null,
+                    null,
+                    null,
+                    null,
+                    t,
+                    h.getCreatedAt()
+            );
+        });
+    }
+
+    private String asString(Object v) {
+        if (v == null) return null;
+        String s = String.valueOf(v);
+        return s.isBlank() ? null : s;
+    }
+
+    private Instant asInstant(Object v) {
+        if (v == null) return null;
+        if (v instanceof Instant i) return i;
+        try {
+            return Instant.parse(String.valueOf(v)); // JSON에 문자열로 저장된 경우
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

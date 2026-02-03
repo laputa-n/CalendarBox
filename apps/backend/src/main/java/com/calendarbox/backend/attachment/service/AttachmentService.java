@@ -88,7 +88,6 @@ public class AttachmentService {
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
 
         String originalKey = a.getObjectKey();
-        String attachmentName = a.getOriginalName();
         String thumbKey = storage.toThumbKey(originalKey);
 
         try {
@@ -99,15 +98,6 @@ public class AttachmentService {
         }
 
         schedule.removeAttachment(a);
-
-        CalendarHistory history = CalendarHistory.builder()
-                .calendar(calendar)
-                .actor(user)
-                .entityId(schedule.getId())
-                .type(CalendarHistoryType.SCHEDULE_ATTACHMENT_REMOVED)
-                .changedFields(Map.of("attachmentName",attachmentName))
-                .build();
-        calendarHistoryRepository.save(history);
     }
 
     public String getDownloadUrl(Long userId, Long attachmentId, boolean inline){

@@ -65,7 +65,6 @@ public class ScheduleParticipantService {
 
         Member user = memberRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
         Schedule s = scheduleRepository.findById(scheduleId).orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
-        Calendar c = s.getCalendar();
         ScheduleParticipant sp = scheduleParticipantRepository
                 .findByIdAndSchedule_Id(participantId, scheduleId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_PARTICIPANT_NOT_FOUND));
@@ -85,11 +84,11 @@ public class ScheduleParticipantService {
                 if (!isOwner) throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
 
             } else if (sp.getStatus().equals(INVITED)) {
-                // ✅ inviter가 null이면 isInviter=false라서 owner만 가능
+                // inviter가 null이면 isInviter=false라서 owner만 가능
                 if (!isOwner && !isInviter) throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
 
             } else {
-                // ✅ 나머지 상태는 명시적으로 차단
+                // 나머지 상태는 명시적으로 차단
                 throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
             }
         }
@@ -102,14 +101,6 @@ public class ScheduleParticipantService {
 
         embeddingEnqueueService.enqueueAfterCommit(s.getId());
 
-        CalendarHistory history = CalendarHistory.builder()
-                .calendar(c)
-                .actor(user)
-                .entityId(s.getId())
-                .type(CalendarHistoryType.SCHEDULE_PARTICIPANT_REMOVED)
-                .changedFields(removedParticipant)
-                .build();
-        calendarHistoryRepository.save(history);
     }
 
     public ScheduleParticipantResponse respond(Long userId, Long scheduleId, Long participantId, ParticipantRespondRequest request){
@@ -120,19 +111,7 @@ public class ScheduleParticipantService {
 
         switch(request.action()){
             case ACCEPT -> {
-                Map<String, Object> newParticipant = new HashMap<>();
-                newParticipant.put("newParticipantName", sp.getName());
-
-                CalendarHistory history = CalendarHistory.builder()
-                        .calendar(s.getCalendar())
-                        .actor(sp.getMember())
-                        .entityId(s.getId())
-                        .type(CalendarHistoryType.SCHEDULE_PARTICIPANT_ADDED)
-                        .changedFields(newParticipant)
-                        .build();
-                calendarHistoryRepository.save(history);
                 sp.accept();
-
                 embeddingEnqueueService.enqueueAfterCommit(s.getId());
             }
             case REJECT -> sp.decline();
@@ -180,19 +159,6 @@ public class ScheduleParticipantService {
         Schedule s = scheduleRepository.findById(scheduleId).orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
         ScheduleParticipant sp = ScheduleParticipant.ofName(s,name, user);
         s.addParticipant(sp);
-
-
-        Map<String, Object> newParticipant = new HashMap<>();
-        newParticipant.put("newParticipantName", sp.getName());
-
-        CalendarHistory history = CalendarHistory.builder()
-                .calendar(s.getCalendar())
-                .actor(user)
-                .entityId(s.getId())
-                .type(CalendarHistoryType.SCHEDULE_PARTICIPANT_ADDED)
-                .changedFields(newParticipant)
-                .build();
-        calendarHistoryRepository.save(history);
 
         embeddingEnqueueService.enqueueAfterCommit(s.getId());
 

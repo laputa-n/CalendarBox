@@ -8,10 +8,12 @@ import java.util.Map;
 public record CalendarHistoryDto(
         Long calendarHistoryId,
         Long calendarId,
-        Long actorId,
-        Long entityId,
+        String actorName,
+        String targetName,
+        String scheduleName,
+        Instant scheduleStartAt,
+        Instant scheduleEndAt,
         CalendarHistoryType type,
-        Map<String,Object> changedFields,
         Instant createdAt
 ) {
 }

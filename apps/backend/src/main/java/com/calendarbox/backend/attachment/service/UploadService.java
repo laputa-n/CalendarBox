@@ -125,14 +125,6 @@ public class UploadService {
                 }
             });
         }
-        CalendarHistory history = CalendarHistory.builder()
-                .calendar(calendar)
-                .actor(member)
-                .entityId(schedule.getId())
-                .type(CalendarHistoryType.SCHEDULE_ATTACHMENT_ADDED)
-                .changedFields(Map.of("attachmentName",saved.getOriginalName()))
-                .build();
-        calendarHistoryRepository.save(history);
 
         return new AttachmentDto(saved.getId(), saved.getOriginalName(), saved.getMimeType(), saved.getByteSize(), saved.getPosition());
     }

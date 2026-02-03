@@ -23,6 +23,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -235,9 +236,10 @@ public class CalendarController {
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)Instant to
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)Instant to,
+            @PageableDefault(size = 20) Pageable pageable
     ){
-        var pageResult = calendarHistoryQueryService.getHistories(userId,calendarId,from,to);
+        var pageResult = calendarHistoryQueryService.getHistories(userId,calendarId,from,to, pageable);
         var data = PageResponse.of(pageResult);
 
         return ResponseEntity.ok(ApiResponse.ok("캘린더 히스토리 조회 성공",data));

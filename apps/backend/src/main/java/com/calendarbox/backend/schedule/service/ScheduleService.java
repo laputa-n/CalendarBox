@@ -443,6 +443,7 @@ public class ScheduleService {
                 .actor(user)
                 .entityId(s.getId())
                 .type(CalendarHistoryType.SCHEDULE_DELETED)
+                .changedFields(Map.of("title",s.getTitle(),"startAt",s.getStartAt(),"endAt",s.getEndAt()))
                 .build();
         calendarHistoryRepository.save(history);
         scheduleEmbeddingRepository.deleteByScheduleId(s.getId());

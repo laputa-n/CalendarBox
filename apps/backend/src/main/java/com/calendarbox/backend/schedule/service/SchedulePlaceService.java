@@ -68,14 +68,6 @@ public class SchedulePlaceService {
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
 
         s.removePlace(sp);
-        CalendarHistory history = CalendarHistory.builder()
-                .calendar(s.getCalendar())
-                .actor(user)
-                .entityId(s.getId())
-                .type(CalendarHistoryType.SCHEDULE_LOCATION_REMOVED)
-                .changedFields(Map.of("placeName", sp.getName()))
-                .build();
-        calendarHistoryRepository.save(history);
     }
 
     public SchedulePlaceDto edit(Long userId, Long scheduleId, Long schedulePlaceId, SchedulePlaceEditRequest req){
@@ -89,21 +81,9 @@ public class SchedulePlaceService {
         if(!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(c.getId(),userId, CalendarMemberStatus.ACCEPTED)
                 && !scheduleParticipantRepository.existsBySchedule_IdAndMember_IdAndStatus(scheduleId,userId, ScheduleParticipantStatus.ACCEPTED))
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
-        String oldName = sp.getName();
         sp.changeName(newName);
 
-        Map<String,Object> diff = new HashMap<>();
-        diff.put("oldName", oldName);
-        diff.put("newName", newName);
 
-        CalendarHistory history = CalendarHistory.builder()
-                .calendar(s.getCalendar())
-                .actor(user)
-                .entityId(s.getId())
-                .type(CalendarHistoryType.SCHEDULE_LOCATION_UPDATED)
-                .changedFields(diff)
-                .build();
-        calendarHistoryRepository.save(history);
         return toDto(sp,sp.getPlace());
     }
 
@@ -175,14 +155,6 @@ public class SchedulePlaceService {
         scheduleRepository.save(s);
         scheduleRepository.flush();
 
-        CalendarHistory history = CalendarHistory.builder()
-                .calendar(s.getCalendar())
-                .actor(user)
-                .entityId(s.getId())
-                .type(CalendarHistoryType.SCHEDULE_LOCATION_ADDED)
-                .changedFields(Map.of("placeName", n))
-                .build();
-        calendarHistoryRepository.save(history);
         return toDto(sp,p);
     }
     private SchedulePlaceDto handleExisting(Long userId, Long scheduleId, AddSchedulePlaceRequest req, int nextPos) {
@@ -208,15 +180,6 @@ public class SchedulePlaceService {
         scheduleRepository.save(s);
         scheduleRepository.flush();
 
-        CalendarHistory history = CalendarHistory.builder()
-                .calendar(s.getCalendar())
-                .actor(user)
-                .entityId(s.getId())
-                .type(CalendarHistoryType.SCHEDULE_LOCATION_ADDED)
-                .changedFields(Map.of("placeName", n))
-                .build();
-        calendarHistoryRepository.save(history);
-
         return toDto(sp,p);
     }
 
@@ -240,15 +203,6 @@ public class SchedulePlaceService {
         s.addPlace(sp);
         scheduleRepository.save(s);
         scheduleRepository.flush();
-
-        CalendarHistory history = CalendarHistory.builder()
-                .calendar(s.getCalendar())
-                .actor(user)
-                .entityId(s.getId())
-                .type(CalendarHistoryType.SCHEDULE_LOCATION_ADDED)
-                .changedFields(Map.of("placeName", normalized))
-                .build();
-        calendarHistoryRepository.save(history);
 
         return toDto(sp,null);
     }
