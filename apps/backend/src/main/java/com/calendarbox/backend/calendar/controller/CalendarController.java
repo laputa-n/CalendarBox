@@ -233,13 +233,9 @@ public class CalendarController {
     public ResponseEntity<ApiResponse<PageResponse<CalendarHistoryDto>>> getHistories(
             @AuthenticationPrincipal(expression="id") Long userId,
             @PathVariable Long calendarId,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)Instant to,
             @PageableDefault(size = 20) Pageable pageable
     ){
-        var pageResult = calendarHistoryQueryService.getHistories(userId,calendarId,from,to, pageable);
+        var pageResult = calendarHistoryQueryService.getHistories(userId,calendarId, pageable);
         var data = PageResponse.of(pageResult);
 
         return ResponseEntity.ok(ApiResponse.ok("캘린더 히스토리 조회 성공",data));

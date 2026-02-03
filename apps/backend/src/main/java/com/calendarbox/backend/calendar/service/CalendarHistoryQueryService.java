@@ -32,8 +32,6 @@ public class CalendarHistoryQueryService {
     public Page<CalendarHistoryDto> getHistories(
             Long userId,
             Long calendarId,
-            Instant from,
-            Instant to,
             Pageable pageable
     ) {
         if (!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(
@@ -42,7 +40,7 @@ public class CalendarHistoryQueryService {
             throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
         }
 
-        Page<CalendarHistory> page = calendarHistoryRepository.findPage(calendarId, from, to, pageable);
+        Page<CalendarHistory> page = calendarHistoryRepository.findPage(calendarId, pageable);
 
         List<Long> scheduleIds = page.getContent().stream()
                 .filter(h -> h.getType() == CalendarHistoryType.SCHEDULE_CREATED

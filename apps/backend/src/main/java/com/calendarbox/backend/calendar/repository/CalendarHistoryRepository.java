@@ -16,21 +16,15 @@ public interface CalendarHistoryRepository extends JpaRepository<CalendarHistory
             value = """
                 select h from CalendarHistory h
                 where h.calendar.id = :calendarId
-                  and (:from is null or h.createdAt >= :from)
-                  and (:to   is null or h.createdAt <  :to)
                 order by h.createdAt desc, h.id desc
             """,
             countQuery = """
                 select count(h) from CalendarHistory h
                 where h.calendar.id = :calendarId
-                  and (:from is null or h.createdAt >= :from)
-                  and (:to   is null or h.createdAt <  :to)
             """
     )
     Page<CalendarHistory> findPage(
             @Param("calendarId") Long calendarId,
-            @Param("from") Instant from,
-            @Param("to") Instant to,
             Pageable pageable
     );
 }
