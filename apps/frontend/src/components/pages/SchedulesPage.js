@@ -56,9 +56,31 @@ export const SchedulesPage = () => {
     endDateTime: '',
     isAllDay: false,
     location: '',
-    color: '#3b82f6',
+    color: 'BLUE',
   };
   const [formData, setFormData] = useState(initialFormState);
+
+  const THEME_HEX = {
+    RED: '#ef4444',
+    BLUE: '#3b82f6',
+    GREEN: '#22c55e',
+    YELLOW: '#eab308',
+    PURPLE: '#a855f7',
+    PINK: '#ec4899',
+    BLACK: '#111827',
+    ORANGE: '#f97316',
+  };
+
+  const THEME_LABEL = {
+    RED: '빨강',
+    BLUE: '파랑',
+    GREEN: '초록',
+    YELLOW: '노랑',
+    PURPLE: '보라',
+    PINK: '핑크',
+    BLACK: '검정',
+    ORANGE: '주황',
+  };
 
   /** =============================
    *  ✅ 받은 초대 목록 조회
@@ -101,20 +123,23 @@ export const SchedulesPage = () => {
     try {
       setRespondingId(inv.scheduleParticipantId);
 
-    await ApiService.respondToScheduleInvite(
-  inv.scheduleId,
-  inv.scheduleParticipantId,
-  action
-);
+      await ApiService.respondToScheduleInvite(
+        inv.scheduleId,
+        inv.scheduleParticipantId,
+        action
+      );
 
       // 화면에서 제거
       setInvited((prev) =>
-        (prev || []).filter((x) => x.scheduleParticipantId !== inv.scheduleParticipantId)
+        (prev || []).filter(
+          (x) => x.scheduleParticipantId !== inv.scheduleParticipantId
+        )
       );
 
       // ✅ 수락이면 일정 목록에 반영될 수 있으므로 갱신
       if (action === 'ACCEPT') {
-        await fetchSchedules();
+        // fetchSchedules가 calendarId 인자를 받아도 되고, 안 받아도 JS는 무시하므로 안전
+        await fetchSchedules(currentCalendar?.id);
       }
     } catch (e) {
       console.error('[respondScheduleInvite] failed', e);
@@ -125,15 +150,19 @@ export const SchedulesPage = () => {
   };
 
   /** =============================
-   *  캘린더 변경 시: 초대 목록도 갱신
+   *  ✅ 캘린더 변경 시: 초대 + 일정 목록 모두 갱신
    * ============================= */
   useEffect(() => {
     if (!currentCalendar?.id) {
       setInvited([]);
+      // 캘린더가 없으면 일정도 비우고 싶으면 아래처럼 (컨텍스트에 맞게 선택)
+      // fetchSchedules(null);
       return;
     }
+
     fetchInvited(0);
-  }, [currentCalendar?.id, fetchInvited]);
+    fetchSchedules(currentCalendar.id);
+  }, [currentCalendar?.id, fetchInvited, fetchSchedules]);
 
   /** =============================
    *  폼 제출
@@ -153,26 +182,24 @@ export const SchedulesPage = () => {
     }
 
     try {
+      const payload = {
+        ...formData,
+        startAt: formData.startDateTime,
+        endAt: formData.endDateTime,
+        memo: formData.description,
+        color: formData.color,
+        // ✅ 백엔드/컨텍스트 구현에 따라 필요할 수 있어 안전하게 포함
+        calendarId: currentCalendar.id,
+      };
+
       if (editingSchedule) {
-        await updateSchedule(editingSchedule.id, {
-          ...formData,
-          startAt: formData.startDateTime,
-          endAt: formData.endDateTime,
-          memo: formData.description,
-          // updateSchedule는 color를 보고 theme 매핑함(컨텍스트 구현 기준)
-          color: formData.color,
-        });
+        await updateSchedule(editingSchedule.id, payload);
       } else {
-        await createSchedule({
-          ...formData,
-          startAt: formData.startDateTime,
-          endAt: formData.endDateTime,
-          memo: formData.description,
-          // createSchedule도 color를 보고 theme 매핑함(컨텍스트 구현 기준)
-          color: formData.color,
-        });
+        await createSchedule(payload);
       }
       resetForm();
+      // 저장 후 최신 목록
+      await fetchSchedules(currentCalendar.id);
     } catch (error) {
       console.error('Failed to save schedule:', error);
     }
@@ -183,10 +210,11 @@ export const SchedulesPage = () => {
    * ============================= */
   const handleSearch = () => {
     if (!searchQuery.trim()) {
-      fetchSchedules();
+      fetchSchedules(currentCalendar?.id);
       return;
     }
     // (주의) Context의 searchSchedules 시그니처에 맞게 유지
+    // 캘린더 기준 검색이 필요하면 searchSchedules(query, calendarId) 형태로 확장 고려
     searchSchedules(searchQuery);
   };
 
@@ -218,7 +246,7 @@ export const SchedulesPage = () => {
         : '',
       isAllDay: schedule.isAllDay || false,
       location: schedule.location || '',
-      color: schedule.color || '#3b82f6',
+      color: schedule.theme || schedule.color || 'BLUE',
     });
     setEditingSchedule(schedule);
     setShowForm(true);
@@ -230,6 +258,7 @@ export const SchedulesPage = () => {
   const handleDelete = async (scheduleId) => {
     if (window.confirm('정말로 삭제하시겠습니까?')) {
       await deleteSchedule(scheduleId);
+      await fetchSchedules(currentCalendar?.id);
     }
   };
 
@@ -244,7 +273,7 @@ export const SchedulesPage = () => {
     border: '1px solid #e5e7eb',
   };
 
-  const buttonStyle = {
+  const primaryButtonStyle = {
     backgroundColor: '#2563eb',
     color: 'white',
     padding: '0.75rem 1rem',
@@ -260,6 +289,14 @@ export const SchedulesPage = () => {
 
   return (
     <div>
+      {/* ✅ spin keyframes 없으면 애니메이션이 안 도는 경우가 많아서 추가 */}
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+
       {/* 상단 헤더 */}
       <div
         style={{
@@ -287,80 +324,99 @@ export const SchedulesPage = () => {
           </p>
         </div>
 
-        {/* 🔍 일정 검색 + 캘린더 선택 */}
-        <div
+        {/* ✅ 새 일정 버튼(없어서 폼을 열 수 없던 문제 해결) */}
+        <button
+          type="button"
+          onClick={() => {
+            setEditingSchedule(null);
+            setFormData(initialFormState);
+            setShowForm(true);
+          }}
+          disabled={!currentCalendar}
           style={{
-            marginBottom: '1.5rem',
-            display: 'flex',
-            gap: '0.5rem',
-            alignItems: 'center',
+            ...primaryButtonStyle,
+            opacity: currentCalendar ? 1 : 0.5,
+            cursor: currentCalendar ? 'pointer' : 'not-allowed',
           }}
         >
-          {/* 📅 캘린더 선택 */}
-          <select
-            value={currentCalendar?.id || ''}
-            onChange={(e) => {
-              const next = calendars.find((c) => String(c.id) === e.target.value);
-              if (next) setCurrentCalendar(next);
-            }}
-            style={{
-              padding: '0.5rem 0.75rem',
-              border: '1px solid #d1d5db',
-              borderRadius: '0.5rem',
-              fontSize: '0.875rem',
-              minWidth: '200px',
-              backgroundColor: 'white',
-            }}
-          >
-            <option value="" disabled>
-              캘린더 선택
-            </option>
-            {calendars.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-                {c.isDefault ? ' (기본)' : ''}
-              </option>
-            ))}
-          </select>
-
-          {/* 🔍 검색 입력 */}
-          <input
-            type="text"
-            placeholder="일정 검색(제목, 메모, 참가자, 장소 ...)"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleSearch();
-            }}
-            style={{
-              flex: 1,
-              padding: '0.5rem 0.75rem',
-              border: '1px solid #d1d5db',
-              borderRadius: '0.5rem',
-              fontSize: '0.875rem',
-            }}
-          />
-
-          {/* 검색 버튼 */}
-          <button
-            onClick={handleSearch}
-            disabled={loading}
-            style={{
-              padding: '0.5rem 1rem',
-              backgroundColor: '#2563eb',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '0.5rem',
-              fontSize: '0.875rem',
-              cursor: loading ? 'not-allowed' : 'pointer',
-            }}
-          >
-            검색
-          </button>
-        </div>
+          <Plus size={16} />
+          새 일정
+        </button>
       </div>
 
-      {/* ✅ 받은 초대 목록: 캘린더 선택 시 일정 리스트 위에 표시 */}
+      {/* 🔍 일정 검색 + 캘린더 선택 */}
+      <div
+        style={{
+          marginBottom: '1.5rem',
+          display: 'flex',
+          gap: '0.5rem',
+          alignItems: 'center',
+        }}
+      >
+        {/* 📅 캘린더 선택 */}
+        <select
+          value={currentCalendar?.id || ''}
+          onChange={(e) => {
+            const next = calendars.find((c) => String(c.id) === e.target.value);
+            if (next) setCurrentCalendar(next);
+          }}
+          style={{
+            padding: '0.5rem 0.75rem',
+            border: '1px solid #d1d5db',
+            borderRadius: '0.5rem',
+            fontSize: '0.875rem',
+            minWidth: '200px',
+            backgroundColor: 'white',
+          }}
+        >
+          <option value="" disabled>
+            캘린더 선택
+          </option>
+          {calendars.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+              {c.isDefault ? ' (기본)' : ''}
+            </option>
+          ))}
+        </select>
+
+        {/* 🔍 검색 입력 */}
+        <input
+          type="text"
+          placeholder="일정 검색(제목, 메모, 참가자, 장소 ...)"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleSearch();
+          }}
+          style={{
+            flex: 1,
+            padding: '0.5rem 0.75rem',
+            border: '1px solid #d1d5db',
+            borderRadius: '0.5rem',
+            fontSize: '0.875rem',
+          }}
+        />
+
+        {/* 검색 버튼 */}
+        <button
+          onClick={handleSearch}
+          disabled={loading}
+          style={{
+            padding: '0.5rem 1rem',
+            backgroundColor: '#2563eb',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '0.5rem',
+            fontSize: '0.875rem',
+            cursor: loading ? 'not-allowed' : 'pointer',
+          }}
+        >
+          검색
+        </button>
+      </div>
+
+      {/* ✅ 받은 초대 목록 */}
       {currentCalendar && (
         <div style={{ ...cardStyle, marginBottom: '1rem' }}>
           <div
@@ -427,18 +483,18 @@ export const SchedulesPage = () => {
                       {inv.scheduleTitle}
                     </div>
 
-                   <div style={{ fontSize: 13, color: '#6b7280' }}>
-  초대자: {inv.inviterName || '알 수 없음'}
-</div>
+                    <div style={{ fontSize: 13, color: '#6b7280' }}>
+                      초대자: {inv.inviterName || '알 수 없음'}
+                    </div>
 
-<div style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>
-  {formatDateTime(inv.startAt)} - {formatDateTime(inv.endAt)}
-</div>
+                    <div style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>
+                      {formatDateTime(inv.startAt)} - {formatDateTime(inv.endAt)}
+                    </div>
 
-{/* ✅ 초대시간 표시 (필드 후보들 중 있는 것 사용) */}
-<div style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>
-  초대시간: {formatDateTime(inv.invitedAt || inv.createdAt || inv.respondedAt)}
-</div>
+                    <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>
+                      초대시간: {formatDateTime(inv.invitedAt || inv.createdAt || inv.respondedAt)}
+                    </div>
+
                     <button
                       type="button"
                       onClick={() => setSelectedSchedule(inv.scheduleId)}
@@ -544,7 +600,7 @@ export const SchedulesPage = () => {
             {editingSchedule ? '일정 수정' : '새 일정 추가'}
           </h3>
           <form onSubmit={handleSubmit}>
-            {/* 제목 / 장소 */}
+            {/* 제목 */}
             <div
               style={{
                 display: 'grid',
@@ -560,7 +616,6 @@ export const SchedulesPage = () => {
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   required
-                  className="input"
                   style={{
                     width: '100%',
                     padding: '0.75rem',
@@ -569,7 +624,6 @@ export const SchedulesPage = () => {
                   }}
                 />
               </div>
-             
             </div>
 
             {/* 시간 / 색상 */}
@@ -596,6 +650,7 @@ export const SchedulesPage = () => {
                   }}
                 />
               </div>
+
               <div>
                 <label className="label">종료 시간 *</label>
                 <input
@@ -611,20 +666,40 @@ export const SchedulesPage = () => {
                   }}
                 />
               </div>
+
               <div>
                 <label className="label">색상</label>
-                <input
-                  type="color"
-                  value={formData.color}
-                  onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                  style={{
-                    width: '100%',
-                    height: '2.75rem',
-                    padding: '0.25rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '0.5rem',
-                  }}
-                />
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <select
+                    value={formData.color || 'BLUE'}
+                    onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                    style={{
+                      width: '100%',
+                      height: '2.75rem',
+                      padding: '0.25rem 0.75rem',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '0.5rem',
+                      backgroundColor: 'white',
+                    }}
+                  >
+                    {Object.keys(THEME_HEX).map((key) => (
+                      <option key={key} value={key}>
+                        {THEME_LABEL[key]} ({key})
+                      </option>
+                    ))}
+                  </select>
+
+                  <div
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 10,
+                      background: THEME_HEX[formData.color || 'BLUE'],
+                      border: '1px solid #e5e7eb',
+                    }}
+                    title={formData.color || 'BLUE'}
+                  />
+                </div>
               </div>
             </div>
 
@@ -666,7 +741,7 @@ export const SchedulesPage = () => {
                 type="submit"
                 disabled={loading}
                 style={{
-                  ...buttonStyle,
+                  ...primaryButtonStyle,
                   opacity: loading ? 0.6 : 1,
                   cursor: loading ? 'not-allowed' : 'pointer',
                 }}
@@ -705,72 +780,57 @@ export const SchedulesPage = () => {
             <p style={{ color: '#6b7280', marginTop: '1rem' }}>일정을 불러오는 중...</p>
           </div>
         ) : schedules.length > 0 ? (
-          schedules.map((schedule, index) => (
-            <div
-              key={schedule.id}
-              style={{
-                padding: '1.5rem',
-                borderBottom: index < schedules.length - 1 ? '1px solid #e5e7eb' : 'none',
-                cursor: 'pointer',
-              }}
-              onClick={() => setSelectedSchedule(schedule.id)}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'start',
-                }}
-              >
-                <div style={{ flex: 1 }}>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      marginBottom: '0.5rem',
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: '1rem',
-                        height: '1rem',
-                        backgroundColor: schedule.color || '#3b82f6',
-                        borderRadius: '50%',
-                      }}
-                    />
-                    <h3
-                      style={{
-                        fontSize: '1.125rem',
-                        fontWeight: '600',
-                        color: '#1f2937',
-                        margin: 0,
-                      }}
-                    >
-                      {schedule.title}
-                    </h3>
-                  </div>
+          schedules.map((schedule, index) => {
+            const themeKey = schedule.theme || schedule.color || 'BLUE';
+            const dotColor = THEME_HEX[themeKey] || THEME_HEX.BLUE;
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            return (
+              <div
+                key={schedule.id}
+                style={{
+                  padding: '1.5rem',
+                  borderBottom: index < schedules.length - 1 ? '1px solid #e5e7eb' : 'none',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setSelectedSchedule(schedule.id)}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'start',
+                  }}
+                >
+                  <div style={{ flex: 1 }}>
                     <div
                       style={{
                         display: 'flex',
                         alignItems: 'center',
-                        fontSize: '0.875rem',
-                        color: '#6b7280',
+                        gap: '0.5rem',
+                        marginBottom: '0.5rem',
                       }}
                     >
-                      <Clock style={{ width: '1rem', height: '1rem', marginRight: '0.5rem' }} />
-                      <span>
-                        {schedule.isAllDay
-                          ? '하루 종일'
-                          : `${formatDateTime(schedule.startAt || schedule.startDateTime)} - ${formatDateTime(
-                              schedule.endAt || schedule.endDateTime
-                            )}`}
-                      </span>
+                      <div
+                        style={{
+                          width: '1rem',
+                          height: '1rem',
+                          backgroundColor: dotColor,
+                          borderRadius: '50%',
+                        }}
+                      />
+                      <h3
+                        style={{
+                          fontSize: '1.125rem',
+                          fontWeight: '600',
+                          color: '#1f2937',
+                          margin: 0,
+                        }}
+                      >
+                        {schedule.title}
+                      </h3>
                     </div>
 
-                    {schedule.location && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       <div
                         style={{
                           display: 'flex',
@@ -779,58 +839,78 @@ export const SchedulesPage = () => {
                           color: '#6b7280',
                         }}
                       >
-                        <MapPin style={{ width: '1rem', height: '1rem', marginRight: '0.5rem' }} />
-                        <span>{schedule.location}</span>
+                        <Clock style={{ width: '1rem', height: '1rem', marginRight: '0.5rem' }} />
+                        <span>
+                          {schedule.isAllDay
+                            ? '하루 종일'
+                            : `${formatDateTime(schedule.startAt || schedule.startDateTime)} - ${formatDateTime(
+                                schedule.endAt || schedule.endDateTime
+                              )}`}
+                        </span>
                       </div>
-                    )}
 
-                    {schedule.memo && (
-                      <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>
-                        {schedule.memo}
-                      </p>
-                    )}
+                      {schedule.location && (
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            fontSize: '0.875rem',
+                            color: '#6b7280',
+                          }}
+                        >
+                          <MapPin style={{ width: '1rem', height: '1rem', marginRight: '0.5rem' }} />
+                          <span>{schedule.location}</span>
+                        </div>
+                      )}
+
+                      {schedule.memo && (
+                        <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>
+                          {schedule.memo}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 수정/삭제 버튼 */}
+                  <div style={{ display: 'flex', gap: '0.5rem', marginLeft: '1rem' }}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(schedule);
+                      }}
+                      style={{
+                        padding: '0.5rem',
+                        color: '#2563eb',
+                        backgroundColor: 'transparent',
+                        border: 'none',
+                        borderRadius: '0.5rem',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <Edit style={{ width: '1rem', height: '1rem' }} />
+                    </button>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(schedule.id);
+                      }}
+                      style={{
+                        padding: '0.5rem',
+                        color: '#dc2626',
+                        backgroundColor: 'transparent',
+                        border: 'none',
+                        borderRadius: '0.5rem',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <Trash2 style={{ width: '1rem', height: '1rem' }} />
+                    </button>
                   </div>
                 </div>
-
-                {/* 수정/삭제 버튼 */}
-                <div style={{ display: 'flex', gap: '0.5rem', marginLeft: '1rem' }}>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEdit(schedule);
-                    }}
-                    style={{
-                      padding: '0.5rem',
-                      color: '#2563eb',
-                      backgroundColor: 'transparent',
-                      border: 'none',
-                      borderRadius: '0.5rem',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <Edit style={{ width: '1rem', height: '1rem' }} />
-                  </button>
-
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(schedule.id);
-                    }}
-                    style={{
-                      padding: '0.5rem',
-                      color: '#dc2626',
-                      backgroundColor: 'transparent',
-                      border: 'none',
-                      borderRadius: '0.5rem',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <Trash2 style={{ width: '1rem', height: '1rem' }} />
-                  </button>
-                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         ) : (
           <div style={{ padding: '3rem', textAlign: 'center', color: '#6b7280' }}>
             <Calendar
@@ -847,9 +927,12 @@ export const SchedulesPage = () => {
         )}
       </div>
 
-      {/* 상세 모달 */}
+      {/* ✅ 핵심: 상세 모달 렌더링(이게 없으면 클릭해도 안 뜸) */}
       {selectedSchedule && (
-        <ScheduleDetailModal scheduleId={selectedSchedule} onClose={() => setSelectedSchedule(null)} />
+        <ScheduleDetailModal
+          scheduleId={selectedSchedule}
+          onClose={() => setSelectedSchedule(null)}
+        />
       )}
     </div>
   );
