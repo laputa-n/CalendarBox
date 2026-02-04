@@ -43,6 +43,10 @@ export const SchedulesPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [editingScheduleId, setEditingScheduleId] = useState(null);
 
+useEffect(() => {
+  console.log('✅ schedules sample =', schedules?.[0]);
+}, [schedules]);
+
   // ✅ 받은 초대 목록 상태
   const [invited, setInvited] = useState([]);
   const [invitedLoading, setInvitedLoading] = useState(false);
@@ -208,7 +212,9 @@ export const SchedulesPage = () => {
   }));
 }, [editingScheduleId, scheduleDetail]);
 
-
+useEffect(() => {
+  console.log(schedules.map(s => ({ id: s.id, title: s.title, theme: s.theme, color: s.color })));
+}, [schedules]);
   /** =============================
    *  폼 제출
    * ============================= */
@@ -232,8 +238,8 @@ export const SchedulesPage = () => {
         startAt: formData.startDateTime,
         endAt: formData.endDateTime,
         memo: formData.description,
-        color: formData.color,
-        // ✅ 백엔드/컨텍스트 구현에 따라 필요할 수 있어 안전하게 포함
+        theme: formData.color,                
+        color: THEME_HEX[formData.color] || THEME_HEX.BLUE, 
         calendarId: currentCalendar.id,
       };
 
@@ -746,7 +752,11 @@ const handleEdit = async (schedule) => {
                       <option key={key} value={key}>
                         {THEME_LABEL[key]} ({key})
                       </option>
-                    ))}
+
+                      
+                    )
+                    )
+                    }
                   </select>
 
                   <div
@@ -762,6 +772,7 @@ const handleEdit = async (schedule) => {
                 </div>
               </div>
             </div>
+            
 
             {/* 설명 */}
             <div style={{ marginBottom: '1rem' }}>

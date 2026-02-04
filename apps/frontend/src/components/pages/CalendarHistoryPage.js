@@ -14,26 +14,11 @@ const TYPE = {
   SCHEDULE_DELETED: 'SCHEDULE_DELETED',
 };
 
-const typeLabel = (type) => {
-  switch (type) {
-    case TYPE.SCHEDULE_CREATED: return '일정 생성';
-    case TYPE.SCHEDULE_UPDATED: return '일정 수정';
-    case TYPE.SCHEDULE_DELETED: return '일정 삭제';
-    case TYPE.CALENDAR_CREATED: return '캘린더 생성';
-    case TYPE.CALENDAR_UPDATED: return '캘린더 수정';
-    case TYPE.CALENDAR_DELETED: return '캘린더 삭제';
-    case TYPE.CALENDAR_MEMBER_ADDED: return '멤버 추가';
-    case TYPE.CALENDAR_MEMBER_REMOVED: return '멤버 삭제';
-    default: return type;
-  }
-};
-
 const formatKst = (iso) => {
   if (!iso) return '';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return String(iso);
 
-  // KST 기준 표기
   return d.toLocaleString('ko-KR', {
     timeZone: 'Asia/Seoul',
     year: 'numeric',
@@ -52,8 +37,7 @@ const formatScheduleRange = (startAt, endAt) => {
   return s || e;
 };
 
-// ✅ 명세서 문구 스타일로 메시지 만들기
-const buildHistoryMessage = (h) => {
+const buildHistoryParts = (h) => {
   const actorName = h?.actorName ?? '누군가';
   const targetName = h?.targetName ?? '멤버';
   const scheduleName = h?.scheduleName ?? '일정';
@@ -61,31 +45,40 @@ const buildHistoryMessage = (h) => {
 
   switch (h?.type) {
     case TYPE.CALENDAR_UPDATED:
-      return `${actorName}님이 캘린더를 수정했습니다.`;
+      return { title: `${actorName}님이 캘린더를 수정했습니다.`, detail: '' };
 
     case TYPE.CALENDAR_MEMBER_ADDED:
-      return `${targetName}님이 캘린더 멤버에 추가되었습니다.`;
+      return { title: `${targetName}님이 캘린더 멤버에 추가되었습니다.`, detail: '' };
 
     case TYPE.CALENDAR_MEMBER_REMOVED:
-      return `${targetName}님이 캘린더 멤버에서 삭제되었습니다.`;
+      return { title: `${targetName}님이 캘린더 멤버에서 삭제되었습니다.`, detail: '' };
 
     case TYPE.SCHEDULE_CREATED:
-      return `${actorName}님이 일정을 생성했습니다. (${scheduleName}${range ? `, ${range}` : ''})`;
+      return {
+        title: `${actorName}님이 일정을 생성했습니다.`,
+        detail: `(${scheduleName}${range ? `, ${range}` : ''})`,
+      };
 
     case TYPE.SCHEDULE_UPDATED:
-      return `${actorName}님이 일정을 수정했습니다. (${scheduleName}${range ? `, ${range}` : ''})`;
+      return {
+        title: `${actorName}님이 일정을 수정했습니다.`,
+        detail: `(${scheduleName}${range ? `, ${range}` : ''})`,
+      };
 
     case TYPE.SCHEDULE_DELETED:
-      return `${actorName}님이 일정을 삭제했습니다. (${scheduleName}${range ? `, ${range}` : ''})`;
+      return {
+        title: `${actorName}님이 일정을 삭제했습니다.`,
+        detail: `(${scheduleName}${range ? `, ${range}` : ''})`,
+      };
 
     case TYPE.CALENDAR_CREATED:
-      return `${actorName}님이 캘린더를 생성했습니다.`;
+      return { title: `${actorName}님이 캘린더를 생성했습니다.`, detail: '' };
 
     case TYPE.CALENDAR_DELETED:
-      return `${actorName}님이 캘린더를 삭제했습니다.`;
+      return { title: `${actorName}님이 캘린더를 삭제했습니다.`, detail: '' };
 
     default:
-      return `${typeLabel(h?.type)} 기록이 발생했습니다.`;
+      return { title: `기록이 발생했습니다.`, detail: `(${h?.type ?? 'UNKNOWN'})` };
   }
 };
 
@@ -121,12 +114,10 @@ export const CalendarHistoryPage = () => {
       setLoading(true);
       setError(null);
 
-      // ✅ 명세서: PathVariable(calendarId) + (서버가 지원하면) page/size 쿼리
       const res = await ApiService.getCalendarHistories(calendarId, { page, size });
 
-      // axios 기준: res.data 가 최상위( code/status/message/data )
       const body = res?.data ?? {};
-      const data = body?.data ?? body; // 혹시 백엔드/프록시에서 한 겹 덜 감쌀 때 대비
+      const data = body?.data ?? body;
 
       const content = data?.content ?? [];
       setHistories(content);
@@ -164,8 +155,12 @@ export const CalendarHistoryPage = () => {
   const onChangeSize = (e) => {
     const nextSize = Number(e.target.value);
     setSize(nextSize);
-    setPage(0); // ✅ size 바꾸면 첫 페이지로
+    setPage(0);
   };
+
+  // ✅ 표시용(1-base)
+  const displayPage = (pageMeta.page ?? 0) + 1;
+  const displayTotalPages = Math.max(pageMeta.totalPages ?? 0, 1);
 
   return (
     <div style={{ padding: '2rem' }}>
@@ -188,7 +183,7 @@ export const CalendarHistoryPage = () => {
         </button>
       </header>
 
-      {/* ✅ 상단 컨트롤: 페이지네이션 */}
+      {/* ✅ 상단 컨트롤 */}
       <section
         style={{
           marginTop: '1.5rem',
@@ -227,8 +222,8 @@ export const CalendarHistoryPage = () => {
         </button>
 
         <div style={{ marginLeft: 6, color: '#6b7280', fontSize: 13 }}>
-          page <b style={{ color: '#111827' }}>{pageMeta.page}</b> /{' '}
-          <b style={{ color: '#111827' }}>{Math.max(pageMeta.totalPages - 1, 0)}</b>
+          page <b style={{ color: '#111827' }}>{displayPage}</b> /{' '}
+          <b style={{ color: '#111827' }}>{displayTotalPages}</b>
           <span style={{ marginLeft: 10 }}>
             total <b style={{ color: '#111827' }}>{pageMeta.totalElements}</b>
           </span>
@@ -273,13 +268,13 @@ export const CalendarHistoryPage = () => {
       {loading && <p style={{ marginTop: '1.5rem' }}>불러오는 중...</p>}
       {error && <p style={{ marginTop: '1.5rem', color: 'crimson' }}>{error}</p>}
 
-      {/* ✅ 리스트 */}
+      {/* ✅ 리스트 (2줄만) */}
       {!loading && !error && (
         <section style={{ marginTop: '1.5rem' }}>
           {histories.length === 0 ? (
             <p style={{ color: '#6b7280' }}>기록이 없습니다.</p>
           ) : (
-            <div style={{ display: 'grid', gap: 12 }}>
+            <div style={{ display: 'grid', gap: 10 }}>
               {histories.map((h) => (
                 <div
                   key={h.calendarHistoryId}
@@ -287,53 +282,29 @@ export const CalendarHistoryPage = () => {
                     backgroundColor: '#fff',
                     border: '1px solid #e5e7eb',
                     borderRadius: 12,
-                    padding: '1rem',
+                    padding: '0.9rem 1rem',
                     boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-                    <div style={{ fontWeight: 700 }}>
-                      {typeLabel(h.type)}
-                      <span style={{ marginLeft: 10, fontWeight: 400, color: '#6b7280' }}>
-                        #{h.calendarHistoryId}
-                      </span>
-                    </div>
+                {(() => {
+  const { title, detail } = buildHistoryParts(h);
+  return (
+    <div style={{ lineHeight: 1.5 }}>
+      <span style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>
+        {title}
+      </span>
+      {detail && (
+        <span style={{ fontSize: 14, fontWeight: 400, color: '#111827' }}>
+          {' '}{detail}
+        </span>
+      )}
+    </div>
+  );
+})()}
 
-                    <div style={{ color: '#6b7280', fontSize: 13 }}>
-                      {formatKst(h.createdAt)}
-                    </div>
-                  </div>
-
-                  {/* ✅ 명세서 문장형 */}
-                  <div style={{ marginTop: 10, fontSize: 14, color: '#111827' }}>
-                    {buildHistoryMessage(h)}
-                  </div>
-
-                  {/* ✅ (옵션) 디버그/상세 필드 표시 - 명세서 항목만 */}
-                  <div style={{ marginTop: 10, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                    {h.actorName && (
-                      <span style={{ fontSize: 12, color: '#6b7280' }}>
-                        actorName: <b style={{ color: '#111827' }}>{h.actorName}</b>
-                      </span>
-                    )}
-                    {h.targetName && (
-                      <span style={{ fontSize: 12, color: '#6b7280' }}>
-                        targetName: <b style={{ color: '#111827' }}>{h.targetName}</b>
-                      </span>
-                    )}
-                    {h.scheduleName && (
-                      <span style={{ fontSize: 12, color: '#6b7280' }}>
-                        scheduleName: <b style={{ color: '#111827' }}>{h.scheduleName}</b>
-                      </span>
-                    )}
-                    {(h.scheduleStartAt || h.scheduleEndAt) && (
-                      <span style={{ fontSize: 12, color: '#6b7280' }}>
-                        scheduleAt:{' '}
-                        <b style={{ color: '#111827' }}>
-                          {formatScheduleRange(h.scheduleStartAt, h.scheduleEndAt)}
-                        </b>
-                      </span>
-                    )}
+                  {/* 2줄: createdAt 파싱 */}
+                  <div style={{ marginTop: 6, fontSize: 13, color: '#6b7280' }}>
+                    {formatKst(h.createdAt)}
                   </div>
                 </div>
               ))}
