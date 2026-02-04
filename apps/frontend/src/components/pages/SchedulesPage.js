@@ -841,8 +841,15 @@ const handleEdit = async (schedule) => {
           </div>
         ) : schedules.length > 0 ? (
           schedules.map((schedule, index) => {
-            const themeKey = schedule.theme || schedule.color || 'BLUE';
-            const dotColor = THEME_HEX[themeKey] || THEME_HEX.BLUE;
+           const rawTheme = schedule.theme ?? schedule.color ?? null;
+const normalizedTheme = (() => {
+  if (!rawTheme) return 'BLUE';
+  const s = String(rawTheme).trim();
+  if (THEME_HEX[s]) return s;
+  const byHex = HEX_TO_THEME[s.toLowerCase()];
+  return byHex || 'BLUE';
+})();
+const dotColor = THEME_HEX[normalizedTheme];
 
             return (
               <div
