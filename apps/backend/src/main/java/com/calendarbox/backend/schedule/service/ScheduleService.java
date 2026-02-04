@@ -344,6 +344,11 @@ public class ScheduleService {
                 .actor(user)
                 .entityId(schedule.getId())
                 .type(CalendarHistoryType.SCHEDULE_CREATED)
+                .changedFields(Map.of(
+                        "title", schedule.getTitle(),
+                        "startAt", schedule.getStartAt(),
+                        "endAt", schedule.getEndAt()
+                ))
                 .build();
         calendarHistoryRepository.save(history);
 
@@ -377,47 +382,49 @@ public class ScheduleService {
 
         if(!calendarMemberRepository.existsByCalendar_IdAndMember_IdAndStatus(c.getId(),user.getId(),CalendarMemberStatus.ACCEPTED) && !c.getOwner().getId().equals(user.getId())) throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
 
-        Map<String,Object> diff = new HashMap<>();
+
+        boolean changed = false;
 
         Instant newStart = (req.startAt() != null) ? req.startAt() : s.getStartAt();
         Instant newEnd   = (req.endAt()   != null) ? req.endAt()   : s.getEndAt();
         if (req.startAt() != null || req.endAt() != null) {
             if (!newStart.isBefore(newEnd)) throw new BusinessException(ErrorCode.START_AFTER_BEFORE);
             if (!newStart.equals(s.getStartAt()) || !newEnd.equals(s.getEndAt())) {
-                diff.put("time", Map.of(
-                        "oldStartAt", s.getStartAt(),
-                        "oldEndAt",   s.getEndAt(),
-                        "newStartAt", newStart,
-                        "newEndAt",   newEnd
-                ));
                 s.reschedule(newStart, newEnd);
+                changed = true;
             }
         }
+
         if (req.title() != null && !req.title().equals(s.getTitle())) {
-            diff.put("title", Map.of("old", s.getTitle(), "new", req.title()));
             s.editTitle(req.title());
+            changed = true;
         }
         if (req.memo() != null && !Objects.equals(req.memo(), s.getMemo())) {
-            diff.put("memo", Map.of("old", s.getMemo(), "new", req.memo()));
             s.editMemo(req.memo());
+            changed = true;
         }
         if (req.theme() != null && req.theme() != s.getTheme()) {
-            diff.put("theme", Map.of("old", s.getTheme(), "new", req.theme()));
             s.editTheme(req.theme());
+            changed = true;
         }
-        s.touchUpdateBy(user);
 
+        if (changed) {
+            s.touchUpdateBy(user);
 
-        if(!diff.isEmpty()){
             embeddingEnqueueService.enqueueAfterCommit(s.getId());
-            CalendarHistory history = CalendarHistory.builder()
-                    .calendar(c)
-                    .actor(user)
-                    .entityId(s.getId())
-                    .type(CalendarHistoryType.SCHEDULE_UPDATED)
-                    .changedFields(diff)
-                    .build();
-            calendarHistoryRepository.save(history);
+            calendarHistoryRepository.save(
+                    CalendarHistory.builder()
+                            .calendar(c)
+                            .actor(user)
+                            .entityId(s.getId())
+                            .type(CalendarHistoryType.SCHEDULE_UPDATED)
+                            .changedFields(Map.of(
+                                    "title", s.getTitle(),
+                                    "startAt", s.getStartAt(),
+                                    "endAt", s.getEndAt()
+                            ))
+                            .build()
+            );
         }
 
         return new ScheduleDto(

@@ -132,10 +132,40 @@ public class CalendarHistoryQueryService {
     private Instant asInstant(Object v) {
         if (v == null) return null;
         if (v instanceof Instant i) return i;
+
+        // JSON 숫자(BigDecimal/Double/Long 등)
+        if (v instanceof Number n) {
+            return fromEpoch(new java.math.BigDecimal(n.toString()));
+        }
+
+        String s = String.valueOf(v).trim();
+        if (s.isEmpty()) return null;
+
+        // 문자열인데 숫자인 경우도 처리
+        if (s.matches("^-?\\d+(\\.\\d+)?$")) {
+            return fromEpoch(new java.math.BigDecimal(s));
+        }
+
+        // ISO-8601 문자열이면 그대로
         try {
-            return Instant.parse(String.valueOf(v)); // JSON에 문자열로 저장된 경우
+            return Instant.parse(s);
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private Instant fromEpoch(java.math.BigDecimal bd) {
+        // 초/밀리초 판별 (밀리초면 보통 1e12 이상)
+        java.math.BigDecimal abs = bd.abs();
+        boolean looksLikeMillis = abs.compareTo(new java.math.BigDecimal("100000000000")) >= 0; // 1e11 기준
+
+        if (looksLikeMillis) {
+            return Instant.ofEpochMilli(bd.longValue());
+        }
+
+        long sec = bd.longValue();
+        java.math.BigDecimal frac = bd.subtract(java.math.BigDecimal.valueOf(sec)).abs();
+        int nanos = frac.movePointRight(9).intValue(); // 0~999,999,999
+        return Instant.ofEpochSecond(sec, nanos);
     }
 }
