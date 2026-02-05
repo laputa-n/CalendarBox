@@ -1,4 +1,4 @@
-package com.calendarbox.backend.global.config.props;
+package com.calendarbox.backend.global.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.cache.CacheManager;
