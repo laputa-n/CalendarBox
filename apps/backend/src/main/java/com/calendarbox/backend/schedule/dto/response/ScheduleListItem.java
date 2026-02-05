@@ -1,6 +1,7 @@
 package com.calendarbox.backend.schedule.dto.response;
 
 import com.calendarbox.backend.calendar.enums.CalendarType;
+import com.calendarbox.backend.schedule.enums.ScheduleTheme;
 
 import java.time.Instant;
 
@@ -11,6 +12,7 @@ public record ScheduleListItem(
         Long scheduleId,
         String scheduleTitle,
         Instant startAt,
-        Instant endAt
+        Instant endAt,
+        ScheduleTheme theme
 ) {
 }

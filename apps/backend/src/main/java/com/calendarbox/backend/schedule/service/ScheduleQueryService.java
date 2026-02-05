@@ -108,7 +108,8 @@ public class ScheduleQueryService {
                 s.getId(),
                 s.getTitle(),
                 s.getStartAt(),
-                s.getEndAt()
+                s.getEndAt(),
+                s.getTheme()
         ));
     }
 
@@ -133,7 +134,8 @@ public class ScheduleQueryService {
                 s.getId(),
                 s.getTitle(),
                 s.getStartAt(),
-                s.getEndAt()
+                s.getEndAt(),
+                s.getTheme()
         ));
     }
 
