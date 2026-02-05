@@ -2,7 +2,9 @@ package com.calendarbox.backend.analytics.service;
 
 import com.calendarbox.backend.analytics.dto.response.*;
 import com.calendarbox.backend.analytics.repository.AnalyticsRepository;
+import com.calendarbox.backend.global.dto.PageResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -24,6 +26,11 @@ public class AnalyticsService {
 
     private final AnalyticsRepository analyticsRepository;
 
+    @Cacheable(
+            cacheNames = "analytics:trend",
+            key = "'u:' + #userId",
+            sync = true
+    )
     @Transactional(readOnly = true)
     public List<MonthlyScheduleTrend> getMonthlyScheduleTrend(Long userId) {
         List<Object[]> monthlyScheduleStats = analyticsRepository.findMonthlyScheduleTrend(userId);
@@ -35,6 +42,12 @@ public class AnalyticsService {
                 )
         ).toList();
     }
+
+    @Cacheable(
+            cacheNames = "analytics:dayHour",
+            key = "'u:' + #userId",
+            sync = true
+    )
     @Transactional(readOnly = true)
     public List<DayHourScheduleDistribution> getDayHourScheduleDistribution(Long userId){
         List<Object[]> dayHourScheduleStats = analyticsRepository.findDayHourScheduleDistribution(userId);
@@ -51,6 +64,11 @@ public class AnalyticsService {
     private record PlaceExpenseAgg(long totalAmount, double avgAmount) {}
     private record ExpenseAgg(long totalAmount, double avgAmount) {} // (people에도 재사용해도 됨)
 
+    @Cacheable(
+            cacheNames = "analytics:placeSummary",
+            key = "'u:' + #userId + ':ym:' + #yearMonth.toString()",
+            sync = true
+    )
     @Transactional(readOnly = true)
     public PlaceStatSummary getPlaceSummary(Long userId, YearMonth yearMonth) {
         LocalDateTime start = yearMonth.atDay(1).atStartOfDay();
@@ -139,8 +157,13 @@ public class AnalyticsService {
 
 
 
+    @Cacheable(
+            cacheNames = "analytics:placeList",
+            key = "'u:' + #userId + ':ym:' + #yearMonth.toString() + ':p:' + #page + ':s:' + #size",
+            sync = true
+    )
     @Transactional(readOnly = true)
-    public Page<PlaceStatItem> getPlaceStatList(Long userId, YearMonth yearMonth, int page, int size){
+    public PageResponse<PlaceStatItem> getPlaceStatList(Long userId, YearMonth yearMonth, int page, int size){
         LocalDateTime start = yearMonth.atDay(1).atStartOfDay();
         LocalDateTime end = yearMonth.plusMonths(1).atDay(1).atStartOfDay();
 
@@ -215,13 +238,18 @@ public class AnalyticsService {
 
         long total = analyticsRepository.countPlaceMonthlyStats(userId, start, end);
         Pageable pageable = PageRequest.of(page, size);
-        return new PageImpl<>(items, pageable, total);
+        return PageResponse.of(new PageImpl<>(items, pageable, total));
     }
 
     private record PersonExpenseAgg(long sharedScheduleCount, long totalAmount, double avgAmount) {}
 
+    @Cacheable(
+            cacheNames = "analytics:peopleList",
+            key = "'u:' + #userId + ':ym:' + #yearMonth.toString() + ':p:' + #page + ':s:' + #size",
+            sync = true
+    )
     @Transactional(readOnly = true)
-    public Page<PeopleStatItem> getPeopleStatList(Long userId, YearMonth yearMonth, int page, int size) {
+    public PageResponse<PeopleStatItem> getPeopleStatList(Long userId, YearMonth yearMonth, int page, int size) {
         LocalDateTime start = yearMonth.atDay(1).atStartOfDay();
         LocalDateTime end = yearMonth.plusMonths(1).atDay(1).atStartOfDay();
 
@@ -302,10 +330,14 @@ public class AnalyticsService {
 
         long total = analyticsRepository.countPersonMonthlyScheduleStats(userId, start, end);
         Pageable pageable = PageRequest.of(page, size);
-        return new PageImpl<>(items, pageable, total);
+        return PageResponse.of(new PageImpl<>(items, pageable, total));
     }
 
-
+    @Cacheable(
+            cacheNames = "analytics:peopleSummary",
+            key = "'u:' + #userId + ':ym:' + #yearMonth.toString()",
+            sync = true
+    )
     @Transactional(readOnly = true)
     public PeopleStatSummary getPeopleSummary(Long userId, YearMonth yearMonth){
         LocalDateTime start = yearMonth.atDay(1).atStartOfDay();

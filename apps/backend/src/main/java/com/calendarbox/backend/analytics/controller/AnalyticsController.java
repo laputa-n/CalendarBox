@@ -69,8 +69,7 @@ public class AnalyticsController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ){
-        var pageResult = analyticsService.getPeopleStatList(userId,yearMonth, page, size);
-        var data = PageResponse.of(pageResult);
+        var data = analyticsService.getPeopleStatList(userId,yearMonth, page, size);
 
         return ResponseEntity.ok(ApiResponse.ok("사람 통계 목록 조회 성공", data));
     }
@@ -106,8 +105,7 @@ public class AnalyticsController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ){
-        var pageResult = analyticsService.getPlaceStatList(userId,yearMonth,page,size);
-        var data = PageResponse.of(pageResult);
+        var data = analyticsService.getPlaceStatList(userId,yearMonth,page,size);;
 
         return ResponseEntity.ok(ApiResponse.ok("장소 통계 목록 조회 성공", data));
     }
