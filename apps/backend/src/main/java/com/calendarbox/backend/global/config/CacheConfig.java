@@ -27,9 +27,10 @@ public class CacheConfig {
                 .allowIfSubType("com.calendarbox.backend")
                 .allowIfSubType("java.util")
                 .allowIfSubType("java.time")
+                .allowIfSubType("java.lang")
                 .build();
 
-        mapper.activateDefaultTyping(ptv, ObjectMapper.DefaultTyping.EVERYTHING, JsonTypeInfo.As.PROPERTY);
+        mapper.activateDefaultTyping(ptv, ObjectMapper.DefaultTyping.OBJECT_AND_NON_CONCRETE, JsonTypeInfo.As.PROPERTY);
 
 
         RedisCacheConfiguration base = RedisCacheConfiguration.defaultCacheConfig()

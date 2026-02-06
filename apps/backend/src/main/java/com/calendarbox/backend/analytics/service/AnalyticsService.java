@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -40,7 +41,7 @@ public class AnalyticsService {
                         ((Timestamp)row[0]).toLocalDateTime(),
                         ((Number)row[1]).longValue()
                 )
-        ).toList();
+        ).collect(Collectors.toList());
     }
 
     @Cacheable(
@@ -58,7 +59,7 @@ public class AnalyticsService {
                         ((Number) row[1]).intValue(),
                         ((Number) row[2]).longValue()
                 )
-        ).toList();
+        ).collect(Collectors.toList());
     }
 
     private record PlaceExpenseAgg(long totalAmount, double avgAmount) {}
@@ -84,7 +85,7 @@ public class AnalyticsService {
                         row[3] != null ? ((Number) row[3]).intValue() : 0,
                         row[4] != null ? ((Number) row[4]).longValue() : 0L
                 ))
-                .toList();
+                .collect(Collectors.toList());
 
         List<PlaceMonthlyScheduleSummary> top3Base = scheduleStats.stream()
                 .sorted(Comparator
@@ -95,7 +96,7 @@ public class AnalyticsService {
                         .thenComparing(PlaceMonthlyScheduleSummary::placeName, Comparator.nullsLast(String::compareTo))
                 )
                 .limit(3)
-                .toList();
+                .collect(Collectors.toList());
 
         List<Long> placeIds = top3Base.stream()
                 .map(PlaceMonthlyScheduleSummary::placeId)
@@ -148,7 +149,7 @@ public class AnalyticsService {
                             avgAmount
                     );
                 })
-                .toList();
+                .collect(Collectors.toList());
 
         // DTO에서 totalVisitCount / totalStayMin 뺐다면 여기도 제거
         return new PlaceStatSummary(start, top3);
@@ -234,7 +235,7 @@ public class AnalyticsService {
                             avgAmount
                     );
                 })
-                .toList();
+                .collect(Collectors.toList());
 
         long total = analyticsRepository.countPlaceMonthlyStats(userId, start, end);
         Pageable pageable = PageRequest.of(page, size);
@@ -267,7 +268,7 @@ public class AnalyticsService {
                         ((Number) r[3]).intValue(),
                         r[4] != null ? ((Number) r[4]).longValue() : 0L
                 ))
-                .toList();
+                .collect(Collectors.toList());
 
         // 2) 이 페이지에 포함된 사람들만 추출
         List<Long> personIds = scheduleStats.stream()
@@ -326,7 +327,7 @@ public class AnalyticsService {
                             avgAmount
                     );
                 })
-                .toList();
+                .collect(Collectors.toList());
 
         long total = analyticsRepository.countPersonMonthlyScheduleStats(userId, start, end);
         Pageable pageable = PageRequest.of(page, size);
@@ -354,10 +355,10 @@ public class AnalyticsService {
                         ((Number) r[3]).intValue(),
                         r[4] != null ? ((Number) r[4]).longValue() : 0L
                 ))
-                .toList();
+                .collect(Collectors.toList());
 
         if (top3Base.isEmpty()) {
-            return new PeopleStatSummary(start, List.of());
+            return new PeopleStatSummary(start, Collections.emptyList());
         }
 
         // Top3: meetCount desc -> duration desc -> (id/name)로 안정화
@@ -366,14 +367,14 @@ public class AnalyticsService {
                 .map(PersonMonthlyScheduleSummary::personId)
                 .filter(id -> id != null)
                 .distinct()
-                .toList();
+                .collect(Collectors.toList());
 
         List<String> personNames = top3Base.stream()
                 .filter(s -> s.personId() == null)
                 .map(PersonMonthlyScheduleSummary::personName)
                 .filter(n -> n != null && !n.isBlank())
                 .distinct()
-                .toList();
+                .collect(Collectors.toList());
 
         List<Long> safePersonIds = personIds.isEmpty() ? List.of(-1L) : personIds;
         List<String> safePersonNames = personNames.isEmpty() ? List.of("__NO_MATCH__") : personNames;
@@ -414,7 +415,7 @@ public class AnalyticsService {
                             avgAmount
                     );
                 })
-                .toList();
+                .collect(Collectors.toList());
 
         return new PeopleStatSummary(start, top3);
     }
