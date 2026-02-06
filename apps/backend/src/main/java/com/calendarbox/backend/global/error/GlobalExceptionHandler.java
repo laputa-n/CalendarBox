@@ -17,7 +17,7 @@ import com.calendarbox.backend.global.error.ErrorBody;
 import java.text.MessageFormat;
 import java.time.Instant;
 
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "com.calendarbox.backend")
 @Slf4j
 public class GlobalExceptionHandler {
 
@@ -41,6 +41,10 @@ public class GlobalExceptionHandler {
     // 2) 비즈니스 예외
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ErrorBody> handleBusiness(BusinessException ex, HttpServletRequest req) {
+        log.warn("[BUSINESS] {} {}?{} code={}",
+                req.getMethod(), req.getRequestURI(), req.getQueryString(),
+                ex.getErrorCode().code(), ex
+        );
         ErrorCode ec = ex.getErrorCode();
         String msg = fmt(ec.message(), ex.getMessageArgs());
         return ResponseEntity.status(ec.status())
@@ -75,6 +79,12 @@ public class GlobalExceptionHandler {
     // 5) 나머지 전부
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorBody> handleAll(Exception ex, HttpServletRequest req) {
+        log.error("[UNHANDLED] {} {}?{}",
+                req.getMethod(),
+                req.getRequestURI(),
+                req.getQueryString(),
+                ex
+        );
         ErrorCode ec = ErrorCode.INTERNAL_ERROR;
         return ResponseEntity.status(ec.status())
                 .body(new ErrorBody(ec.code(), ec.message(), Instant.now(), req.getRequestURI()));
