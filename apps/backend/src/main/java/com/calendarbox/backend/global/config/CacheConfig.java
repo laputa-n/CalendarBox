@@ -25,8 +25,12 @@ public class CacheConfig {
 
         var ptv = BasicPolymorphicTypeValidator.builder()
                 .allowIfSubType("com.calendarbox.backend")
+                .allowIfSubType("java.util")
+                .allowIfSubType("java.time")
                 .build();
-        mapper.activateDefaultTyping(ptv, ObjectMapper.DefaultTyping.NON_FINAL, JsonTypeInfo.As.PROPERTY);
+
+        mapper.activateDefaultTyping(ptv, ObjectMapper.DefaultTyping.EVERYTHING, JsonTypeInfo.As.PROPERTY);
+
 
         RedisCacheConfiguration base = RedisCacheConfiguration.defaultCacheConfig()
                 .disableCachingNullValues()
