@@ -411,12 +411,7 @@ public class ScheduleService {
         if (changed) {
             s.touchUpdateBy(user);
 
-            try {
-                float[] embedding = scheduleEmbeddingService.embedScheduleEntity(s);
-                scheduleEmbeddingRepository.upsertEmbedding(s.getId(), embedding);
-            } catch (Exception e) {
-                log.error("Failed to update schedule embedding. scheduleId={}", s.getId(), e);
-            }
+            embeddingEnqueueService.enqueueAfterCommit(s.getId());
             calendarHistoryRepository.save(
                     CalendarHistory.builder()
                             .calendar(c)
