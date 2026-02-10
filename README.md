@@ -183,38 +183,39 @@
 ## 기술 스택
 
 ### Frontend
-![React](https://img.shields.io/badge/React-000000?logo=react&logoColor=61DAFB)
-![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?logo=tailwindcss&logoColor=white)
-![JavaScript](https://img.shields.io/badge/JavaScript-000000?logo=javascript&logoColor=F7DF1E)
+![React](https://img.shields.io/badge/React-61DAFB?style=flat&logo=react&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=flat&logo=tailwindcss&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=flat&logo=javascript&logoColor=000)
 
 ### Backend
-![Java](https://img.shields.io/badge/Java_21-000000?logo=openjdk&logoColor=white)
-![Spring Boot](https://img.shields.io/badge/Spring_Boot-000000?logo=springboot&logoColor=6DB33F)
-![JPA](https://img.shields.io/badge/Spring_Data_JPA-000000?logo=spring&logoColor=6DB33F)
+![Java 21](https://img.shields.io/badge/Java_21-ED8B00?style=flat&logo=openjdk&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-6DB33F?style=flat&logo=springboot&logoColor=white)
+![Spring Data JPA](https://img.shields.io/badge/Spring_Data_JPA-6DB33F?style=flat&logo=spring&logoColor=white)
 
 ### ML
-![Python](https://img.shields.io/badge/Python-000000?logo=python&logoColor=3776AB)
-![FastAPI](https://img.shields.io/badge/FastAPI-000000?logo=fastapi&logoColor=009688)
-![SentenceTransformers](https://img.shields.io/badge/sentence--transformers-000000)
+![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat&logo=fastapi&logoColor=white)
+![sentence-transformers](https://img.shields.io/badge/sentence--transformers-555?style=flat)
 
 ### DB / Infra
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL_16-000000?logo=postgresql&logoColor=4169E1)
-![pgvector](https://img.shields.io/badge/pgvector-000000)
-![Redis](https://img.shields.io/badge/Redis-000000?logo=redis&logoColor=DC382D)
-![RabbitMQ](https://img.shields.io/badge/RabbitMQ-000000?logo=rabbitmq&logoColor=FF6600)
-![Docker](https://img.shields.io/badge/Docker-000000?logo=docker&logoColor=2496ED)
-![Nginx](https://img.shields.io/badge/Nginx-000000?logo=nginx&logoColor=009639)
-![AWS EC2](https://img.shields.io/badge/AWS_EC2-000000?logo=amazonec2&logoColor=FF9900)
-![AWS S3](https://img.shields.io/badge/AWS_S3-000000?logo=amazons3&logoColor=569A31)
-![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-000000?logo=githubactions&logoColor=2088FF)
-![Swagger](https://img.shields.io/badge/Swagger-000000?logo=swagger&logoColor=85EA2D)
-![Flyway](https://img.shields.io/badge/Flyway-000000?logo=flyway&logoColor=CC0200)
+![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL_16-4169E1?style=flat&logo=postgresql&logoColor=white)
+![pgvector](https://img.shields.io/badge/pgvector-444?style=flat)
+![Redis](https://img.shields.io/badge/Redis-DC382D?style=flat&logo=redis&logoColor=white)
+![RabbitMQ](https://img.shields.io/badge/RabbitMQ-FF6600?style=flat&logo=rabbitmq&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white)
+![Nginx](https://img.shields.io/badge/Nginx-009639?style=flat&logo=nginx&logoColor=white)
+![AWS EC2](https://img.shields.io/badge/AWS_EC2-FF9900?style=flat&logo=amazonec2&logoColor=white)
+![AWS S3](https://img.shields.io/badge/AWS_S3-569A31?style=flat&logo=amazons3&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=flat&logo=githubactions&logoColor=white)
+![Swagger](https://img.shields.io/badge/Swagger-85EA2D?style=flat&logo=swagger&logoColor=000)
+![Flyway](https://img.shields.io/badge/Flyway-CC0200?style=flat&logo=flyway&logoColor=white)
 
 ### External APIs
-![Kakao](https://img.shields.io/badge/Kakao_OAuth-000000)
-![Naver](https://img.shields.io/badge/Naver_Local_Search-000000)
-![CLOVA OCR](https://img.shields.io/badge/Naver_CLOVA_OCR-000000)
-![Gemini](https://img.shields.io/badge/Gemini_Flash-000000?logo=google&logoColor=white)
+![Kakao OAuth](https://img.shields.io/badge/Kakao_OAuth-FFCD00?style=flat&logo=kakao&logoColor=000)
+![Naver Local Search](https://img.shields.io/badge/Naver_Local_Search-03C75A?style=flat&logo=naver&logoColor=white)
+![Naver CLOVA OCR](https://img.shields.io/badge/Naver_CLOVA_OCR-03C75A?style=flat&logo=naver&logoColor=white)
+![Gemini Flash](https://img.shields.io/badge/Gemini_Flash-4285F4?style=flat&logo=google&logoColor=white)
+
 
 
 ---
