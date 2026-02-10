@@ -5,7 +5,9 @@
 
 </div>
 
-## 목차
+<details>
+<summary><b>목차</b></summary>
+  
 - [프로젝트 소개](#프로젝트-소개)
 - [주요 기능](#주요-기능)
   - [홈](#홈)
@@ -17,7 +19,9 @@
 - [서비스 아키텍처](#서비스-아키텍처)
 - [역할](#역할)
 - [확장성](#확장성)
-  
+- 
+</details>
+
 ## 프로젝트 소개
 
 **Calendar Box**는 여러 모임과 일정을 효율적으로 관리하기 위한 
@@ -179,42 +183,39 @@
 ## 기술 스택
 
 ### Frontend
-
-- React
-- Tailwind CSS
-- JavaScript
-- Thymeleaf
+![React](https://img.shields.io/badge/React-000000?logo=react&logoColor=61DAFB)
+![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?logo=tailwindcss&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript-000000?logo=javascript&logoColor=F7DF1E)
 
 ### Backend
-
-- Java 21
-- Spring Boot
-- Spring Data JPA
+![Java](https://img.shields.io/badge/Java_21-000000?logo=openjdk&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-000000?logo=springboot&logoColor=6DB33F)
+![JPA](https://img.shields.io/badge/Spring_Data_JPA-000000?logo=spring&logoColor=6DB33F)
 
 ### ML
+![Python](https://img.shields.io/badge/Python-000000?logo=python&logoColor=3776AB)
+![FastAPI](https://img.shields.io/badge/FastAPI-000000?logo=fastapi&logoColor=009688)
+![SentenceTransformers](https://img.shields.io/badge/sentence--transformers-000000)
 
-- Python
-- FastAPI
-- sentence-transformers
-
-### Database / Infrastructure
-
-- Nginx
-- Docker
-- PostgreSQL 16 (+ pgvector)
-- Redis
-- RabbitMQ
-- AWS EC2/S3
-- GitHub Actions (CI/CD)
-- Swagger
-- Flyway (DB Migration)
+### DB / Infra
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL_16-000000?logo=postgresql&logoColor=4169E1)
+![pgvector](https://img.shields.io/badge/pgvector-000000)
+![Redis](https://img.shields.io/badge/Redis-000000?logo=redis&logoColor=DC382D)
+![RabbitMQ](https://img.shields.io/badge/RabbitMQ-000000?logo=rabbitmq&logoColor=FF6600)
+![Docker](https://img.shields.io/badge/Docker-000000?logo=docker&logoColor=2496ED)
+![Nginx](https://img.shields.io/badge/Nginx-000000?logo=nginx&logoColor=009639)
+![AWS EC2](https://img.shields.io/badge/AWS_EC2-000000?logo=amazonec2&logoColor=FF9900)
+![AWS S3](https://img.shields.io/badge/AWS_S3-000000?logo=amazons3&logoColor=569A31)
+![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-000000?logo=githubactions&logoColor=2088FF)
+![Swagger](https://img.shields.io/badge/Swagger-000000?logo=swagger&logoColor=85EA2D)
+![Flyway](https://img.shields.io/badge/Flyway-000000?logo=flyway&logoColor=CC0200)
 
 ### External APIs
+![Kakao](https://img.shields.io/badge/Kakao_OAuth-000000)
+![Naver](https://img.shields.io/badge/Naver_Local_Search-000000)
+![CLOVA OCR](https://img.shields.io/badge/Naver_CLOVA_OCR-000000)
+![Gemini](https://img.shields.io/badge/Gemini_Flash-000000?logo=google&logoColor=white)
 
-- Kakao OAuth
-- Naver Local Search
-- Naver CLOVA OCR
-- Gemini-flash
 
 ---
 
