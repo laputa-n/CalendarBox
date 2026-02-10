@@ -71,7 +71,7 @@ export const CalendarBoardPage = () => {
       <header style={headerStyle}>
         <h1 style={titleStyle}>📅 캘린더</h1>
         <p style={subtitleStyle}>
-          내 캘린더 및 공유된 캘린더 목록입니다
+          내 캘린더 목록입니다.
         </p>
       </header>
 
@@ -199,7 +199,7 @@ const CalendarCard = ({ calendar, onOpen, onDetail, onHistory, onSetDefault }) =
         </button>
 
         <button onClick={onHistory} style={outlineButtonStyle}>
-          기록 보기
+          히스토리
         </button>
 
 

@@ -166,7 +166,7 @@ export const CalendarHistoryPage = () => {
     <div style={{ padding: '2rem' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>🕘 캘린더 기록</h1>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>🕘 캘린더 히스토리</h1>
         </div>
 
         <button

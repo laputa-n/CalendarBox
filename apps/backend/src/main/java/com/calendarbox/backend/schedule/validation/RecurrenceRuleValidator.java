@@ -12,11 +12,6 @@ import java.util.regex.Pattern;
 
 public class RecurrenceRuleValidator implements ConstraintValidator<ValidRecurrenceRule, RecurrenceUpsertRequest> {
 
-    /**
-     * 서수(ordinal)와 요일을 모두 캡처하는 정규식.
-     *  - group(1): ordinal (예: "3", "-1")  // 없으면 null
-     *  - group(2): 요일 (MO/TU/WE/TH/FR/SA/SU)
-     */
     private static final Pattern BYDAY_TOKEN = Pattern.compile("^([+-]?[1-5])?(MO|TU|WE|TH|FR|SA|SU)$");
 
     private static boolean empty(Collection<?> x){ return x==null || x.isEmpty(); }
@@ -33,7 +28,7 @@ public class RecurrenceRuleValidator implements ConstraintValidator<ValidRecurre
     public boolean isValid(RecurrenceUpsertRequest r, ConstraintValidatorContext c) {
         if (r == null) return true;
 
-        // --- 공통 기본 범위 검증 ---
+        // 공통 기본 범위 검증
         if (r.intervalCount() == null || r.intervalCount() < 1)
             return fail(c, "interval must be >= 1");
 
