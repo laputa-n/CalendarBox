@@ -1,4 +1,9 @@
-# 📆 Calendar Box (캘박)
+<div align="center">
+
+### 📆 Calendar Box (캘박)
+공유 캘린더 기반 일정 관리 서비스
+
+</div>
 
 ## 프로젝트 소개
 
