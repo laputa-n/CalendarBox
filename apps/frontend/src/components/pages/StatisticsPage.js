@@ -3,48 +3,48 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, R
 import { ApiService } from '../../services/apiService';
 
 export const StatisticsPage = () => {
-    const [statistics, setStatistics] = useState(null);
-    const [statisticsLoading, setStatisticsLoading] = useState(false);
-    const [yearlyLoading, setYearlyLoading] = useState(false);
-    const [selectedTab, setSelectedTab] = useState('people');
-    const [selectedWeekday, setSelectedWeekday] = useState('1'); // 월요일 기본값
-    const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth()); // 기본값은 이번 달
-    const [yearlyData, setYearlyData] = useState([]); // 1년 동안의 월별 데이터를 저장
-    const [peopleList, setPeopleList] = useState([]);
-    const [placeList, setPlaceList] = useState([]);
-    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-    const weekdays = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
-    // 현재 월을 "yyyy-MM" 형식으로 반환하는 함수
-    function getCurrentMonth() {
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0'); // 월은 0부터 시작하므로 +1 해줍니다.
-        return `${year}-${month}`;
-    }
+  const CURRENT_YEAR = new Date().getFullYear();
+  const YEAR_OPTIONS = Array.from({ length: 4 }, (_, i) => CURRENT_YEAR - (3 - i));
+  // 예: 2023, 2024, 2025, 2026 (현재가 2026이면)
 
-    // 1년 동안의 월별 데이터를 요청하는 함수
- const fetchYearlyData = async () => {
-  try {
-    setYearlyLoading(true);
+  const [statistics, setStatistics] = useState(null);
+  const [statisticsLoading, setStatisticsLoading] = useState(false);
+  const [yearlyLoading, setYearlyLoading] = useState(false);
+  const [selectedTab, setSelectedTab] = useState('people');
+  const [selectedWeekday, setSelectedWeekday] = useState('1');
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
+  const [yearlyData, setYearlyData] = useState([]);
+  const [peopleList, setPeopleList] = useState([]);
+  const [placeList, setPlaceList] = useState([]);
+  const [selectedYear, setSelectedYear] = useState(CURRENT_YEAR);
 
-    const data = [];
-    const currentYear = new Date().getFullYear();
-
-    for (let month = 1; month <= 12; month++) {
-      const yearMonth = `${currentYear}-${String(month).padStart(2, '0')}`;
-      const monthlyData = await ApiService.getMonthlyScheduleTrend(yearMonth);
-      data.push(monthlyData.data);
-    }
-
-    setYearlyData(data);
-  } catch (error) {
-    console.error('Failed to fetch yearly data:', error);
-  } finally {
-    setYearlyLoading(false);
+  function getCurrentMonth() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
   }
-};
 
+  const fetchYearlyData = async () => {
+    try {
+      setYearlyLoading(true);
 
+      const data = [];
+      const currentYear = CURRENT_YEAR;
+
+      for (let month = 1; month <= 12; month++) {
+        const yearMonth = `${currentYear}-${String(month).padStart(2, '0')}`;
+        const monthlyData = await ApiService.getMonthlyScheduleTrend(yearMonth);
+        data.push(monthlyData.data);
+      }
+
+      setYearlyData(data);
+    } catch (error) {
+      console.error('Failed to fetch yearly data:', error);
+    } finally {
+      setYearlyLoading(false);
+    }
+  };
     // 선택된 월에 해당하는 통계를 가져오는 함수
 const fetchStatistics = async () => {
   try {
@@ -140,11 +140,11 @@ const renderMonthlyTrend = () => {
           marginBottom: '20px',
         }}
       >
-        {[2023, 2024, 2025].map(year => (
-          <option key={year} value={year}>
-            {year}년
-          </option>
-        ))}
+       {YEAR_OPTIONS.map((year) => (
+  <option key={year} value={year}>
+    {year}년
+  </option>
+))}
       </select>
 
       <ResponsiveContainer width="100%" height={300}>
@@ -263,11 +263,12 @@ const renderYearMonthSelector = () => {
           cursor: 'pointer',
         }}
       >
-        {[2023, 2024, 2025].map((year) => (
-          <option key={year} value={year}>
-            {year}년
-          </option>
-        ))}
+        {YEAR_OPTIONS.map((year) => (
+  <option key={year} value={year}>
+    {year}년
+  </option>
+))}
+
       </select>
 
       {/* 월 셀렉 */}
