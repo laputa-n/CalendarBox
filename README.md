@@ -91,7 +91,7 @@
 </details>
 
 <details>
-  <summary>일정 지역 입력 시 <b>장소 추천</b></summary>
+  <summary>일정 지역 입력 시 ✨<b>장소 추천</b></summary>
 
   ![스크린샷 2026-02-10 175128.png](docs/images/readme/%EC%8A%A4%ED%81%AC%EB%A6%B0%EC%83%B7_2026-02-10_175128.png)
 
@@ -105,9 +105,12 @@
 </details>
 
 <details>
-  <summary><b>반복 기능</b>으로 효율적인 일정 등록/수정/삭제</summary>
+  <summary>✨<b>반복 기능</b>으로 효율적인 일정 등록/수정/삭제</summary>
+
 
   ![스크린샷 2026-02-10 180112.png](docs/images/readme/%EC%8A%A4%ED%81%AC%EB%A6%B0%EC%83%B7_2026-02-10_180112.png)
+
+  위처럼 반복 등록 시, 캘린더 조회 시 매월 2, 4번째 일요일에 반복 반영 
 
   ![스크린샷 2026-02-10 180138.png](docs/images/readme/%EC%8A%A4%ED%81%AC%EB%A6%B0%EC%83%B7_2026-02-10_180138.png)
 
@@ -137,7 +140,7 @@
 </details>
 
 <details>
-  <summary><b>영수증 업로드</b>를 통한 <b>자동 지출/지출 세부 항목 등록</b> 기능</summary>
+  <summary>✨<b>영수증 업로드</b>를 통한 <b>자동 지출/지출 세부 항목 등록</b> 기능</summary>
 
   ![스크린샷 2026-02-10 183652.png](docs/images/readme/%EC%8A%A4%ED%81%AC%EB%A6%B0%EC%83%B7_2026-02-10_183652.png)
 
